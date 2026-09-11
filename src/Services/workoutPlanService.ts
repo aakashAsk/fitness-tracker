@@ -1,0 +1,116 @@
+// Firestore-backed storage for workout plans created in NewPlanModal.
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
+import { db } from '../Firebase/firebaseConfig';
+import type { DayKey } from '../Screens/Workout/Types';
+
+const PLANS_COLLECTION = 'workoutPlans';
+
+export interface WorkoutPlanInput {
+  name: string;
+  muscles: string[];
+  exerciseIds: string[];
+  days: DayKey[];
+}
+
+export interface WorkoutPlan extends WorkoutPlanInput {
+  id: string;
+  createdAt: Date | null;
+}
+
+export class WorkoutPlanServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorkoutPlanServiceError';
+  }
+}
+
+function toWorkoutPlan(id: string, data: Record<string, unknown>): WorkoutPlan {
+  const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null;
+  return {
+    id,
+    name: (data.name as string) ?? '',
+    muscles: (data.muscles as string[]) ?? [],
+    exerciseIds: (data.exerciseIds as string[]) ?? [],
+    days: (data.days as DayKey[]) ?? [],
+    createdAt,
+  };
+}
+
+/** Saves a new workout plan and returns its generated document id. */
+export async function createWorkoutPlan(plan: WorkoutPlanInput): Promise<string> {
+  try {
+    const ref = await addDoc(collection(db, PLANS_COLLECTION), {
+      ...plan,
+      createdAt: serverTimestamp(),
+    });
+    return ref.id;
+  } catch (err) {
+    throw new WorkoutPlanServiceError(
+      err instanceof Error ? err.message : 'Failed to save the workout plan.',
+    );
+  }
+}
+
+/** One-off fetch of every saved plan, newest first. */
+export async function fetchWorkoutPlans(): Promise<WorkoutPlan[]> {
+  try {
+    const q = query(collection(db, PLANS_COLLECTION), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => toWorkoutPlan(d.id, d.data()));
+  } catch (err) {
+    throw new WorkoutPlanServiceError(
+      err instanceof Error ? err.message : 'Failed to load workout plans.',
+    );
+  }
+}
+
+/**
+ * Live subscription to the plans collection — call the returned function to
+ * unsubscribe (e.g. in a useEffect cleanup).
+ */
+export function subscribeToWorkoutPlans(
+  onChange: (plans: WorkoutPlan[]) => void,
+  onError?: (err: WorkoutPlanServiceError) => void,
+): () => void {
+  const q = query(collection(db, PLANS_COLLECTION), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snapshot) => onChange(snapshot.docs.map((d) => toWorkoutPlan(d.id, d.data()))),
+    (err) => onError?.(new WorkoutPlanServiceError(err.message)),
+  );
+}
+
+export async function updateWorkoutPlan(
+  id: string,
+  updates: Partial<WorkoutPlanInput>,
+): Promise<void> {
+  try {
+    await updateDoc(doc(db, PLANS_COLLECTION, id), { ...updates });
+  } catch (err) {
+    throw new WorkoutPlanServiceError(
+      err instanceof Error ? err.message : 'Failed to update the workout plan.',
+    );
+  }
+}
+
+export async function deleteWorkoutPlan(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, PLANS_COLLECTION, id));
+  } catch (err) {
+    throw new WorkoutPlanServiceError(
+      err instanceof Error ? err.message : 'Failed to delete the workout plan.',
+    );
+  }
+}
