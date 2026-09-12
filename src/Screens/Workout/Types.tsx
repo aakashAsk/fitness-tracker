@@ -15,6 +15,8 @@ export interface PlanItem {
   time: string;
   active: boolean;
   type: string;
+  /** Absent on the built-in demo plans — treat as 'live'. */
+  status?: 'live' | 'draft' | 'paused';
 }
 
 export type NavTab = 'home' | 'workout' | 'nutrition' | 'progress' | 'profile';

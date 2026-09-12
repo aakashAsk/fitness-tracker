@@ -15,11 +15,13 @@ import {
   Search,
   SlidersHorizontal,
   ChevronDown,
+  ChevronUp,
   Check,
   Plus,
   ArrowRight,
   Bookmark,
   Info,
+  Clock,
 } from 'lucide-react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { colors, withOpacity } from '../../Theme/colors';
@@ -38,6 +40,8 @@ export interface NewPlanPayload {
   muscles: string[];
   exerciseIds: string[];
   days: DayKey[];
+  /** e.g. "6:30 PM" — the same time slot every selected weekday. */
+  time: string;
 }
 
 interface NewPlanModalProps {
@@ -109,6 +113,26 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     Sat: false,
     Sun: false,
   });
+
+  // Session time — the same slot applies to every selected training day.
+  const [timeHour, setTimeHour] = useState(6);
+  const [timeMinute, setTimeMinute] = useState(0);
+  const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>('PM');
+  const cycleHour = (delta: 1 | -1) =>
+    setTimeHour((prev) => {
+      const next = prev + delta;
+      if (next > 12) return 1;
+      if (next < 1) return 12;
+      return next;
+    });
+  const cycleMinute = (delta: 1 | -1) =>
+    setTimeMinute((prev) => {
+      const next = prev + delta * 5;
+      if (next >= 60) return 0;
+      if (next < 0) return 55;
+      return next;
+    });
+  const formattedTime = `${timeHour}:${String(timeMinute).padStart(2, '0')} ${timePeriod}`;
 
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
@@ -262,7 +286,13 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     [days],
   );
 
-  const payload: NewPlanPayload = { name, muscles, exerciseIds, days: activeDays };
+  const payload: NewPlanPayload = {
+    name,
+    muscles,
+    exerciseIds,
+    days: activeDays,
+    time: formattedTime,
+  };
 
   const handleCreate = () => {
     if (!name.trim()) {
@@ -558,6 +588,89 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                 {activeDays.length > 0
                   ? `${activeDays.length} days selected: ${activeDays.join(', ')}`
                   : 'No training days selected'}
+              </Text>
+            </View>
+
+            {/* SECTION 4b: SESSION TIME — applies to every selected day above */}
+            <View style={styles.field}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelCaps}>SESSION TIME</Text>
+                <View style={styles.autoBalancedRow}>
+                  <Clock size={13} color={colors.secondary} />
+                  <Text style={styles.autoBalancedText}>Same time every day</Text>
+                </View>
+              </View>
+
+              <View style={styles.timeDial}>
+                <View style={styles.timeStepper}>
+                  <Pressable
+                    accessibilityLabel="Increase hour"
+                    hitSlop={8}
+                    onPress={() => cycleHour(1)}
+                    style={styles.timeStepBtn}
+                  >
+                    <ChevronUp size={16} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                  <Text style={styles.timeValue}>{timeHour}</Text>
+                  <Pressable
+                    accessibilityLabel="Decrease hour"
+                    hitSlop={8}
+                    onPress={() => cycleHour(-1)}
+                    style={styles.timeStepBtn}
+                  >
+                    <ChevronDown size={16} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                </View>
+
+                <Text style={styles.timeColon}>:</Text>
+
+                <View style={styles.timeStepper}>
+                  <Pressable
+                    accessibilityLabel="Increase minute"
+                    hitSlop={8}
+                    onPress={() => cycleMinute(1)}
+                    style={styles.timeStepBtn}
+                  >
+                    <ChevronUp size={16} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                  <Text style={styles.timeValue}>{String(timeMinute).padStart(2, '0')}</Text>
+                  <Pressable
+                    accessibilityLabel="Decrease minute"
+                    hitSlop={8}
+                    onPress={() => cycleMinute(-1)}
+                    style={styles.timeStepBtn}
+                  >
+                    <ChevronDown size={16} color={colors.onSurfaceVariant} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.periodWrap}>
+                  {(['AM', 'PM'] as const).map((period) => {
+                    const selected = timePeriod === period;
+                    return (
+                      <Pressable
+                        key={period}
+                        onPress={() => setTimePeriod(period)}
+                        style={[styles.periodBtn, selected ? styles.periodActive : styles.periodIdle]}
+                      >
+                        <Text
+                          style={[
+                            styles.periodText,
+                            selected ? styles.chipTextActive : styles.chipTextIdle,
+                          ]}
+                        >
+                          {period}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <Text style={styles.recurrenceNote}>
+                {activeDays.length > 0
+                  ? `Scheduled ${formattedTime} on ${activeDays.join(', ')}`
+                  : 'Pick training days above to see the full schedule'}
               </Text>
             </View>
           </ScrollView>
@@ -1029,6 +1142,44 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerHighest,
   },
   recurrenceNote: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
+
+  timeDial: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: radius.md,
+    backgroundColor: colors.canvasDeep,
+    borderWidth: 1,
+    borderColor: withOpacity(colors.border, 0.6),
+    paddingVertical: 12,
+  },
+  timeStepper: { alignItems: 'center', gap: 2 },
+  timeStepBtn: {
+    width: 28,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeValue: {
+    minWidth: 36,
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.onSurface,
+  },
+  timeColon: { fontSize: 24, fontWeight: '800', color: colors.primary },
+  periodWrap: { gap: 4, marginLeft: 8 },
+  periodBtn: {
+    height: 26,
+    paddingHorizontal: 12,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  periodActive: { backgroundColor: colors.primary },
+  periodIdle: { backgroundColor: colors.surfaceContainerHigh },
+  periodText: { fontSize: 11, fontWeight: '700' },
 
   footer: {
     paddingHorizontal: 16,

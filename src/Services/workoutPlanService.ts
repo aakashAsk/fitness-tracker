@@ -17,11 +17,16 @@ import type { DayKey } from '../Screens/Workout/Types';
 
 const PLANS_COLLECTION = 'workoutPlans';
 
+export type WorkoutPlanStatus = 'live' | 'draft' | 'paused';
+
 export interface WorkoutPlanInput {
   name: string;
   muscles: string[];
   exerciseIds: string[];
   days: DayKey[];
+  /** e.g. "6:30 PM" — the same time slot on every day in `days`. */
+  time: string;
+  status: WorkoutPlanStatus;
 }
 
 export interface WorkoutPlan extends WorkoutPlanInput {
@@ -44,8 +49,25 @@ function toWorkoutPlan(id: string, data: Record<string, unknown>): WorkoutPlan {
     muscles: (data.muscles as string[]) ?? [],
     exerciseIds: (data.exerciseIds as string[]) ?? [],
     days: (data.days as DayKey[]) ?? [],
+    // Older docs saved before the time picker was added won't have this.
+    time: (data.time as string) ?? '',
+    // Older docs predate the status field too — treat them as live.
+    status: (data.status as WorkoutPlanStatus) ?? 'live',
     createdAt,
   };
+}
+
+/**
+ * Parses a "6:30 PM" / "06:05 AM" style string into minutes since midnight,
+ * for chronological sorting. Unparseable input sorts to the start of day.
+ */
+export function parseTimeToMinutes(time: string): number {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 0;
+  const [, hourStr, minuteStr, period] = match;
+  let hour = parseInt(hourStr, 10) % 12;
+  if (period.toUpperCase() === 'PM') hour += 12;
+  return hour * 60 + parseInt(minuteStr, 10);
 }
 
 /** Saves a new workout plan and returns its generated document id. */

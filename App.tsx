@@ -23,6 +23,13 @@ type NavTab = 'home' | 'workout' | 'nutrition' | 'progress';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [showSchedule, setShowSchedule] = useState(false);
+
+  // Switching tabs backs out of the Schedule overlay, same as a "back" action.
+  const handleTabPress = (tab: NavTab) => {
+    setShowSchedule(false);
+    setActiveTab(tab);
+  };
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -61,11 +68,6 @@ export default function App() {
     }
   };
 
-  const handleAddPress = () => {
-    // Open your Quick Action / Add menu here
-    console.log('Plus button pressed');
-  };
-
   return (
     <SafeAreaProvider style={styles.safeArea}>
       <SafeAreaView style={styles.safeArea}>
@@ -75,13 +77,13 @@ export default function App() {
         />
 
         <View style={styles.content}>
-          {renderScreen()}
+          {showSchedule ? <ScheduleScreen /> : renderScreen()}
         </View>
 
         <BottomNavBar
           activeTab={activeTab}
-          onTabPress={setActiveTab}
-          onCenterPress={() => console.log('center pressed')}
+          onTabPress={handleTabPress}
+          onCenterPress={() => setShowSchedule(true)}
         />
       </SafeAreaView>
     </SafeAreaProvider>

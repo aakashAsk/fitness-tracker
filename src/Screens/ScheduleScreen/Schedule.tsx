@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, StatusBar, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../Theme/colors';
+import { Dumbbell } from 'lucide-react-native';
+import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 
 import AppHeader from './AppHeader';
@@ -10,11 +11,20 @@ import { DateStripHandle } from './DateNavigator';
 import WeekStrip, { WeekDay } from './WeekStrip';
 import ViewToggle, { ScheduleView } from './ViewToggle';
 import UpcomingSection from './UpcomingSection';
-import TimelineRow from './TimelineRow';
+import TimelineRow, { TimelineRowData } from './TimelineRow';
 import AICoachBanner from './AICoachBanner';
 
 import { weekDays, upcomingItems, timelineRows } from './ScheduleData';
 import InfiniteDateStrip from './DateNavigator';
+import {
+  parseTimeToMinutes,
+  subscribeToWorkoutPlans,
+  WorkoutPlan,
+} from '../../Services/workoutPlanService';
+import { DayKey } from '../Workout/Types';
+
+// Date.getDay(): 0 = Sunday ... 6 = Saturday.
+const WEEKDAY_BY_INDEX: DayKey[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const AVATAR_URL =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuAcdSGhuuZvdjCJ0L7R7npJac0qHdys6wmpoA-IZ-StuvlJ70zHTq271zNycsDusMRMHjS_ECIOGJFAmcoG7Er6NJUzKNkT1owV07G25nNf5YCJvqjA8R_gItCNHU6giPmP94Qji1KRtNGc8kBxH2PkNY0dgAGzM-oiO5KdT5c2kHwcCotoOYMKOaWXpeUdpjgiBWON1UcSzCcZHxDKFhlpGfRVjQO9jfG5HL8D_02mSuV4Mxvb6NBLMQ';
@@ -44,6 +54,54 @@ export default function ScheduleScreen() {
   const handleSelectDay = (day: WeekDay) => {
     setDays((prev) => prev.map((d) => ({ ...d, isActive: d.label === day.label })));
   };
+
+  // Plans created in NewPlanModal, live from Firestore.
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  useEffect(() => {
+    const unsubscribe = subscribeToWorkoutPlans(
+      setWorkoutPlans,
+      (err) => console.warn('[schedule]', err.message),
+    );
+    return unsubscribe;
+  }, []);
+
+  // Only the plans scheduled on the currently selected date's weekday, as
+  // timeline rows at their chosen time — so a plan for Mon/Wed/Fri only
+  // ever shows up when selectedDate actually falls on one of those days.
+  const planRows: TimelineRowData[] = useMemo(() => {
+    const weekday = WEEKDAY_BY_INDEX[selectedDate.getDay()];
+    return workoutPlans
+      .filter((plan) => plan.status === 'live' && plan.days.includes(weekday) && plan.time)
+      .map((plan) => ({
+        id: `plan-${plan.id}`,
+        time: plan.time,
+        kind: 'cards' as const,
+        cards: [
+          {
+            id: `plan-${plan.id}-card`,
+            icon: Dumbbell,
+            iconColor: colors.primary,
+            iconBg: withOpacity(colors.primary, 0.15),
+            title: plan.name,
+            badge: { label: 'Scheduled', variant: 'focus' as const },
+            description:
+              `${plan.exerciseIds.length} exercises` +
+              (plan.muscles.length > 0 ? ` · ${plan.muscles.join(', ')}` : ''),
+            timeRange: plan.time,
+          },
+        ],
+      }));
+  }, [workoutPlans, selectedDate]);
+
+  // Merge the (static, demo) mock timeline with real plan rows for the
+  // selected day, kept in chronological order.
+  const mergedRows: TimelineRowData[] = useMemo(
+    () =>
+      [...rowsWithHandlers, ...planRows].sort(
+        (a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time),
+      ),
+    [rowsWithHandlers, planRows],
+  );
 
   const onSelectedDate = () => {
     console.log('Selected Date:', selectedDate);
@@ -82,7 +140,7 @@ export default function ScheduleScreen() {
         <UpcomingSection items={upcomingItems} />
 
         <View style={styles.timeline}>
-          {rowsWithHandlers.map((row) => (
+          {mergedRows.map((row) => (
             <TimelineRow key={row.id} row={row} />
           ))}
         </View>

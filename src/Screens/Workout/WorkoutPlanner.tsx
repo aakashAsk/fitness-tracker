@@ -20,6 +20,7 @@ import { NewPlanModal } from './NewPlanModal';
 import {
   createWorkoutPlan,
   subscribeToWorkoutPlans,
+  updateWorkoutPlan,
   WorkoutPlan,
   WorkoutPlanServiceError,
 } from '../../Services/workoutPlanService';
@@ -37,11 +38,10 @@ function toPlanItem(plan: WorkoutPlan, active: boolean): PlanItem {
     title: plan.name,
     daysPerWeek: plan.days.length,
     scheduleDays: plan.days.length > 0 ? plan.days.join(' · ') : 'No days set',
-    time: plan.createdAt
-      ? plan.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : 'Just now',
+    time: plan.time || 'Not scheduled',
     active,
     type: plan.muscles.length > 0 ? plan.muscles.join(' & ') : 'Custom Plan',
+    status: plan.status,
   };
 }
 
@@ -53,9 +53,13 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
   const [plans, setPlans] = useState<PlanItem[]>(INITIAL_PLANS);
 
   // Live Firestore plans, newest first, prepended ahead of the demo plans.
+  // Kept in raw form too (`firestorePlanIds`) so pause/resume knows whether
+  // a plan actually lives in Firestore or is just the built-in demo data.
+  const [firestorePlanIds, setFirestorePlanIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     const unsubscribe = subscribeToWorkoutPlans(
       (firestorePlans) => {
+        setFirestorePlanIds(new Set(firestorePlans.map((p) => p.id)));
         setPlans((prev) => {
           const activeIds = new Set(prev.filter((p) => p.active).map((p) => p.id));
           const mapped = firestorePlans.map((p) => toPlanItem(p, activeIds.has(p.id)));
@@ -87,7 +91,6 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
   const [showSaveSuccess, setShowSaveSuccess] = useState<boolean>(false);
   const [showEditPlanModal, setShowEditPlanModal] = useState<boolean>(false);
   const [showNewPlanModal, setShowNewPlanModal] = useState<boolean>(false);
-  const [planPaused, setPlanPaused] = useState<boolean>(false);
 
   // Bottom toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -122,6 +125,30 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
   };
 
   const activePlan = plans.find((p) => p.active) || plans[0];
+  const planPaused = activePlan.status === 'paused';
+
+  // Pause/resume the active plan. Persists to Firestore for real plans;
+  // the built-in demo plans (not in `firestorePlanIds`) only update locally.
+  const handleTogglePause = async () => {
+    const nextStatus: PlanItem['status'] = planPaused ? 'live' : 'paused';
+    const targetId = activePlan.id;
+
+    setPlans((prev) =>
+      prev.map((p) => (p.id === targetId ? { ...p, status: nextStatus } : p)),
+    );
+
+    if (firestorePlanIds.has(targetId)) {
+      try {
+        await updateWorkoutPlan(targetId, { status: nextStatus });
+      } catch (err) {
+        showToast(
+          err instanceof WorkoutPlanServiceError
+            ? err.message
+            : 'Could not update the plan status.',
+        );
+      }
+    }
+  };
 
   // Save Plan
   const handleSavePlan = () => {
@@ -195,7 +222,7 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
             isPaused={planPaused}
             onStartWorkout={() => setShowStartWorkoutModal(true)}
             onEditPlan={() => setShowEditPlanModal(true)}
-            onTogglePause={() => setPlanPaused(!planPaused)}
+            onTogglePause={handleTogglePause}
           />
 
           <SavedPlansList plans={plans} onActivate={handleActivatePlan} />
@@ -291,7 +318,7 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
             console.log('New workout plan:', payload);
             setShowNewPlanModal(false);
             try {
-              await createWorkoutPlan(payload);
+              await createWorkoutPlan({ ...payload, status: 'live' });
               showToast('Workout plan created!');
             } catch (err) {
               showToast(
@@ -301,9 +328,19 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
               );
             }
           }}
-          onSaveDraft={(payload) =>
-            Alert.alert('Draft saved', `"${payload.name}" saved as a draft.`)
-          }
+          onSaveDraft={async (payload) => {
+            setShowNewPlanModal(false);
+            try {
+              await createWorkoutPlan({ ...payload, status: 'draft' });
+              showToast('Saved as draft.');
+            } catch (err) {
+              showToast(
+                err instanceof WorkoutPlanServiceError
+                  ? err.message
+                  : 'Could not save the draft. Check your connection.',
+              );
+            }
+          }}
         />
       )}
 
