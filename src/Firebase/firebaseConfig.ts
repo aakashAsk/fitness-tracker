@@ -15,15 +15,6 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  // Fails loud in dev rather than silently making requests that 400.
-  console.warn(
-    '[firebase] Missing config — copy .env.example values for ' +
-      'EXPO_PUBLIC_FIREBASE_* from your Firebase project settings into .env, ' +
-      'then restart the dev server (env vars are only read at Metro startup).',
-  );
-}
-
 // Reuse the existing app on Fast Refresh instead of calling
 // initializeApp() twice (which throws "already exists").
 export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);

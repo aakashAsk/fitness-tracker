@@ -69,6 +69,7 @@ export default function TimelineCard({ data }: { data: TimelineCardData }) {
 
       <Text style={styles.description}>{data.description}</Text>
 
+      {/* Commented out for now — no plan currently sets `progress`.
       {typeof data.progress === 'number' && (
         <View style={styles.progressRow}>
           <View style={styles.progressTrack}>
@@ -78,6 +79,7 @@ export default function TimelineCard({ data }: { data: TimelineCardData }) {
           {data.liveTimeLabel && <Text style={styles.liveTimeLabel}>{data.liveTimeLabel}</Text>}
         </View>
       )}
+      */}
 
       {data.exercises && (
         <View style={styles.exerciseList}>

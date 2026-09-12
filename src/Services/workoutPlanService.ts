@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import type { DayKey } from '../Screens/Workout/Types';
+import { CURRENT_USER_ID } from './userService';
 
 const PLANS_COLLECTION = 'workoutPlans';
 
@@ -31,6 +32,7 @@ export interface WorkoutPlanInput {
 
 export interface WorkoutPlan extends WorkoutPlanInput {
   id: string;
+  userId: string;
   createdAt: Date | null;
 }
 
@@ -53,6 +55,8 @@ function toWorkoutPlan(id: string, data: Record<string, unknown>): WorkoutPlan {
     time: (data.time as string) ?? '',
     // Older docs predate the status field too — treat them as live.
     status: (data.status as WorkoutPlanStatus) ?? 'live',
+    // Older docs predate per-user scoping.
+    userId: (data.userId as string) ?? CURRENT_USER_ID,
     createdAt,
   };
 }
@@ -70,11 +74,12 @@ export function parseTimeToMinutes(time: string): number {
   return hour * 60 + parseInt(minuteStr, 10);
 }
 
-/** Saves a new workout plan and returns its generated document id. */
+/** Saves a new workout plan (scoped to CURRENT_USER_ID) and returns its id. */
 export async function createWorkoutPlan(plan: WorkoutPlanInput): Promise<string> {
   try {
     const ref = await addDoc(collection(db, PLANS_COLLECTION), {
       ...plan,
+      userId: CURRENT_USER_ID,
       createdAt: serverTimestamp(),
     });
     return ref.id;
@@ -85,12 +90,24 @@ export async function createWorkoutPlan(plan: WorkoutPlanInput): Promise<string>
   }
 }
 
-/** One-off fetch of every saved plan, newest first. */
+/**
+ * One-off fetch of every saved plan for the current user, newest first.
+ *
+ * The `userId` scoping is applied client-side (not as a Firestore `where`)
+ * because Firestore equality filters never match a document that's missing
+ * the field entirely — every plan saved before per-user scoping was added
+ * has no `userId` field at all, and a server-side filter would silently
+ * hide them forever. `toWorkoutPlan` already defaults a missing `userId`
+ * to CURRENT_USER_ID, so filtering after that mapping keeps old data
+ * visible under the current placeholder user.
+ */
 export async function fetchWorkoutPlans(): Promise<WorkoutPlan[]> {
   try {
     const q = query(collection(db, PLANS_COLLECTION), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => toWorkoutPlan(d.id, d.data()));
+    return snapshot.docs
+      .map((d) => toWorkoutPlan(d.id, d.data()))
+      .filter((plan) => plan.userId === CURRENT_USER_ID);
   } catch (err) {
     throw new WorkoutPlanServiceError(
       err instanceof Error ? err.message : 'Failed to load workout plans.',
@@ -99,8 +116,9 @@ export async function fetchWorkoutPlans(): Promise<WorkoutPlan[]> {
 }
 
 /**
- * Live subscription to the plans collection — call the returned function to
- * unsubscribe (e.g. in a useEffect cleanup).
+ * Live subscription to the current user's plans — call the returned
+ * function to unsubscribe (e.g. in a useEffect cleanup). See
+ * `fetchWorkoutPlans` for why the userId filter is applied client-side.
  */
 export function subscribeToWorkoutPlans(
   onChange: (plans: WorkoutPlan[]) => void,
@@ -109,7 +127,12 @@ export function subscribeToWorkoutPlans(
   const q = query(collection(db, PLANS_COLLECTION), orderBy('createdAt', 'desc'));
   return onSnapshot(
     q,
-    (snapshot) => onChange(snapshot.docs.map((d) => toWorkoutPlan(d.id, d.data()))),
+    (snapshot) =>
+      onChange(
+        snapshot.docs
+          .map((d) => toWorkoutPlan(d.id, d.data()))
+          .filter((plan) => plan.userId === CURRENT_USER_ID),
+      ),
     (err) => onError?.(new WorkoutPlanServiceError(err.message)),
   );
 }

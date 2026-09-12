@@ -1,6 +1,7 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -33,11 +34,11 @@ function toKey(date: Date) {
 }
 
 // How far back/forward the strip goes. Cheap to generate — a Date object
-// is tiny, and FlatList only mounts what's actually visible, so 4 years
-// of days (~1460 items) costs nothing at runtime. Bump this if your app
-// genuinely needs a wider horizon (e.g. lifetime habit tracking).
-const YEARS_BACK = 2;
-const YEARS_FORWARD = 2;
+// is tiny, and FlatList only mounts what's actually visible, so even a
+// wider horizon costs nothing at runtime. Bump this if the app needs more.
+const MONTHS_BACK = 2;
+const MONTHS_FORWARD = 2;
+const DAYS_PER_MONTH = 30; // approximate — fine for a scroll-range bound
 
 // --- Component ----------------------------------------------------------
 
@@ -67,8 +68,8 @@ const InfiniteDateStrip = forwardRef<DateStripHandle, InfiniteDateStripProps>(
     // The full virtual range. Building this once with useMemo means it's
     // only computed on mount, not on every render/selection change.
     const dates = useMemo(() => {
-      const start = addDays(today, -365 * YEARS_BACK);
-      const totalDays = 365 * (YEARS_BACK + YEARS_FORWARD);
+      const start = addDays(today, -DAYS_PER_MONTH * MONTHS_BACK);
+      const totalDays = DAYS_PER_MONTH * (MONTHS_BACK + MONTHS_FORWARD);
       return Array.from({ length: totalDays }, (_, i) => addDays(start, i));
     }, [today]);
 
@@ -83,19 +84,29 @@ const InfiniteDateStrip = forwardRef<DateStripHandle, InfiniteDateStripProps>(
     // jumps straight to initialScrollIndex without ever firing onScroll
     // for it — without this seed, a "next week" tap before any manual
     // scrolling would wrongly think it's starting from the very beginning.
-    const scrollOffsetRef = useRef(todayIndex * STEP);
+    const scrollOffsetRef = useRef(spacing.gutterMobile + todayIndex * STEP);
 
     const scrollToDate = useCallback(
-      (date: Date) => {
+      (date: Date, animated = true) => {
         const index = dates.findIndex((d) => isSameDay(d, date));
         if (index >= 0) {
-          listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+          listRef.current?.scrollToIndex({ index, animated, viewPosition: 0.5 });
         }
       },
       [dates]
     );
 
-    const maxOffset = (dates.length - 1) * STEP;
+    // Keeps whatever date is selected centered in the strip — on the
+    // initial date (no animation, so it doesn't visibly slide in from the
+    // edge on mount) and every time it changes afterward (animated), from
+    // either a tap on the strip itself or selectedDate changing externally.
+    const hasCenteredRef = useRef(false);
+    useEffect(() => {
+      scrollToDate(selectedDate, hasCenteredRef.current);
+      hasCenteredRef.current = true;
+    }, [selectedDate, scrollToDate]);
+
+    const maxOffset = spacing.gutterMobile + (dates.length - 1) * STEP;
 
     const scrollByWeek = useCallback(
       (direction: -1 | 1) => {
@@ -115,8 +126,17 @@ const InfiniteDateStrip = forwardRef<DateStripHandle, InfiniteDateStripProps>(
       scrollByWeek,
     }));
 
+    // `length` must be the item's own width (not item+gap) and `offset`
+    // must include the list's leading paddingHorizontal — FlatList uses
+    // both verbatim (not the actual measured layout) to compute where an
+    // item sits, so getting either wrong throws off scrollToIndex's
+    // viewPosition centering by a consistent, systematic amount.
     const getItemLayout = useCallback(
-      (_: unknown, index: number) => ({ length: STEP, offset: STEP * index, index }),
+      (_: unknown, index: number) => ({
+        length: ITEM_WIDTH,
+        offset: spacing.gutterMobile + STEP * index,
+        index,
+      }),
       []
     );
 
@@ -178,7 +198,11 @@ const InfiniteDateStrip = forwardRef<DateStripHandle, InfiniteDateStripProps>(
         // estimated offset is briefly wrong during fast scrolling.
         onScrollToIndexFailed={(info) => {
           setTimeout(() => {
-            listRef.current?.scrollToIndex({ index: info.index, animated: false });
+            listRef.current?.scrollToIndex({
+              index: info.index,
+              animated: false,
+              viewPosition: 0.5,
+            });
           }, 50);
         }}
         contentContainerStyle={styles.listContent}

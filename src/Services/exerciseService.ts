@@ -6,14 +6,6 @@
 // package needed. See `.env.example` for the expected key.
 const BASE_URL = process.env.EXPO_PUBLIC_EXERCISE_API_BASE_URL;
 
-if (!BASE_URL) {
-  // Fails fast in dev rather than silently hitting a relative/undefined URL.
-  console.warn(
-    '[exerciseService] EXPO_PUBLIC_EXERCISE_API_BASE_URL is not set — ' +
-      'copy .env.example to .env and restart the dev server.',
-  );
-}
-
 export type ExerciseForce = 'push' | 'pull' | 'static' | null;
 export type ExerciseLevel = 'beginner' | 'intermediate' | 'expert';
 export type ExerciseMechanic = 'compound' | 'isolation' | null;
@@ -108,6 +100,40 @@ export function fetchExercises(filters: ExerciseFilters = {}): Promise<Exercise[
 /** GET /exercises/:id — a single exercise by its slug id (e.g. "3_4_Sit-Up"). */
 export function fetchExerciseById(id: string): Promise<Exercise> {
   return request<Exercise>(`/exercises/${encodeURIComponent(id)}`);
+}
+
+/**
+ * POST /exercises/bulk — resolves many exercise ids in one request, e.g.
+ * to hydrate a saved plan's `exerciseIds` back into full Exercise records
+ * for display. Order of the response isn't guaranteed to match `ids`.
+ */
+export async function fetchExercisesBulk(ids: string[]): Promise<Exercise[]> {
+  if (ids.length === 0) return [];
+  if (!BASE_URL) {
+    throw new ExerciseApiError('Exercise API base URL is not configured.');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(new URL('/exercises/bulk', BASE_URL).toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+  } catch (err) {
+    throw new ExerciseApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+    );
+  }
+
+  if (!response.ok) {
+    throw new ExerciseApiError(
+      `Exercise API request failed: ${response.status} ${response.statusText}`,
+      response.status,
+    );
+  }
+
+  return response.json() as Promise<Exercise[]>;
 }
 
 /** GET /muscles — the full list of muscle group names used to filter exercises. */

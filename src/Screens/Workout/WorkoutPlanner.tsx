@@ -313,7 +313,6 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
         <NewPlanModal
           onClose={() => setShowNewPlanModal(false)}
           onCreate={async (payload) => {
-            console.log('New workout plan:', payload);
             setShowNewPlanModal(false);
             try {
               await createWorkoutPlan({ ...payload, status: 'live' });
