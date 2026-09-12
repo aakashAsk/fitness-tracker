@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, StatusBar, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dumbbell } from 'lucide-react-native';
@@ -16,11 +16,8 @@ import AICoachBanner from './AICoachBanner';
 
 import { weekDays, upcomingItems, timelineRows } from './ScheduleData';
 import InfiniteDateStrip from './DateNavigator';
-import {
-  parseTimeToMinutes,
-  subscribeToWorkoutPlans,
-  WorkoutPlan,
-} from '../../Services/workoutPlanService';
+import { parseTimeToMinutes } from '../../Services/workoutPlanService';
+import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import { DayKey } from '../Workout/Types';
 
 // Date.getDay(): 0 = Sunday ... 6 = Saturday.
@@ -55,15 +52,10 @@ export default function ScheduleScreen() {
     setDays((prev) => prev.map((d) => ({ ...d, isActive: d.label === day.label })));
   };
 
-  // Plans created in NewPlanModal, live from Firestore.
-  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
-  useEffect(() => {
-    const unsubscribe = subscribeToWorkoutPlans(
-      setWorkoutPlans,
-      (err) => console.warn('[schedule]', err.message),
-    );
-    return unsubscribe;
-  }, []);
+  // Plans created in NewPlanModal — read from the shared Redux store (kept
+  // live by App.tsx's single useWorkoutPlansSync() listener) instead of
+  // running a second subscribeToWorkoutPlans() subscription here.
+  const workoutPlans = useWorkoutPlans();
 
   // Only the plans scheduled on the currently selected date's weekday, as
   // timeline rows at their chosen time — so a plan for Mon/Wed/Fri only

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Zap, Plus } from 'lucide-react-native';
 
@@ -19,11 +19,11 @@ import { EditPlanModal } from './EditPlanModal';
 import { NewPlanModal } from './NewPlanModal';
 import {
   createWorkoutPlan,
-  subscribeToWorkoutPlans,
   updateWorkoutPlan,
   WorkoutPlan,
   WorkoutPlanServiceError,
 } from '../../Services/workoutPlanService';
+import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 
 interface WorkoutPlannerScreenProps {
   onOpenQuickAdd?: () => void;
@@ -49,27 +49,25 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
   // Navigation
   const [activeNavTab, setActiveNavTab] = useState<NavTab>('workout');
 
-  // Active Plan States
-  const [plans, setPlans] = useState<PlanItem[]>(INITIAL_PLANS);
+  // Live Firestore plans — synced into Redux once at the app root
+  // (App.tsx's useWorkoutPlansSync), so every screen just reads the shared
+  // store instead of running its own subscribeToWorkoutPlans() listener.
+  const firestorePlans = useWorkoutPlans();
+  const firestorePlanIds = useMemo(
+    () => new Set(firestorePlans.map((p) => p.id)),
+    [firestorePlans],
+  );
 
-  // Live Firestore plans, newest first, prepended ahead of the demo plans.
-  // Kept in raw form too (`firestorePlanIds`) so pause/resume knows whether
-  // a plan actually lives in Firestore or is just the built-in demo data.
-  const [firestorePlanIds, setFirestorePlanIds] = useState<Set<string>>(new Set());
+  // Active Plan States — Firestore plans (newest first) prepended ahead of
+  // the demo plans, re-derived whenever the store updates.
+  const [plans, setPlans] = useState<PlanItem[]>(INITIAL_PLANS);
   useEffect(() => {
-    const unsubscribe = subscribeToWorkoutPlans(
-      (firestorePlans) => {
-        setFirestorePlanIds(new Set(firestorePlans.map((p) => p.id)));
-        setPlans((prev) => {
-          const activeIds = new Set(prev.filter((p) => p.active).map((p) => p.id));
-          const mapped = firestorePlans.map((p) => toPlanItem(p, activeIds.has(p.id)));
-          return [...mapped, ...INITIAL_PLANS];
-        });
-      },
-      (err) => console.warn('[workoutPlans]', err.message),
-    );
-    return unsubscribe;
-  }, []);
+    setPlans((prev) => {
+      const activeIds = new Set(prev.filter((p) => p.active).map((p) => p.id));
+      const mapped = firestorePlans.map((p) => toPlanItem(p, activeIds.has(p.id)));
+      return [...mapped, ...INITIAL_PLANS];
+    });
+  }, [firestorePlans]);
 
   // Plan builder state
   const [trainingDays, setTrainingDays] = useState(INITIAL_TRAINING_DAYS);

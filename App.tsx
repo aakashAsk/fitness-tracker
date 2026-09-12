@@ -10,6 +10,7 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
+import { Provider } from 'react-redux';
 
 import LiveTelemetry from './src/Screens/Dashboard/LiveTelementry';
 import TodaysWorkoutCard from './src/Screens/Dashboard/TodaysWorkout';
@@ -18,10 +19,16 @@ import { colors } from './src/Theme/colors';
 import BottomNavBar from './src/Components/Navigation';
 import ScheduleScreen from './src/Screens/ScheduleScreen/Schedule';
 import { WorkoutPlanner } from './src/Screens/Workout/WorkoutPlanner';
+import { store } from './src/Store/store';
+import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 
 type NavTab = 'home' | 'workout' | 'nutrition' | 'progress';
 
-export default function App() {
+function AppContent() {
+  // One Firestore listener for the whole app — every screen reads the
+  // result from the Redux store instead of subscribing individually.
+  useWorkoutPlansSync();
+
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [showSchedule, setShowSchedule] = useState(false);
 
@@ -87,6 +94,14 @@ export default function App() {
         />
       </SafeAreaView>
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <Provider store={store}>
+      <AppContent />
+    </Provider>
   );
 }
 
