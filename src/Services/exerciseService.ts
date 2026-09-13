@@ -32,6 +32,39 @@ export interface Exercise {
   images: string[];
 }
 
+/**
+ * The equipment types a load is actually entered against. Everything
+ * else in the dataset — "body only", "bands", "foam roll", "exercise
+ * ball", "other", or no equipment at all — is either bodyweight or has
+ * no meaningful kg figure, so asking for one just invites a stray 0 in
+ * the log.
+ *
+ * Values are the Free Exercise DB's own `equipment` strings.
+ */
+const WEIGHTED_EQUIPMENT = new Set([
+  'dumbbell',
+  'barbell',
+  'e-z curl bar',
+  'kettlebells',
+  'medicine ball',
+  'cable',
+  'machine',
+]);
+
+/**
+ * Whether an exercise's sets should collect a weight.
+ *
+ * Unknown equipment (null, or a value the dataset adds later) counts as
+ * weighted: hiding the field wrongly loses data the user cannot enter
+ * anywhere else, while showing it wrongly costs only an ignored input.
+ */
+export function isWeightedEquipment(equipment: string | null | undefined): boolean {
+  if (equipment == null) return true;
+  const normalized = equipment.trim().toLowerCase();
+  if (!normalized) return true;
+  return WEIGHTED_EQUIPMENT.has(normalized);
+}
+
 export interface ExerciseFilters {
   muscle?: string;
   category?: ExerciseCategory | string;

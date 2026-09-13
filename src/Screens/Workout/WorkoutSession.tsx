@@ -55,7 +55,11 @@ import {
     applyOccurrencesToEvents,
     getEventsForDate,
 } from '../../Services/calendarEventService';
-import { Exercise, fetchExercisesBulk } from '../../Services/exerciseService';
+import {
+    Exercise,
+    fetchExercisesBulk,
+    isWeightedEquipment,
+} from '../../Services/exerciseService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 
 // Live version of the Workout tab: the exercise list below the date
@@ -145,6 +149,9 @@ interface PlanExerciseRow {
     // e.g. "Chest • Barbell" — primary muscle + equipment, when the
     // exercise API has resolved this id; blank while it's still loading.
     meta: string;
+    // Whether this exercise's sets take a kg figure — false for
+    // bodyweight work, where a weight field would only ever collect 0.
+    isWeighted: boolean;
     Icon: typeof PersonStanding;
     iconColor: string;
     iconBg: string;
@@ -398,6 +405,7 @@ export const WorkoutSession: React.FC = () => {
                     exerciseId: id,
                     name: details?.name ?? humanizeExerciseId(id),
                     meta,
+                    isWeighted: isWeightedEquipment(details?.equipment),
                     Icon: style.Icon,
                     iconColor: style.iconColor,
                     iconBg: withOpacity(style.iconColor, 0.16),
@@ -568,7 +576,13 @@ export const WorkoutSession: React.FC = () => {
                     sets: (exerciseInputs[inputKey(dateKey, exercise.id)] ?? [EMPTY_SET_INPUT]).map(
                         (set) => ({
                             reps: parseInt(set.reps, 10) || 0,
-                            weight: parseFloat(set.weight) || 0,
+                            // Forced to 0 where there is no weight field
+                            // to see: the carry-forward prefill fills
+                            // every exercise from history, so a
+                            // bodyweight movement can hold a stale kg
+                            // value the user was never shown and has no
+                            // way to clear.
+                            weight: exercise.isWeighted ? parseFloat(set.weight) || 0 : 0,
                         }),
                     ),
                 })),
@@ -1039,13 +1053,18 @@ export const WorkoutSession: React.FC = () => {
                                                                 stepSetInput(exercise.id, setIndex, 'reps', direction)
                                                             }
                                                         />
-                                                        <SetStepper
-                                                            value={set.weight}
-                                                            unit="kg"
-                                                            onStep={(direction) =>
-                                                                stepSetInput(exercise.id, setIndex, 'weight', direction)
-                                                            }
-                                                        />
+                                                        {/* Bodyweight and band work take no
+                                                            load, so there is nothing to enter —
+                                                            see isWeightedEquipment. */}
+                                                        {exercise.isWeighted ? (
+                                                            <SetStepper
+                                                                value={set.weight}
+                                                                unit="kg"
+                                                                onStep={(direction) =>
+                                                                    stepSetInput(exercise.id, setIndex, 'weight', direction)
+                                                                }
+                                                            />
+                                                        ) : null}
                                                         {setInputs.length > 1 ? (
                                                             <TouchableOpacity
                                                                 activeOpacity={0.7}
