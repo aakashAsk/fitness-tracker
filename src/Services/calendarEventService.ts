@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import type { DayKey } from '../Screens/Workout/Types';
 import type { WorkoutPlan } from './workoutPlanService';
+import type { WorkoutLog } from './workoutLogService';
 import { getCurrentUserId } from './userService';
 import { useWorkoutPlans } from '../Store/workoutPlansSlice';
 
@@ -23,6 +24,12 @@ export interface CalendarEvent {
   exerciseIds: string[];
   /** id of the underlying record this event was derived from. */
   sourceId: string;
+  /**
+   * True when this date has its own materialized occurrence overriding
+   * the plan's exercise list — i.e. the user edited this day alone. The
+   * exercises above then come from that row, not from the plan.
+   */
+  isOverridden: boolean;
 }
 
 const WEEKDAY_BY_INDEX: DayKey[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -37,6 +44,7 @@ function workoutPlanToEvent(plan: WorkoutPlan): CalendarEvent {
     muscles: plan.muscles,
     exerciseIds: plan.exerciseIds,
     sourceId: plan.id,
+    isOverridden: false,
   };
 }
 
@@ -62,6 +70,69 @@ export function getEventsForDate(date: Date, plans: WorkoutPlan[]): CalendarEven
         plan.time,
     )
     .map(workoutPlanToEvent);
+}
+
+/**
+ * Layers one date's materialized occurrences over the events the
+ * recurring rules produced for that date.
+ *
+ * Two distinct jobs, and the second is the one that is easy to miss:
+ *
+ *  1. OVERRIDE — a plan that is scheduled on this date AND has a row
+ *     for it takes its exercise list from the row. This is what stops a
+ *     one-day edit leaking into every other occurrence of the plan.
+ *
+ *  2. UNION — a row whose plan no longer produces an event on this date
+ *     is still rendered. `getEventsForDate` only asks the *current*
+ *     rule, so a plan later rescheduled (Mon → Tue), paused, moved to
+ *     draft, or deleted outright would make an already-edited or
+ *     already-logged day silently vanish along with its history. Those
+ *     rows are re-attached here instead.
+ *
+ * Rows unioned back in are matched against the plan list where possible
+ * so a still-existing plan keeps its `muscles` and `time`; for a plan
+ * that has been deleted, the row's own `planName` is all that remains
+ * and the event degrades to that.
+ */
+export function applyOccurrencesToEvents(
+  events: CalendarEvent[],
+  occurrences: WorkoutLog[],
+  plans: WorkoutPlan[],
+): CalendarEvent[] {
+  if (occurrences.length === 0) return events;
+
+  const byPlanId = new Map(occurrences.map((occurrence) => [occurrence.planId, occurrence]));
+  const userId = getCurrentUserId();
+
+  const overridden = events.map((event) => {
+    const occurrence = byPlanId.get(event.sourceId);
+    if (!occurrence) return event;
+    return {
+      ...event,
+      exerciseIds: occurrence.exercises.map((entry) => entry.exerciseId),
+      isOverridden: true,
+    };
+  });
+
+  const rendered = new Set(events.map((event) => event.sourceId));
+  const orphaned = occurrences
+    .filter((occurrence) => !rendered.has(occurrence.planId) && occurrence.userId === userId)
+    .map((occurrence) => {
+      const plan = plans.find((candidate) => candidate.id === occurrence.planId);
+      return {
+        id: `workout-${occurrence.planId}`,
+        userId: occurrence.userId,
+        type: 'workout' as const,
+        title: plan?.name ?? occurrence.planName,
+        time: plan?.time ?? '',
+        muscles: plan?.muscles ?? [],
+        exerciseIds: occurrence.exercises.map((entry) => entry.exerciseId),
+        sourceId: occurrence.planId,
+        isOverridden: true,
+      };
+    });
+
+  return [...overridden, ...orphaned];
 }
 
 /**

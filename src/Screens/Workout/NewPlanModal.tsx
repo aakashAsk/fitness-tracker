@@ -54,6 +54,18 @@ interface NewPlanModalProps {
    * changes back rather than adding another plan.
    */
   initialPlan?: NewPlanPayload;
+  /**
+   * Restricts the sheet to choosing exercises — the plan name, training
+   * days and session time are hidden and passed straight back through
+   * unchanged. Used when editing a single date: that date's exercise
+   * list is the only thing that can meaningfully differ from the
+   * recurring plan, and the schedule fields would imply the plan itself
+   * was being rewritten.
+   */
+  exercisesOnly?: boolean;
+  /** "YYYY-MM-DD" of the single day being edited, shown in the header so
+   * it is unambiguous that the change is scoped to that date. */
+  singleDateLabel?: string;
 }
 
 /** Splits a stored "6:30 PM" time back into the dial's three parts. */
@@ -126,6 +138,8 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   onCreate,
   onSaveDraft,
   initialPlan,
+  exercisesOnly = false,
+  singleDateLabel,
 }) => {
   const isEditing = !!initialPlan;
 
@@ -369,7 +383,11 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   };
 
   const handleCreate = () => {
-    if (!name.trim()) {
+    // The name/day checks are skipped in exercises-only mode: both
+    // fields are hidden there and pass through untouched, so a plan
+    // that predates them (no `time`, say) would otherwise fail
+    // validation on a field the user was never shown.
+    if (!exercisesOnly && !name.trim()) {
       setFormError('Please enter a plan name.');
       return;
     }
@@ -377,7 +395,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
       setFormError('Select at least 3 exercises.');
       return;
     }
-    if (activeDays.length < 1) {
+    if (!exercisesOnly && activeDays.length < 1) {
       setFormError('Select at least 1 training day.');
       return;
     }
@@ -403,13 +421,21 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
               <View style={styles.headerTitleRow}>
                 <View style={styles.glowDot} />
                 <Text style={styles.headerTitle}>
-                  {isEditing ? 'Edit Workout Plan' : 'New Workout Plan'}
+                  {exercisesOnly
+                    ? 'Edit This Day'
+                    : isEditing
+                      ? 'Edit Workout Plan'
+                      : 'New Workout Plan'}
                 </Text>
               </View>
               <Text style={styles.headerSubtitle}>
-                {isEditing
-                  ? 'Update the routine — changes apply everywhere it is scheduled'
-                  : 'Set up your precision routine in seconds'}
+                {exercisesOnly
+                  ? singleDateLabel
+                    ? `Changes apply to ${singleDateLabel} only — the plan stays as it is`
+                    : 'Changes apply to this day only — the plan stays as it is'
+                  : isEditing
+                    ? 'Update the routine — changes apply everywhere it is scheduled'
+                    : 'Set up your precision routine in seconds'}
               </Text>
             </View>
             <Pressable
@@ -430,13 +456,15 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
             keyboardShouldPersistTaps="handled"
           >
             {/* SECTION 1: PLAN NAME */}
-            <View style={styles.field}>
-              <View style={styles.labelRow}>
-                <Text style={styles.labelCaps}>PLAN NAME</Text>
-                <Text style={styles.requiredText}>Required</Text>
+            {exercisesOnly ? null : (
+              <View style={styles.field}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.labelCaps}>PLAN NAME</Text>
+                  <Text style={styles.requiredText}>Required</Text>
+                </View>
+                <PlanNameField value={name} onChangeText={setName} />
               </View>
-              <PlanNameField value={name} onChangeText={setName} />
-            </View>
+            )}
 
             {/* SECTION 2: TARGET MUSCLE GROUP */}
             <View style={styles.fieldLoose}>
@@ -620,6 +648,11 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
               {listErrorText && <Text style={styles.errorText}>{listErrorText}</Text>}
             </View>
 
+            {/* SECTIONS 4 & 4b: SCHEDULE — hidden when only this date's
+                exercise list is being changed, since the recurring
+                schedule is not what is being edited then. */}
+            {exercisesOnly ? null : (
+            <>
             {/* SECTION 4: TRAINING DAYS */}
             <View style={styles.field}>
               <View style={styles.labelRow}>
@@ -751,6 +784,8 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                   : 'Pick training days above to see the full schedule'}
               </Text>
             </View>
+            </>
+            )}
           </ScrollView>
 
           {/* SECTION 5: ACTION FOOTER */}
@@ -765,7 +800,11 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                   style={styles.ctaBtn}
                 >
                   <Text style={styles.ctaText}>
-                    {isEditing ? 'Save Changes' : 'Create Workout Plan'}
+                    {exercisesOnly
+                      ? 'Save For This Day'
+                      : isEditing
+                        ? 'Save Changes'
+                        : 'Create Workout Plan'}
                   </Text>
                   <ArrowRight size={20} strokeWidth={2.6} color={colors.onPrimary} />
                 </Pressable>

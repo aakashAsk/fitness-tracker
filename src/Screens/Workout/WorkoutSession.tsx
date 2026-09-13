@@ -42,12 +42,19 @@ import {
 } from '../../Services/workoutPlanService';
 import {
     fetchExerciseLogLookup,
+    fetchOccurrencesForDate,
     savedEntryKey,
+    savePlannedOccurrence,
     saveWorkoutLog,
     toDateKey,
+    todayDateKey,
     WorkoutLogServiceError,
+    type WorkoutLog,
 } from '../../Services/workoutLogService';
-import { getEventsForDate } from '../../Services/calendarEventService';
+import {
+    applyOccurrencesToEvents,
+    getEventsForDate,
+} from '../../Services/calendarEventService';
 import { Exercise, fetchExercisesBulk } from '../../Services/exerciseService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 
@@ -277,9 +284,64 @@ export const WorkoutSession: React.FC = () => {
     // weekday, for the signed-in user. Same day-matching logic the
     // Schedule tab uses.
     const workoutPlans = useWorkoutPlans();
+
+    const selectedDateKey = toDateKey(selectedDate);
+    // A day is "past" purely by date key — never by comparing Date
+    // objects, which carry a time-of-day and would reclassify the
+    // selected day as the clock rolls past midnight mid-session.
+    const isPastDay = selectedDateKey < todayDateKey();
+
+    // This date's materialized occurrences (see workoutLogService):
+    // rows that either override the plan's exercise list for this day
+    // alone, or record a session that was actually performed.
+    //
+    // Bumping `occurrenceRefreshKey` re-reads them after a write —
+    // unlike plans, these are not kept live in Redux by App.tsx.
+    // Results are stored together with the date they describe, rather
+    // than alongside a separate isLoading flag. A flag is set inside an
+    // effect, which runs only AFTER the first commit for the new date —
+    // leaving one rendered frame where the flag still says "loaded" but
+    // the data is the previous day's. Comparing the date instead makes
+    // "is this day's data here yet" true only when it genuinely is.
+    const [occurrences, setOccurrences] = useState<{ dateKey: string; rows: WorkoutLog[] }>({
+        dateKey: '',
+        rows: [],
+    });
+    const [occurrenceRefreshKey, setOccurrenceRefreshKey] = useState(0);
+    const hasOccurrencesForDay = occurrences.dateKey === selectedDateKey;
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchOccurrencesForDate(selectedDateKey)
+            .then((rows) => {
+                if (!cancelled) setOccurrences({ dateKey: selectedDateKey, rows });
+            })
+            .catch(() => {
+                // Non-fatal: the day still renders from the plan rules
+                // alone, just without this date's overrides. It is still
+                // marked as loaded, or the card would stay a skeleton
+                // forever whenever this read fails.
+                if (!cancelled) setOccurrences({ dateKey: selectedDateKey, rows: [] });
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedDateKey, occurrenceRefreshKey]);
+
+    // The recurring rules for this weekday, with this date's own
+    // overrides layered on top — and any occurrence whose plan no
+    // longer schedules this date unioned back in, so an edited or
+    // logged day cannot disappear when its plan is later rescheduled,
+    // paused or deleted.
     const dayEvents = useMemo(
-        () => getEventsForDate(selectedDate, workoutPlans),
-        [selectedDate, workoutPlans],
+        () =>
+            applyOccurrencesToEvents(
+                getEventsForDate(selectedDate, workoutPlans),
+                // Never layer another day's rows over this day.
+                hasOccurrencesForDay ? occurrences.rows : [],
+                workoutPlans,
+            ),
+        [selectedDate, workoutPlans, occurrences, hasOccurrencesForDay],
     );
 
     // Real exercise names for today's events, resolved via POST
@@ -351,9 +413,16 @@ export const WorkoutSession: React.FC = () => {
     // store) but their exercise names and logged numbers are both network
     // round-trips. Rather than flash humanised slug ids and empty fields
     // for a few hundred ms, the rows render as a skeleton until both land.
-    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    // Which date the log lookup below has finished resolving — same
+    // date-keyed approach as `occurrences`, for the same reason.
+    const [logsDateKey, setLogsDateKey] = useState('');
+    const hasLogsForDay = logsDateKey === selectedDateKey;
     const isResolvingNames = todaysExerciseIds.some((id) => !exerciseCache[id]);
-    const isDayLoading = hasWorkoutToday && (isResolvingNames || isLoadingLogs);
+    // Occurrences are part of this too: they decide *which* exercises a
+    // day has, so rendering before they arrive would show the plan's
+    // list and then visibly swap it for the day's edited one.
+    const isDayLoading =
+        hasWorkoutToday && (isResolvingNames || !hasLogsForDay || !hasOccurrencesForDay);
 
     // Auto-open the first exercise whenever the selected day changes, or
     // its plans first load in — keyed on selectedDate + how many events
@@ -389,24 +458,34 @@ export const WorkoutSession: React.FC = () => {
     // overwritten.
     const todaysExerciseIdsKey = todaysExerciseIds.join(',');
     useEffect(() => {
-        if (!todaysExerciseIdsKey) return;
-        let cancelled = false;
         const dateKey = toDateKey(selectedDate);
 
-        setIsLoadingLogs(true);
+        // Nothing to look up — but the day still has to be marked
+        // resolved, or a card whose exercise list is empty would sit on
+        // a skeleton forever waiting for a fetch that never runs.
+        if (!todaysExerciseIdsKey) {
+            setLoggedPlanIds(new Set());
+            setLogsDateKey(dateKey);
+            return;
+        }
+
+        let cancelled = false;
+
         fetchExerciseLogLookup(todaysExerciseIds, dateKey)
-            .then(({ savedForDate, nearest }) => {
+            .then(({ savedForDate, nearest, completedPlanIds }) => {
                 if (cancelled) return;
 
+                // Keyed off completed rows only. Testing for the mere
+                // presence of a saved entry would flip a day to "Logged"
+                // the instant its exercises were edited — a 'planned'
+                // row is a saved entry too — and, since the edit button
+                // is hidden once logged, would lock the day after a
+                // single edit.
+                const completed = new Set(completedPlanIds);
                 setLoggedPlanIds(
                     new Set(
                         planCards
-                            .filter((plan) =>
-                                plan.exercises.some(
-                                    (exercise) =>
-                                        savedForDate[savedEntryKey(plan.planDocId, exercise.exerciseId)],
-                                ),
-                            )
+                            .filter((plan) => completed.has(plan.planDocId))
                             .map((plan) => plan.id),
                     ),
                 );
@@ -440,9 +519,14 @@ export const WorkoutSession: React.FC = () => {
                     return changed ? next : prev;
                 });
             })
-            .catch(() => {})
+            .catch(() => {
+                // Marked resolved on failure too: the numbers are then
+                // simply unprefilled, which is recoverable, whereas a
+                // permanent skeleton is not.
+                if (!cancelled) setLoggedPlanIds(new Set());
+            })
             .finally(() => {
-                if (!cancelled) setIsLoadingLogs(false);
+                if (!cancelled) setLogsDateKey(dateKey);
             });
 
         return () => {
@@ -472,6 +556,12 @@ export const WorkoutSession: React.FC = () => {
                 planId: plan.planDocId,
                 planName: plan.title,
                 date: dateKey,
+                state: 'completed',
+                // `plan.exercises` comes from the merged day events, so
+                // on a day with its own override this is that day's
+                // edited list — not the plan's. Building it from the
+                // plan would write the plan's exercises straight back
+                // over the user's per-day edit on the next save.
                 exercises: plan.exercises.map((exercise) => ({
                     exerciseId: exercise.exerciseId,
                     name: exercise.name,
@@ -485,6 +575,9 @@ export const WorkoutSession: React.FC = () => {
             });
             const wasAlreadyLogged = loggedPlanIds.has(plan.id);
             setLoggedPlanIds((prev) => new Set(prev).add(plan.id));
+            // The row just changed state to 'completed' — re-read so the
+            // day view reflects it without a manual refresh.
+            setOccurrenceRefreshKey((key) => key + 1);
             Alert.alert(
                 wasAlreadyLogged ? 'Updated' : 'Saved',
                 `${plan.title} logged for ${dateKey}.`,
@@ -537,45 +630,131 @@ export const WorkoutSession: React.FC = () => {
     // `days` live on the plan doc, not on the calendar event derived from
     // it), so the card's planDocId is looked up against the live plan list.
     const [editingPlan, setEditingPlan] = useState<
-        { planDocId: string; initial: NewPlanPayload } | null
+        {
+            planDocId: string;
+            planName: string;
+            initial: NewPlanPayload;
+            /**
+             * 'rule'    — rewrite the plan document; every date it
+             *             recurs on changes, past and future.
+             * 'thisDay' — write an occurrence for the selected date
+             *             only; the plan document is untouched.
+             */
+            scope: 'rule' | 'thisDay';
+        } | null
     >(null);
 
-    const openPlanEditor = (plan: PlanCard) => {
+    // Opens the sheet for one day's worth of a plan. `scope` decides
+    // where the save lands; `thisDay` also restricts the sheet to the
+    // exercise list, since re-timing or re-scheduling a single past
+    // occurrence is meaningless.
+    const beginEdit = (plan: PlanCard, scope: 'rule' | 'thisDay') => {
         const planDoc = workoutPlans.find((candidate) => candidate.id === plan.planDocId);
-        if (!planDoc) return;
+
+        // A plan can be missing here: an occurrence unioned back in for
+        // a deleted plan still renders a card. There is no rule left to
+        // rewrite, so such a card can only ever be edited for its day.
+        if (!planDoc && scope === 'rule') return;
 
         setEditingPlan({
-            planDocId: planDoc.id,
+            planDocId: plan.planDocId,
+            planName: plan.title,
+            scope,
             initial: {
-                name: planDoc.name,
-                muscles: planDoc.muscles,
-                exerciseIds: planDoc.exerciseIds,
-                days: planDoc.days,
-                time: planDoc.time,
+                name: planDoc?.name ?? plan.title,
+                muscles: planDoc?.muscles ?? [],
+                // For a single day, start from what that day currently
+                // shows (the override if there is one), not from the
+                // plan's list.
+                exerciseIds:
+                    scope === 'thisDay'
+                        ? plan.exercises.map((exercise) => exercise.exerciseId)
+                        : (planDoc?.exerciseIds ?? []),
+                days: planDoc?.days ?? [],
+                time: planDoc?.time ?? '',
             },
         });
     };
 
-    // Writes the edit back to the same plan document. Nothing to refresh
-    // by hand afterwards: the screen reads from the live Firestore-synced
-    // plan list, so the cards re-render with the new exercises/time as
-    // soon as the update lands.
+    const openPlanEditor = (plan: PlanCard) => {
+        // A past day can only ever be edited for itself. Rewriting the
+        // recurring rule from a date that has already happened is the
+        // bug this whole flow exists to prevent, and "this and all
+        // future days" is never what someone means while looking
+        // backwards — so there is nothing to ask.
+        if (isPastDay) {
+            beginEdit(plan, 'thisDay');
+            return;
+        }
+
+        Alert.alert(
+            'Edit workout',
+            `"${plan.title}" repeats every week. Apply your changes to this day only, or to the whole plan?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'This day only', onPress: () => beginEdit(plan, 'thisDay') },
+                { text: 'The whole plan', onPress: () => beginEdit(plan, 'rule') },
+            ],
+        );
+    };
+
+    // Commits the edit, to whichever of the two places the chosen scope
+    // says. A 'rule' save needs no manual refresh — the screen reads
+    // plans from the live Firestore-synced list, so cards re-render as
+    // soon as the write lands — but occurrences are not synced that
+    // way, so a 'thisDay' save re-reads them explicitly.
     const handleUpdatePlan = async (payload: NewPlanPayload) => {
         if (!editingPlan) return;
         setIsSavingPlan(true);
         try {
-            await updateWorkoutPlan(editingPlan.planDocId, {
-                name: payload.name,
-                muscles: payload.muscles,
-                exerciseIds: payload.exerciseIds,
-                days: payload.days,
-                time: payload.time,
-            });
+            if (editingPlan.scope === 'thisDay') {
+                // Nothing is written to the plan document — the
+                // recurring rule is left exactly as it was, so every
+                // other date it produces is unaffected.
+                // The log stores a name snapshot alongside each id. An
+                // exercise just picked in the sheet won't be in the
+                // screen's cache yet, so resolve the stragglers rather
+                // than persisting a humanised slug.
+                const unresolved = payload.exerciseIds.filter((id) => !exerciseCache[id]);
+                const resolved = { ...exerciseCache };
+                if (unresolved.length > 0) {
+                    try {
+                        (await fetchExercisesBulk(unresolved)).forEach((exercise) => {
+                            resolved[exercise.id] = exercise;
+                        });
+                        setExerciseCache(resolved);
+                    } catch {
+                        // Names are cosmetic here — the id is what every
+                        // lookup matches on — so a failed resolve must
+                        // not block saving the edit.
+                    }
+                }
+
+                await savePlannedOccurrence({
+                    planId: editingPlan.planDocId,
+                    planName: editingPlan.planName,
+                    date: selectedDateKey,
+                    exercises: payload.exerciseIds.map((exerciseId) => ({
+                        exerciseId,
+                        name: resolved[exerciseId]?.name ?? humanizeExerciseId(exerciseId),
+                    })),
+                });
+                setOccurrenceRefreshKey((key) => key + 1);
+            } else {
+                await updateWorkoutPlan(editingPlan.planDocId, {
+                    name: payload.name,
+                    muscles: payload.muscles,
+                    exerciseIds: payload.exerciseIds,
+                    days: payload.days,
+                    time: payload.time,
+                });
+            }
             setEditingPlan(null);
         } catch (error) {
             Alert.alert(
                 'Could not update workout plan',
-                error instanceof WorkoutPlanServiceError
+                error instanceof WorkoutPlanServiceError ||
+                    error instanceof WorkoutLogServiceError
                     ? error.message
                     : 'Something went wrong. Please try again.',
             );
@@ -754,7 +933,17 @@ export const WorkoutSession: React.FC = () => {
                     </Text>
                 </View>
             ) : (
-                planCards.map((plan) => (
+                planCards.map((plan) => {
+                    // `loggedPlanIds` still holds the PREVIOUS day's
+                    // result until this day's lookup resolves, so
+                    // anything driven by it has to wait for the same
+                    // signal the exercise rows wait for. Rendering it
+                    // early flashes the wrong control — a logged day
+                    // shows "Edit Plan" for a moment before flipping to
+                    // the "Logged" badge.
+                    const isLogStateKnown = !isDayLoading;
+                    const isLogged = isLogStateKnown && loggedPlanIds.has(plan.id);
+                    return (
                     <View key={plan.id} style={styles.card}>
                         <View style={styles.planCardHeaderRow}>
                             <View style={styles.planCardHeaderLeft}>
@@ -766,13 +955,18 @@ export const WorkoutSession: React.FC = () => {
                                         {plan.exercises.length}
                                     </Text>
                                 </View>
-                                {loggedPlanIds.has(plan.id) ? (
+                                {isLogged ? (
                                     <View style={styles.planCardLoggedPill}>
                                         <Text style={styles.planCardLoggedText}>Logged</Text>
                                     </View>
                                 ) : null}
                             </View>
-                            {loggedPlanIds.has(plan.id) ? null : (
+                            {/* Neither control renders until the day's
+                                log state is known — showing one and
+                                then swapping it for the other is worse
+                                than showing nothing for the same
+                                moment the rows are skeletons. */}
+                            {isLogStateKnown && !isLogged ? (
                                 <TouchableOpacity
                                     activeOpacity={0.7}
                                     onPress={() => openPlanEditor(plan)}
@@ -781,7 +975,7 @@ export const WorkoutSession: React.FC = () => {
                                     <Text style={styles.editPlanText}>Edit Plan</Text>
                                     <SlidersHorizontal size={13} color={colors.primary} strokeWidth={2.4} />
                                 </TouchableOpacity>
-                            )}
+                            ) : null}
                         </View>
 
                         {isDayLoading ? (
@@ -897,13 +1091,16 @@ export const WorkoutSession: React.FC = () => {
                             <Text style={styles.saveWorkoutButtonText}>
                                 {savingPlanId === plan.id
                                     ? 'Saving…'
-                                    : loggedPlanIds.has(plan.id)
-                                      ? 'Update Log'
-                                      : 'Save Log'}
+                                    : !isLogStateKnown
+                                      ? 'Loading…'
+                                      : isLogged
+                                        ? 'Update Log'
+                                        : 'Save Log'}
                             </Text>
                         </TouchableOpacity>
                     </View>
-                ))
+                    );
+                })
             )}
 
             {/* Rest timer widget */}
@@ -950,6 +1147,8 @@ export const WorkoutSession: React.FC = () => {
         {editingPlan ? (
             <NewPlanModal
                 initialPlan={editingPlan.initial}
+                exercisesOnly={editingPlan.scope === 'thisDay'}
+                singleDateLabel={editingPlan.scope === 'thisDay' ? selectedDateKey : undefined}
                 onClose={() => setEditingPlan(null)}
                 onCreate={handleUpdatePlan}
             />

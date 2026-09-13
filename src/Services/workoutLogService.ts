@@ -37,6 +37,24 @@ export interface ExerciseLogEntry {
   sets: ExerciseSetEntry[];
 }
 
+/**
+ * Whether a row describes a workout that actually happened.
+ *
+ * A document in this collection is a *materialized occurrence* of a plan
+ * on one date, not necessarily a record of a completed session:
+ *
+ *  - 'completed' — the user entered numbers and hit Save. Real history.
+ *  - 'planned'   — the user changed which exercises that particular day
+ *                  has, without logging it yet. It exists purely to say
+ *                  "this date deviates from the plan's exercise list",
+ *                  and must be excluded from anything that counts or
+ *                  carries forward real training data.
+ *
+ * Deliberately NOT called `status`: WorkoutPlan.status is already
+ * 'live' | 'draft' | 'paused' and the two would be confused on sight.
+ */
+export type WorkoutLogState = 'planned' | 'completed';
+
 export interface WorkoutLogInput {
   /** The underlying WorkoutPlan doc id (CalendarEvent.sourceId), not the synthetic event id. */
   planId: string;
@@ -44,6 +62,12 @@ export interface WorkoutLogInput {
   /** "YYYY-MM-DD", local to the device — matches the date strip's selected day. */
   date: string;
   exercises: ExerciseLogEntry[];
+  /**
+   * Required, with no default — every call site has to say which kind of
+   * row it is writing, so a planned occurrence can never be mistaken for
+   * a completed session by omission.
+   */
+  state: WorkoutLogState;
 }
 
 export interface WorkoutLog extends WorkoutLogInput {
@@ -100,6 +124,14 @@ function toWorkoutLog(id: string, data: Record<string, unknown>): WorkoutLog {
     planName: (data.planName as string) ?? '',
     date: (data.date as string) ?? '',
     exercises: ((data.exercises as Record<string, unknown>[]) ?? []).map(toExerciseLogEntry),
+    // NOTE: this default runs the OPPOSITE way to the ones in
+    // workoutPlanService (`status ?? 'live'`, `userId ?? currentUser`,
+    // which default to the newly-added behaviour). Every document
+    // written before `state` existed was produced by the Save button,
+    // i.e. a real logged session — so a missing field must read as
+    // 'completed'. Defaulting to 'planned' here would silently mark the
+    // user's entire training history as never performed.
+    state: data.state === 'planned' ? 'planned' : 'completed',
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
   };
 }
@@ -111,6 +143,14 @@ export function toDateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+/** Today's date key. Compare date keys as strings rather than comparing
+ * `Date` objects — a Date carries a time-of-day, so "is the selected day
+ * in the past" flips incorrectly as the clock passes the moment the
+ * screen was opened. */
+export function todayDateKey(): string {
+  return toDateKey(new Date());
 }
 
 /** Saves (or overwrites) the set/rep/weight log for one plan on one day. */
@@ -129,6 +169,95 @@ export async function saveWorkoutLog(input: WorkoutLogInput): Promise<void> {
   } catch (err) {
     throw new WorkoutLogServiceError(
       err instanceof Error ? err.message : 'Failed to save the workout log.',
+    );
+  }
+}
+
+/**
+ * Records that one date's exercise list deviates from its plan, without
+ * touching the plan document — the fix for "editing last Monday rewrote
+ * every Monday". The plan stays the recurring rule; this row overrides
+ * the rule for this date alone.
+ *
+ * Two things are preserved rather than clobbered, because this can be
+ * called on a day that already has a log:
+ *
+ *  - Existing sets/reps/weight are carried across for every exercise
+ *    that survives the edit, matched by `exerciseId` (never by list
+ *    position), so re-ordering or inserting an exercise cannot shift
+ *    another exercise's numbers onto the wrong row.
+ *  - An already-'completed' row stays 'completed'. Editing which
+ *    exercises a finished session contained does not un-finish it.
+ *
+ * New exercises land with `sets: []` — not a zero-filled set — so they
+ * read as "nothing entered" everywhere downstream.
+ */
+export async function savePlannedOccurrence(input: {
+  planId: string;
+  planName: string;
+  date: string;
+  exercises: { exerciseId: string; name: string }[];
+}): Promise<void> {
+  const userId = getCurrentUserId();
+  const ref = doc(db, LOGS_COLLECTION, logDocId(userId, input.planId, input.date));
+  try {
+    const snapshot = await getDoc(ref);
+    const existing = snapshot.exists() ? toWorkoutLog(snapshot.id, snapshot.data()) : null;
+    const previousSets = new Map(
+      (existing?.exercises ?? []).map((entry) => [entry.exerciseId, entry.sets]),
+    );
+
+    await setDoc(
+      ref,
+      {
+        planId: input.planId,
+        planName: input.planName,
+        date: input.date,
+        exercises: input.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          name: exercise.name,
+          sets: previousSets.get(exercise.exerciseId) ?? [],
+        })),
+        state: existing?.state === 'completed' ? 'completed' : 'planned',
+        userId,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  } catch (err) {
+    throw new WorkoutLogServiceError(
+      err instanceof Error ? err.message : 'Failed to save the change for this day.',
+    );
+  }
+}
+
+/**
+ * Every materialized occurrence the user has on one date, planned and
+ * completed alike.
+ *
+ * This is what lets the day view survive a plan being rescheduled,
+ * paused or deleted after a date was edited: the recurring rule alone
+ * can no longer answer "what was on this day", because a plan moved
+ * from Mon to Tue stops producing a Monday event even though that
+ * Monday's row still exists. The day view unions the two.
+ *
+ * Both clauses are equality filters, which Firestore serves from
+ * single-field indexes — no composite index needed, unlike an equality
+ * plus an `orderBy`/range.
+ */
+export async function fetchOccurrencesForDate(date: string): Promise<WorkoutLog[]> {
+  const userId = getCurrentUserId();
+  try {
+    const q = query(
+      collection(db, LOGS_COLLECTION),
+      where('userId', '==', userId),
+      where('date', '==', date),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => toWorkoutLog(d.id, d.data()));
+  } catch (err) {
+    throw new WorkoutLogServiceError(
+      err instanceof Error ? err.message : 'Failed to load this day’s workouts.',
     );
   }
 }
@@ -203,6 +332,16 @@ export interface ExerciseLogLookup {
    * exercise" is a user-wide question, not a per-plan one.
    */
   nearest: Record<string, ExerciseLogEntry>;
+  /**
+   * Plan doc ids that have a *completed* log on the requested date.
+   *
+   * Presence of a row is deliberately not enough: a 'planned' row is
+   * written the moment a user edits one day's exercises, so keying the
+   * "Logged" badge off row existence would mark a day as finished as
+   * soon as it was edited — and, where editing is gated on not being
+   * logged, would lock the day against any further edits.
+   */
+  completedPlanIds: string[];
 }
 
 /**
@@ -219,13 +358,16 @@ export async function fetchExerciseLogLookup(
   exerciseIds: string[],
   dateKey: string,
 ): Promise<ExerciseLogLookup> {
-  if (exerciseIds.length === 0) return { savedForDate: {}, nearest: {} };
+  if (exerciseIds.length === 0) {
+    return { savedForDate: {}, nearest: {}, completedPlanIds: [] };
+  }
 
   const logs = await fetchWorkoutLogsForUser();
   const wanted = new Set(exerciseIds);
   const savedForDate: Record<string, ExerciseLogEntry> = {};
   const earlier: Record<string, ExerciseLogEntry> = {};
   const later: Record<string, ExerciseLogEntry> = {};
+  const completedPlanIds = new Set<string>();
 
   // `logs` is newest-first, so a single walk gets both: the FIRST
   // earlier hit per exercise is the closest earlier one, while each
@@ -233,12 +375,21 @@ export async function fetchExerciseLogLookup(
   // overwriting leaves the closest later one.
   for (const log of logs) {
     if (log.date === dateKey) {
+      if (log.state === 'completed') completedPlanIds.add(log.planId);
       for (const entry of log.exercises) {
         if (!wanted.has(entry.exerciseId)) continue;
         savedForDate[savedEntryKey(log.planId, entry.exerciseId)] = entry;
       }
       continue;
     }
+
+    // 'planned' rows carry no performed numbers — only a deviating
+    // exercise list, with empty sets on anything newly added. Letting
+    // them into `nearest` would make "the last time I did bench press"
+    // resolve to a day the user never trained, and future-dated rows
+    // (a scheduled day edited ahead of time) would win the `later`
+    // fallback outright. Only real sessions carry forward.
+    if (log.state !== 'completed') continue;
 
     const isEarlier = log.date < dateKey;
     for (const entry of log.exercises) {
@@ -253,5 +404,9 @@ export async function fetchExerciseLogLookup(
   }
 
   // An earlier session always wins over a later one where both exist.
-  return { savedForDate, nearest: { ...later, ...earlier } };
+  return {
+    savedForDate,
+    nearest: { ...later, ...earlier },
+    completedPlanIds: Array.from(completedPlanIds),
+  };
 }
