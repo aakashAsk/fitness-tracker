@@ -1,33 +1,45 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     ScrollView,
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
 } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, {
+    FadeIn,
+    FadeOut,
+    LinearTransition,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming,
+} from 'react-native-reanimated';
 import {
     ChevronDown,
     Dumbbell,
-    EllipsisVertical,
     Flame,
+    Minus,
     Plus,
     PersonStanding,
     Rows3,
     RotateCcw,
     SlidersHorizontal,
     Timer,
+    Trash2,
     TrendingUp,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import WorkoutDateStrip from './WorkoutDateStrip';
-import { createWorkoutPlan, WorkoutPlanServiceError } from '../../Services/workoutPlanService';
+import {
+    createWorkoutPlan,
+    updateWorkoutPlan,
+    WorkoutPlanServiceError,
+} from '../../Services/workoutPlanService';
 import {
     fetchExerciseLogLookup,
     savedEntryKey,
@@ -67,6 +79,53 @@ function inputKey(dateKey: string, rowId: string): string {
     return `${dateKey}::${rowId}`;
 }
 
+const EMPTY_SET_INPUT = { reps: '', weight: '' };
+
+// Step sizes for the +/− controls: reps move one at a time, weight in
+// 2.5kg jumps (the smallest plate pair on most bars).
+const SET_STEPS = { reps: 1, weight: 2.5 } as const;
+
+/** Trims the float noise 2.5-steps produce — 62.5 stays 62.5, 65.0 shows as 65. */
+function formatStepValue(value: number): string {
+    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+interface SetStepperProps {
+    value: string;
+    unit: string;
+    onStep: (direction: 1 | -1) => void;
+}
+
+// Tap targets rather than a numeric keyboard: mid-workout the keyboard
+// is slow to open, covers the row, and is fiddly with sweaty hands —
+// nudging a prefilled number up or down is almost always what's wanted.
+const SetStepper: React.FC<SetStepperProps> = ({ value, unit, onStep }) => (
+    <View style={styles.stepper}>
+        <TouchableOpacity
+            activeOpacity={0.6}
+            onPress={() => onStep(-1)}
+            hitSlop={6}
+            style={styles.stepperButton}
+        >
+            <Minus size={14} color={colors.textSecondary} strokeWidth={2.8} />
+        </TouchableOpacity>
+
+        <View style={styles.stepperValueBlock}>
+            <Text style={styles.stepperValue}>{value === '' ? '—' : value}</Text>
+            <Text style={styles.stepperUnit}>{unit}</Text>
+        </View>
+
+        <TouchableOpacity
+            activeOpacity={0.6}
+            onPress={() => onStep(1)}
+            hitSlop={6}
+            style={styles.stepperButton}
+        >
+            <Plus size={14} color={colors.primary} strokeWidth={2.8} />
+        </TouchableOpacity>
+    </View>
+);
+
 const FILTERS = ['All', 'Push', 'Pull', 'Legs', 'Cardio', 'Core'];
 
 interface PlanExerciseRow {
@@ -104,10 +163,6 @@ const EXERCISE_ICON_STYLES: { Icon: typeof PersonStanding; iconColor: string }[]
     { Icon: Rows3, iconColor: colors.secondary },
 ];
 
-// How much room to leave above a focused input row once it has been
-// scrolled into view, so the exercise name above it stays visible.
-const FOCUS_SCROLL_MARGIN = 90;
-
 // Chart geometry for the 1RM trend line (matches the reference SVG viewBox).
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 85;
@@ -120,49 +175,101 @@ const CHART_POINTS = [
     { x: 310, y: 10 },
 ];
 
+// Placeholder rows shown while a newly selected day resolves its exercise
+// names and logged numbers — a pulsing outline reads as "loading" without
+// the layout jump of swapping real content in and out.
+const ExerciseSkeleton: React.FC<{ rows: number }> = ({ rows }) => {
+    const pulse = useSharedValue(0.45);
+
+    useEffect(() => {
+        pulse.value = withRepeat(withTiming(1, { duration: 750 }), -1, true);
+    }, [pulse]);
+
+    const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
+    return (
+        <View style={styles.skeletonList}>
+            {Array.from({ length: rows }).map((_, index) => (
+                <Animated.View key={index} style={[styles.skeletonRow, pulseStyle]}>
+                    <View style={styles.skeletonIcon} />
+                    <View style={styles.skeletonTextBlock}>
+                        <View style={styles.skeletonLineWide} />
+                        <View style={styles.skeletonLineNarrow} />
+                    </View>
+                </Animated.View>
+            ))}
+        </View>
+    );
+};
+
 export const WorkoutSession: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const [activeFilter, setActiveFilter] = useState('Push');
     const [showNewPlanModal, setShowNewPlanModal] = useState(false);
     const [isSavingPlan, setIsSavingPlan] = useState(false);
-    // Per-exercise sets/reps/weight fields, keyed by DATE + exercise row
-    // id (see inputKey below). The date has to be part of the key: a row
-    // id is plan+exercise only, so without it Monday's numbers would
-    // still be sitting in the fields when you flip to Thursday.
+    // Per-exercise set rows, keyed by DATE + exercise row id (see
+    // inputKey below). The date has to be part of the key: a row id is
+    // plan+exercise only, so without it Monday's numbers would still be
+    // sitting in the fields when you flip to Thursday.
+    //
+    // Each exercise holds one entry per set — Set 1, Set 2, … — so every
+    // set carries its own reps and weight.
     const [exerciseInputs, setExerciseInputs] = useState<
-        Record<string, { sets: string; weight: string; reps: string }>
+        Record<string, { reps: string; weight: string }[]>
     >({});
+
+    // An exercise with nothing entered yet still shows a single empty
+    // "Set 1" row to type into.
+    const getSetInputs = (rowId: string) =>
+        exerciseInputs[inputKey(toDateKey(selectedDate), rowId)] ?? [EMPTY_SET_INPUT];
+
+    const stepSetInput = (
+        rowId: string,
+        setIndex: number,
+        field: 'reps' | 'weight',
+        direction: 1 | -1,
+    ) => {
+        const key = inputKey(toDateKey(selectedDate), rowId);
+        setExerciseInputs((prev) => {
+            const sets = prev[key] ?? [EMPTY_SET_INPUT];
+            return {
+                ...prev,
+                [key]: sets.map((set, i) => {
+                    if (i !== setIndex) return set;
+                    const current = parseFloat(set[field]) || 0;
+                    // Never below zero — a negative rep count or weight
+                    // is meaningless, and blank + "−" should stay blank-ish.
+                    const next = Math.max(current + SET_STEPS[field] * direction, 0);
+                    return { ...set, [field]: formatStepValue(next) };
+                }),
+            };
+        });
+    };
+
+    const addSet = (rowId: string) => {
+        const key = inputKey(toDateKey(selectedDate), rowId);
+        setExerciseInputs((prev) => {
+            const sets = prev[key] ?? [EMPTY_SET_INPUT];
+            // A new set usually repeats the previous one, so seeding it
+            // with those numbers is less typing than starting blank.
+            const last = sets[sets.length - 1] ?? EMPTY_SET_INPUT;
+            return { ...prev, [key]: [...sets, { ...last }] };
+        });
+    };
+
+    const removeSet = (rowId: string, setIndex: number) => {
+        const key = inputKey(toDateKey(selectedDate), rowId);
+        setExerciseInputs((prev) => {
+            const sets = prev[key] ?? [EMPTY_SET_INPUT];
+            if (sets.length <= 1) return prev; // always keep Set 1
+            return { ...prev, [key]: sets.filter((_, i) => i !== setIndex) };
+        });
+    };
     // Accordion — only one exercise row's sets/reps/weight fields are
     // expanded at a time; opening another closes whichever was open.
     const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
     const toggleExerciseExpanded = (exerciseId: string) => {
         setExpandedExerciseId((prev) => (prev === exerciseId ? null : exerciseId));
-    };
-    // Scrolling a focused input clear of the numpad. RN gives no
-    // "scroll to focused input" out of the box, and measureLayout()
-    // against a ScrollView throws on this RN/Expo version (same reason
-    // ScheduleScreen measures via onLayout), so positions are tracked
-    // with onLayout at each nesting level and summed: card within the
-    // scroll content + list within the card + row within the list.
-    const scrollRef = useRef<ScrollView>(null);
-    const cardOffsets = useRef<Record<string, number>>({});
-    const listOffsets = useRef<Record<string, number>>({});
-    const rowOffsets = useRef<Record<string, number>>({});
-
-    const handleInputFocus = (planId: string, rowId: string) => {
-        const y =
-            (cardOffsets.current[planId] ?? 0) +
-            (listOffsets.current[planId] ?? 0) +
-            (rowOffsets.current[rowId] ?? 0);
-
-        // Park the row near the top of the viewport rather than trying to
-        // work out where the keyboard's top edge is — that way it's clear
-        // of the numpad regardless of keyboard height. The delay lets
-        // Android finish resizing the window first, otherwise the target
-        // offset gets clamped against the pre-resize scroll height.
-        setTimeout(() => {
-            scrollRef.current?.scrollTo({ y: Math.max(y - FOCUS_SCROLL_MARGIN, 0), animated: true });
-        }, 120);
     };
 
     // Live-synced plans (App.tsx's useWorkoutPlansSync() keeps this fed
@@ -240,6 +347,14 @@ export const WorkoutSession: React.FC = () => {
     const totalExerciseCount = planCards.reduce((sum, plan) => sum + plan.exercises.length, 0);
     const hasWorkoutToday = planCards.length > 0;
 
+    // Switching days swaps the plans instantly (they come from the live
+    // store) but their exercise names and logged numbers are both network
+    // round-trips. Rather than flash humanised slug ids and empty fields
+    // for a few hundred ms, the rows render as a skeleton until both land.
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    const isResolvingNames = todaysExerciseIds.some((id) => !exerciseCache[id]);
+    const isDayLoading = hasWorkoutToday && (isResolvingNames || isLoadingLogs);
+
     // Auto-open the first exercise whenever the selected day changes, or
     // its plans first load in — keyed on selectedDate + how many events
     // that day has (not planCards itself), so a background exercise-name
@@ -278,6 +393,7 @@ export const WorkoutSession: React.FC = () => {
         let cancelled = false;
         const dateKey = toDateKey(selectedDate);
 
+        setIsLoadingLogs(true);
         fetchExerciseLogLookup(todaysExerciseIds, dateKey)
             .then(({ savedForDate, nearest }) => {
                 if (cancelled) return;
@@ -304,19 +420,19 @@ export const WorkoutSession: React.FC = () => {
                             const key = inputKey(dateKey, exercise.id);
                             const existing = prev[key];
                             const isEmpty =
-                                !existing || (!existing.sets && !existing.reps && !existing.weight);
+                                !existing ||
+                                existing.every((set) => !set.reps && !set.weight);
                             if (!isEmpty) return;
 
                             const match =
                                 savedForDate[savedEntryKey(plan.planDocId, exercise.exerciseId)] ??
                                 nearest[exercise.exerciseId];
-                            if (!match) return;
+                            if (!match || match.sets.length === 0) return;
 
-                            next[key] = {
-                                sets: match.sets ? String(match.sets) : '',
-                                reps: match.reps ? String(match.reps) : '',
-                                weight: match.weight ? String(match.weight) : '',
-                            };
+                            next[key] = match.sets.map((set) => ({
+                                reps: set.reps ? String(set.reps) : '',
+                                weight: set.weight ? String(set.weight) : '',
+                            }));
                             changed = true;
                         });
                     });
@@ -324,7 +440,10 @@ export const WorkoutSession: React.FC = () => {
                     return changed ? next : prev;
                 });
             })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => {
+                if (!cancelled) setIsLoadingLogs(false);
+            });
 
         return () => {
             cancelled = true;
@@ -335,18 +454,6 @@ export const WorkoutSession: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [todaysExerciseIdsKey, selectedDate]);
 
-    const setExerciseInput = (rowId: string, field: 'sets' | 'weight' | 'reps', value: string) => {
-        const key = inputKey(toDateKey(selectedDate), rowId);
-        setExerciseInputs((prev) => ({
-            ...prev,
-            [key]: {
-                sets: prev[key]?.sets ?? '',
-                weight: prev[key]?.weight ?? '',
-                reps: prev[key]?.reps ?? '',
-                [field]: value,
-            },
-        }));
-    };
 
     // Which plan's Save button is currently mid-request (disables that
     // card's button only, not every card's).
@@ -365,16 +472,16 @@ export const WorkoutSession: React.FC = () => {
                 planId: plan.planDocId,
                 planName: plan.title,
                 date: dateKey,
-                exercises: plan.exercises.map((exercise) => {
-                    const input = exerciseInputs[inputKey(dateKey, exercise.id)];
-                    return {
-                        exerciseId: exercise.exerciseId,
-                        name: exercise.name,
-                        sets: parseInt(input?.sets ?? '', 10) || 0,
-                        reps: parseInt(input?.reps ?? '', 10) || 0,
-                        weight: parseFloat(input?.weight ?? '') || 0,
-                    };
-                }),
+                exercises: plan.exercises.map((exercise) => ({
+                    exerciseId: exercise.exerciseId,
+                    name: exercise.name,
+                    sets: (exerciseInputs[inputKey(dateKey, exercise.id)] ?? [EMPTY_SET_INPUT]).map(
+                        (set) => ({
+                            reps: parseInt(set.reps, 10) || 0,
+                            weight: parseFloat(set.weight) || 0,
+                        }),
+                    ),
+                })),
             });
             const wasAlreadyLogged = loggedPlanIds.has(plan.id);
             setLoggedPlanIds((prev) => new Set(prev).add(plan.id));
@@ -426,13 +533,62 @@ export const WorkoutSession: React.FC = () => {
     const handleCreatePlan = (payload: NewPlanPayload) => savePlan(payload, 'live');
     const handleSaveDraft = (payload: NewPlanPayload) => savePlan(payload, 'draft');
 
+    // Editing an existing plan. The sheet needs the full WorkoutPlan (its
+    // `days` live on the plan doc, not on the calendar event derived from
+    // it), so the card's planDocId is looked up against the live plan list.
+    const [editingPlan, setEditingPlan] = useState<
+        { planDocId: string; initial: NewPlanPayload } | null
+    >(null);
+
+    const openPlanEditor = (plan: PlanCard) => {
+        const planDoc = workoutPlans.find((candidate) => candidate.id === plan.planDocId);
+        if (!planDoc) return;
+
+        setEditingPlan({
+            planDocId: planDoc.id,
+            initial: {
+                name: planDoc.name,
+                muscles: planDoc.muscles,
+                exerciseIds: planDoc.exerciseIds,
+                days: planDoc.days,
+                time: planDoc.time,
+            },
+        });
+    };
+
+    // Writes the edit back to the same plan document. Nothing to refresh
+    // by hand afterwards: the screen reads from the live Firestore-synced
+    // plan list, so the cards re-render with the new exercises/time as
+    // soon as the update lands.
+    const handleUpdatePlan = async (payload: NewPlanPayload) => {
+        if (!editingPlan) return;
+        setIsSavingPlan(true);
+        try {
+            await updateWorkoutPlan(editingPlan.planDocId, {
+                name: payload.name,
+                muscles: payload.muscles,
+                exerciseIds: payload.exerciseIds,
+                days: payload.days,
+                time: payload.time,
+            });
+            setEditingPlan(null);
+        } catch (error) {
+            Alert.alert(
+                'Could not update workout plan',
+                error instanceof WorkoutPlanServiceError
+                    ? error.message
+                    : 'Something went wrong. Please try again.',
+            );
+        } finally {
+            setIsSavingPlan(false);
+        }
+    };
+
     return (
         <View style={styles.root}>
         <ScrollView
-            ref={scrollRef}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
         >
             {/* Header */}
             <View style={styles.headerRow}>
@@ -575,10 +731,6 @@ export const WorkoutSession: React.FC = () => {
                         </Text>
                     </View>
                 </View>
-                <TouchableOpacity activeOpacity={0.7} style={styles.editOrderButton}>
-                    <Text style={styles.editOrderText}>Edit Order</Text>
-                    <SlidersHorizontal size={13} color={colors.primary} strokeWidth={2.4} />
-                </TouchableOpacity>
             </View>
 
             {/* Date strip */}
@@ -603,13 +755,7 @@ export const WorkoutSession: React.FC = () => {
                 </View>
             ) : (
                 planCards.map((plan) => (
-                    <View
-                        key={plan.id}
-                        style={styles.card}
-                        onLayout={(e) => {
-                            cardOffsets.current[plan.id] = e.nativeEvent.layout.y;
-                        }}
-                    >
+                    <View key={plan.id} style={styles.card}>
                         <View style={styles.planCardHeaderRow}>
                             <View style={styles.planCardHeaderLeft}>
                                 <Text style={styles.planCardTitle} numberOfLines={1}>
@@ -626,28 +772,30 @@ export const WorkoutSession: React.FC = () => {
                                     </View>
                                 ) : null}
                             </View>
-                            <TouchableOpacity activeOpacity={0.7} style={styles.exerciseMoreButton}>
-                                <EllipsisVertical size={16} color={colors.textSecondary} strokeWidth={2.2} />
-                            </TouchableOpacity>
+                            {loggedPlanIds.has(plan.id) ? null : (
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => openPlanEditor(plan)}
+                                    style={styles.editPlanButton}
+                                >
+                                    <Text style={styles.editPlanText}>Edit Plan</Text>
+                                    <SlidersHorizontal size={13} color={colors.primary} strokeWidth={2.4} />
+                                </TouchableOpacity>
+                            )}
                         </View>
 
-                        <View
-                            style={styles.planExerciseList}
-                            onLayout={(e) => {
-                                listOffsets.current[plan.id] = e.nativeEvent.layout.y;
-                            }}
-                        >
+                        {isDayLoading ? (
+                            <ExerciseSkeleton rows={plan.exercises.length || 3} />
+                        ) : (
+                        <View style={styles.planExerciseList}>
                             {plan.exercises.map((exercise, index) => {
-                                const input = exerciseInputs[inputKey(toDateKey(selectedDate), exercise.id)];
+                                const setInputs = getSetInputs(exercise.id);
                                 const isLast = index === plan.exercises.length - 1;
                                 const isExpanded = expandedExerciseId === exercise.id;
                                 return (
                                     <Animated.View
                                         key={exercise.id}
                                         layout={LinearTransition.duration(220)}
-                                        onLayout={(e) => {
-                                            rowOffsets.current[exercise.id] = e.nativeEvent.layout.y;
-                                        }}
                                         style={[styles.planExerciseRow, !isLast && styles.planExerciseRowDivider]}
                                     >
                                         <TouchableOpacity
@@ -683,56 +831,63 @@ export const WorkoutSession: React.FC = () => {
                                             <Animated.View
                                                 entering={FadeIn.duration(160)}
                                                 exiting={FadeOut.duration(120)}
-                                                style={styles.planExerciseInputRow}
+                                                style={styles.planSetList}
                                             >
-                                                <View style={styles.planInputField}>
-                                                    <TextInput
-                                                        style={styles.planInput}
-                                                        value={input?.sets ?? ''}
-                                                        onChangeText={(text) => setExerciseInput(exercise.id, 'sets', text)}
-                                                        onFocus={() => handleInputFocus(plan.id, exercise.id)}
-                                                        placeholder="—"
-                                                        placeholderTextColor={colors.textMuted}
-                                                        keyboardType="number-pad"
-                                                    />
-                                                    <Text style={styles.planInputUnit}>sets</Text>
-                                                </View>
-                                                <Text style={styles.setInputSeparator}>×</Text>
-                                                <View style={styles.planInputField}>
-                                                    <TextInput
-                                                        style={styles.planInput}
-                                                        value={input?.reps ?? ''}
-                                                        onChangeText={(text) => setExerciseInput(exercise.id, 'reps', text)}
-                                                        onFocus={() => handleInputFocus(plan.id, exercise.id)}
-                                                        placeholder="—"
-                                                        placeholderTextColor={colors.textMuted}
-                                                        keyboardType="number-pad"
-                                                    />
-                                                    <Text style={styles.planInputUnit}>reps</Text>
-                                                </View>
-                                                <Text style={styles.setInputSeparator}>@</Text>
-                                                <View style={styles.planInputField}>
-                                                    <TextInput
-                                                        style={styles.planInput}
-                                                        value={input?.weight ?? ''}
-                                                        onChangeText={(text) => setExerciseInput(exercise.id, 'weight', text)}
-                                                        onFocus={() => handleInputFocus(plan.id, exercise.id)}
-                                                        placeholder="—"
-                                                        placeholderTextColor={colors.textMuted}
-                                                        keyboardType="decimal-pad"
-                                                    />
-                                                    <Text style={styles.planInputUnit}>kg</Text>
-                                                </View>
+                                                {setInputs.map((set, setIndex) => (
+                                                    <View key={setIndex} style={styles.planSetRow}>
+                                                        <Text style={styles.planSetLabel}>
+                                                            Set {setIndex + 1}
+                                                        </Text>
+                                                        <SetStepper
+                                                            value={set.reps}
+                                                            unit="reps"
+                                                            onStep={(direction) =>
+                                                                stepSetInput(exercise.id, setIndex, 'reps', direction)
+                                                            }
+                                                        />
+                                                        <SetStepper
+                                                            value={set.weight}
+                                                            unit="kg"
+                                                            onStep={(direction) =>
+                                                                stepSetInput(exercise.id, setIndex, 'weight', direction)
+                                                            }
+                                                        />
+                                                        {setInputs.length > 1 ? (
+                                                            <TouchableOpacity
+                                                                activeOpacity={0.7}
+                                                                onPress={() => removeSet(exercise.id, setIndex)}
+                                                                style={styles.removeSetButton}
+                                                                hitSlop={8}
+                                                            >
+                                                                <Trash2 size={15} color={colors.error} strokeWidth={2.2} />
+                                                            </TouchableOpacity>
+                                                        ) : (
+                                                            <View style={styles.removeSetButton} />
+                                                        )}
+                                                    </View>
+                                                ))}
+
+                                                <TouchableOpacity
+                                                    activeOpacity={0.8}
+                                                    onPress={() => addSet(exercise.id)}
+                                                    style={styles.addSetRowButton}
+                                                >
+                                                    <Plus size={15} color={colors.primary} strokeWidth={2.6} />
+                                                    <Text style={styles.addSetRowText}>
+                                                        Add set {setInputs.length + 1}
+                                                    </Text>
+                                                </TouchableOpacity>
                                             </Animated.View>
                                         ) : null}
                                     </Animated.View>
                                 );
                             })}
                         </View>
+                        )}
 
                         <TouchableOpacity
                             activeOpacity={0.85}
-                            disabled={savingPlanId === plan.id}
+                            disabled={savingPlanId === plan.id || isDayLoading}
                             onPress={() => handleSaveWorkout(plan)}
                             style={[
                                 styles.saveWorkoutButton,
@@ -789,6 +944,14 @@ export const WorkoutSession: React.FC = () => {
                 onClose={() => setShowNewPlanModal(false)}
                 onCreate={handleCreatePlan}
                 onSaveDraft={handleSaveDraft}
+            />
+        ) : null}
+
+        {editingPlan ? (
+            <NewPlanModal
+                initialPlan={editingPlan.initial}
+                onClose={() => setEditingPlan(null)}
+                onCreate={handleUpdatePlan}
             />
         ) : null}
         </View>
@@ -1014,12 +1177,14 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: colors.primary,
     },
-    editOrderButton: {
+    editPlanButton: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
+        paddingVertical: 4,
+        paddingLeft: 8,
     },
-    editOrderText: {
+    editPlanText: {
         fontSize: 12.5,
         fontWeight: '700',
         color: colors.primary,
@@ -1058,13 +1223,6 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: colors.textSecondary,
         marginTop: 2,
-    },
-    exerciseMoreButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     planCardHeaderRow: {
         flexDirection: 'row',
@@ -1161,30 +1319,103 @@ const styles = StyleSheet.create({
     planExerciseChevronExpanded: {
         transform: [{ rotate: '180deg' }],
     },
-    planExerciseInputRow: {
+    skeletonList: {
+        gap: 14,
+        paddingVertical: 6,
+    },
+    skeletonRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        paddingLeft: 62,
+        gap: 12,
     },
-    planInputField: {
+    skeletonIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: 11,
+        backgroundColor: colors.surfaceContainer,
+    },
+    skeletonTextBlock: {
+        flex: 1,
+        gap: 6,
+    },
+    skeletonLineWide: {
+        height: 11,
+        borderRadius: 6,
+        backgroundColor: colors.surfaceContainer,
+        width: '62%',
+    },
+    skeletonLineNarrow: {
+        height: 9,
+        borderRadius: 5,
+        backgroundColor: colors.surfaceLow,
+        width: '38%',
+    },
+    planSetList: {
+        gap: 8,
+        marginTop: 2,
+    },
+    planSetRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    planSetLabel: {
+        width: 46,
+        fontSize: 11.5,
+        fontWeight: '800',
+        color: colors.textSecondary,
+    },
+    removeSetButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+    },
+    addSetRowButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        backgroundColor: withOpacity(colors.primary, 0.1),
+        borderRadius: 12,
+        paddingVertical: 9,
+        marginTop: 2,
+    },
+    addSetRowText: {
+        fontSize: 12.5,
+        fontWeight: '800',
+        color: colors.primary,
+    },
+    stepper: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.surfaceLow,
+        borderRadius: 12,
+        paddingHorizontal: 4,
+        paddingVertical: 4,
+    },
+    stepperButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surface,
+    },
+    stepperValueBlock: {
         flex: 1,
         alignItems: 'center',
-        backgroundColor: colors.surfaceLow,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        minWidth: 62,
     },
-    planInput: {
-        alignSelf: 'stretch',
-        textAlign: 'center',
+    stepperValue: {
         fontSize: 14,
         fontWeight: '800',
         color: colors.textPrimary,
-        padding: 0,
     },
-    planInputUnit: {
+    stepperUnit: {
         fontSize: 9,
         fontWeight: '700',
         color: colors.textMuted,
@@ -1324,10 +1555,6 @@ const styles = StyleSheet.create({
     setInputSmall: {
         width: 32,
     },
-    setInputSeparator: {
-        fontSize: 11,
-        color: colors.textSecondary,
-    },
     setCheckButton: {
         width: 28,
         height: 28,
@@ -1338,21 +1565,6 @@ const styles = StyleSheet.create({
     },
     setCheckButtonDone: {
         backgroundColor: colors.primary,
-    },
-    addSetButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        backgroundColor: colors.surfaceContainer,
-        borderRadius: 16,
-        paddingVertical: 11,
-        marginTop: 12,
-    },
-    addSetText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.primary,
     },
     collapsedExerciseCard: {
         flexDirection: 'row',

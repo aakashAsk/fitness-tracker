@@ -24,13 +24,17 @@ import { getCurrentUserId } from './userService';
 
 const LOGS_COLLECTION = 'workoutLogs';
 
-export interface ExerciseLogEntry {
-  exerciseId: string;
-  name: string;
-  sets: number;
+export interface ExerciseSetEntry {
   reps: number;
   /** kg. */
   weight: number;
+}
+
+export interface ExerciseLogEntry {
+  exerciseId: string;
+  name: string;
+  /** One record per set performed, in order — Set 1, Set 2, … */
+  sets: ExerciseSetEntry[];
 }
 
 export interface WorkoutLogInput {
@@ -59,6 +63,35 @@ function logDocId(userId: string, planId: string, date: string): string {
   return `${userId}_${planId}_${date}`;
 }
 
+/**
+ * Normalizes a stored exercise entry. Entries written before sets were
+ * tracked individually have a set COUNT plus a single reps/weight pair
+ * (`{ sets: 3, reps: 8, weight: 60 }`); those get expanded into that
+ * many identical set records so everything downstream sees one shape.
+ */
+function toExerciseLogEntry(raw: Record<string, unknown>): ExerciseLogEntry {
+  const rawSets = raw.sets;
+
+  const sets: ExerciseSetEntry[] = Array.isArray(rawSets)
+    ? rawSets.map((set) => {
+        const entry = (set ?? {}) as Record<string, unknown>;
+        return {
+          reps: Number(entry.reps) || 0,
+          weight: Number(entry.weight) || 0,
+        };
+      })
+    : Array.from({ length: Math.max(Number(rawSets) || 0, 1) }, () => ({
+        reps: Number(raw.reps) || 0,
+        weight: Number(raw.weight) || 0,
+      }));
+
+  return {
+    exerciseId: (raw.exerciseId as string) ?? '',
+    name: (raw.name as string) ?? '',
+    sets,
+  };
+}
+
 function toWorkoutLog(id: string, data: Record<string, unknown>): WorkoutLog {
   return {
     id,
@@ -66,7 +99,7 @@ function toWorkoutLog(id: string, data: Record<string, unknown>): WorkoutLog {
     planId: (data.planId as string) ?? '',
     planName: (data.planName as string) ?? '',
     date: (data.date as string) ?? '',
-    exercises: (data.exercises as ExerciseLogEntry[]) ?? [],
+    exercises: ((data.exercises as Record<string, unknown>[]) ?? []).map(toExerciseLogEntry),
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
   };
 }

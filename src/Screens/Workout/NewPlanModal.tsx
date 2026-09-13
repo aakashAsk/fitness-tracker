@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -48,6 +48,31 @@ interface NewPlanModalProps {
   onClose: () => void;
   onCreate: (payload: NewPlanPayload) => void;
   onSaveDraft?: (payload: NewPlanPayload) => void;
+  /**
+   * When provided the sheet edits this existing plan instead of
+   * creating a new one — fields start filled in, and the CTA saves the
+   * changes back rather than adding another plan.
+   */
+  initialPlan?: NewPlanPayload;
+}
+
+/** Splits a stored "6:30 PM" time back into the dial's three parts. */
+function parsePlanTime(time?: string): { hour: number; minute: number; period: 'AM' | 'PM' } {
+  const match = time?.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return { hour: 6, minute: 0, period: 'PM' };
+  return {
+    hour: parseInt(match[1], 10),
+    minute: parseInt(match[2], 10),
+    period: match[3].toUpperCase() === 'AM' ? 'AM' : 'PM',
+  };
+}
+
+function toDayRecord(days?: DayKey[]): Record<DayKey, boolean> {
+  const selected = new Set(days ?? []);
+  return DAY_ORDER.reduce(
+    (acc, day) => ({ ...acc, [day]: selected.has(day) }),
+    {} as Record<DayKey, boolean>,
+  );
 }
 
 interface PlanNameFieldProps {
@@ -100,24 +125,30 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   onClose,
   onCreate,
   onSaveDraft,
+  initialPlan,
 }) => {
-  const [name, setName] = useState('Hypertrophy Push & Delts');
-  const [muscles, setMuscles] = useState<string[]>([]);
-  const [exerciseIds, setExerciseIds] = useState<string[]>([]);
-  const [days, setDays] = useState<Record<DayKey, boolean>>({
-    Mon: false,
-    Tue: false,
-    Wed: false,
-    Thu: false,
-    Fri: false,
-    Sat: false,
-    Sun: false,
-  });
+  const isEditing = !!initialPlan;
+
+  // The sheet is mounted only while it should be open, so Modal would
+  // start life already visible — and RN only runs the slide animation
+  // on a false -> true transition. Flipping it on the next frame gives
+  // it that transition to animate.
+  const [isVisible, setIsVisible] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const initialTime = parsePlanTime(initialPlan?.time);
+
+  const [name, setName] = useState(initialPlan?.name ?? 'Hypertrophy Push & Delts');
+  const [muscles, setMuscles] = useState<string[]>(initialPlan?.muscles ?? []);
+  const [exerciseIds, setExerciseIds] = useState<string[]>(initialPlan?.exerciseIds ?? []);
+  const [days, setDays] = useState<Record<DayKey, boolean>>(() => toDayRecord(initialPlan?.days));
 
   // Session time — the same slot applies to every selected training day.
-  const [timeHour, setTimeHour] = useState(6);
-  const [timeMinute, setTimeMinute] = useState(0);
-  const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>('PM');
+  const [timeHour, setTimeHour] = useState(initialTime.hour);
+  const [timeMinute, setTimeMinute] = useState(initialTime.minute);
+  const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>(initialTime.period);
   const cycleHour = (delta: 1 | -1) =>
     setTimeHour((prev) => {
       const next = prev + delta;
@@ -189,6 +220,13 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
       cancelled = true;
     };
   }, []);
+  // An edited plan arrives with muscles already selected, so nothing
+  // ever calls toggleMuscle for them — kick off their fetches here
+  // instead, once, so the checked exercises have a list to sit in.
+  useEffect(() => {
+    initialPlan?.muscles.forEach((muscle) => loadExercisesForMuscle(muscle));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMuscle = (m: string) => {
     setMuscles((prev) => {
@@ -232,8 +270,16 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     return Array.from(byId.values());
   }, [muscles, exercisesByMuscle]);
 
+  // A muscle counts as still loading until its request has actually
+  // resolved — not just while `loadingMuscles` says so. On the first
+  // render of an edited plan the muscles are already selected but their
+  // fetches haven't been kicked off yet, so without the "no data and no
+  // error yet" case the list would briefly claim to be empty instead of
+  // showing the spinner.
   const isLoadingList = muscles.length > 0
-    ? muscles.some((m) => loadingMuscles[m])
+    ? muscles.some(
+        (m) => loadingMuscles[m] || (!exercisesByMuscle[m] && !muscleErrors[m]),
+      )
     : isLoadingDefault;
   const listErrorText = muscles.length > 0
     ? (muscles.filter((m) => muscleErrors[m]).length > 0
@@ -257,22 +303,50 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     setVisibleExercises(combinedExercises);
   }, [muscles.length, combinedExercises, isLoadingList, defaultExercises]);
 
-  // Exercises matching the search box, scoped to the currently loaded list.
+  // Latest selection, readable without making the memo below depend on it.
+  const exerciseIdsRef = useRef(exerciseIds);
+  exerciseIdsRef.current = exerciseIds;
+
+  // Exercises matching the search box, scoped to the currently loaded list,
+  // with everything already selected floated to the top — same idea as the
+  // muscle chips, so a long list never hides what you have picked.
+  //
+  // Deliberately recomputed only when the LIST or the query changes, not on
+  // every selection: reordering the instant a box is ticked would yank that
+  // row up to the top from under the finger that just tapped it.
   const filteredExercises = useMemo(() => {
     const query = exerciseSearch.trim().toLowerCase();
-    if (!query) return visibleExercises;
-    return visibleExercises.filter((ex) =>
-      ex.name.toLowerCase().includes(query) ||
-      ex.primaryMuscles.some((m) => m.toLowerCase().includes(query)) ||
-      (ex.equipment ?? '').toLowerCase().includes(query),
-    );
+    const matches = !query
+      ? visibleExercises
+      : visibleExercises.filter((ex) =>
+          ex.name.toLowerCase().includes(query) ||
+          ex.primaryMuscles.some((m) => m.toLowerCase().includes(query)) ||
+          (ex.equipment ?? '').toLowerCase().includes(query),
+        );
+
+    const selected = new Set(exerciseIdsRef.current);
+    return [
+      ...matches.filter((ex) => selected.has(ex.id)),
+      ...matches.filter((ex) => !selected.has(ex.id)),
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleExercises, exerciseSearch]);
+
+  // The exercises an edited plan arrived with. They are exempt from the
+  // pruning below: on the first pass `loadingMuscles` is still empty, so
+  // nothing reads as loading yet while `combinedExercises` is also still
+  // empty — without this the prefilled selection gets wiped before its
+  // muscles have even started fetching.
+  const initialExerciseIds = useRef(new Set(initialPlan?.exerciseIds ?? []));
 
   // Drop any checked exercise that fell out of the list (its muscle was deselected).
   useEffect(() => {
+    if (isLoadingList || muscles.length === 0) return;
     const validIds = new Set(combinedExercises.map((ex) => ex.id));
-    setExerciseIds((prev) => prev.filter((id) => validIds.has(id)));
-  }, [combinedExercises]);
+    setExerciseIds((prev) =>
+      prev.filter((id) => validIds.has(id) || initialExerciseIds.current.has(id)),
+    );
+  }, [combinedExercises, isLoadingList, muscles.length]);
 
   // Clear the search box once there's nothing left to search.
   useEffect(() => {
@@ -313,7 +387,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
 
   return (
     <>
-    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+    <Modal transparent visible={isVisible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
 
@@ -328,10 +402,14 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
             <View style={styles.headerTextWrap}>
               <View style={styles.headerTitleRow}>
                 <View style={styles.glowDot} />
-                <Text style={styles.headerTitle}>New Workout Plan</Text>
+                <Text style={styles.headerTitle}>
+                  {isEditing ? 'Edit Workout Plan' : 'New Workout Plan'}
+                </Text>
               </View>
               <Text style={styles.headerSubtitle}>
-                Set up your precision routine in seconds
+                {isEditing
+                  ? 'Update the routine — changes apply everywhere it is scheduled'
+                  : 'Set up your precision routine in seconds'}
               </Text>
             </View>
             <Pressable
@@ -686,22 +764,26 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                   android_ripple={{ color: colors.primaryDark }}
                   style={styles.ctaBtn}
                 >
-                  <Text style={styles.ctaText}>Create Workout Plan</Text>
+                  <Text style={styles.ctaText}>
+                    {isEditing ? 'Save Changes' : 'Create Workout Plan'}
+                  </Text>
                   <ArrowRight size={20} strokeWidth={2.6} color={colors.onPrimary} />
                 </Pressable>
               </View>
             </View>
 
-            <View style={styles.draftBtnClip}>
-              <Pressable
-                onPress={() => onSaveDraft?.(payload)}
-                android_ripple={{ color: colors.surfaceContainerHigh }}
-                style={styles.draftBtn}
-              >
-                <Bookmark size={16} color={colors.secondary} />
-                <Text style={styles.draftBtnText}>Save as Draft</Text>
-              </Pressable>
-            </View>
+            {onSaveDraft ? (
+              <View style={styles.draftBtnClip}>
+                <Pressable
+                  onPress={() => onSaveDraft(payload)}
+                  android_ripple={{ color: colors.surfaceContainerHigh }}
+                  style={styles.draftBtn}
+                >
+                  <Bookmark size={16} color={colors.secondary} />
+                  <Text style={styles.draftBtnText}>Save as Draft</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         </View>
       </View>
