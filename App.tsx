@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
   StatusBar,
@@ -11,32 +11,43 @@ import {
   SafeAreaView,
 } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
+import { onAuthStateChanged } from '@firebase/auth';
 
-import LiveTelemetry from './src/Screens/Dashboard/LiveTelementry';
+import DashboardOverview from './src/Screens/Dashboard/LiveTelementry';
 import TodaysWorkoutCard from './src/Screens/Dashboard/TodaysWorkout';
+import UpcomingMealCard from './src/Screens/Dashboard/UpcomingMealCard';
+import AuthNavigator from './src/Screens/Auth/AuthNavigator';
 
 import { colors } from './src/Theme/colors';
-import BottomNavBar from './src/Components/Navigation';
-import ScheduleScreen from './src/Screens/ScheduleScreen/Schedule';
-import { WorkoutPlanner } from './src/Screens/Workout/WorkoutPlanner';
+import BottomNavBar, { NavTab } from './src/Components/Navigation';
+// Real, Firestore-backed calendar screen — new design temporarily
+// replaces this tab with ScheduleSession (a presentational timeline
+// UI). Not deleted: re-enable by swapping the import/usage below once
+// the new design's data layer is wired up.
+// import ScheduleScreen from './src/Screens/ScheduleScreen/Schedule';
+import { ScheduleSession } from './src/Screens/ScheduleScreen/ScheduleSession';
+// Plan-builder feature — new design temporarily replaces this tab with
+// WorkoutSession (a session-logger UI). Not deleted: re-enable by
+// swapping the import/usage below once the new design's data layer
+// is wired up and the plan builder is reintroduced elsewhere.
+// import { WorkoutPlanner } from './src/Screens/Workout/WorkoutPlanner';
+import { WorkoutSession } from './src/Screens/Workout/WorkoutSession';
+import { NutritionScreen } from './src/Screens/Nutrition/NutritionScreen';
 import { store } from './src/Store/store';
 import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
-
-type NavTab = 'home' | 'workout' | 'nutrition' | 'progress';
+import { auth } from './src/Firebase/firebaseConfig';
 
 function AppContent() {
   // One Firestore listener for the whole app — every screen reads the
   // result from the Redux store instead of subscribing individually.
   useWorkoutPlansSync();
 
-  const [activeTab, setActiveTab] = useState<NavTab>('home');
-  const [showSchedule, setShowSchedule] = useState(false);
+  const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
+  const hasSession = !!firebaseUser;
 
-  // Switching tabs backs out of the Schedule overlay, same as a "back" action.
-  const handleTabPress = (tab: NavTab) => {
-    setShowSchedule(false);
-    setActiveTab(tab);
-  };
+  useEffect(() => onAuthStateChanged(auth, setFirebaseUser), []);
+
+  const [activeTab, setActiveTab] = useState<NavTab>('home');
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -46,27 +57,39 @@ function AppContent() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <LiveTelemetry />
+            <DashboardOverview />
             <TodaysWorkoutCard />
+            <UpcomingMealCard />
           </ScrollView>
         );
 
       case 'workout':
+        // return <WorkoutPlanner />;
         return (
-          <WorkoutPlanner />
+          <View style={styles.tabContent}>
+            <WorkoutSession />
+          </View>
         );
 
       case 'nutrition':
         return (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>Nutrition</Text>
+          <View style={styles.tabContent}>
+            <NutritionScreen />
           </View>
         );
 
-      case 'progress':
+      case 'schedule':
+        // return <ScheduleScreen />;
+        return (
+          <View style={styles.tabContent}>
+            <ScheduleSession />
+          </View>
+        );
+
+      case 'profile':
         return (
           <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>Progress</Text>
+            <Text style={styles.placeholderText}>Profile</Text>
           </View>
         );
 
@@ -75,23 +98,31 @@ function AppContent() {
     }
   };
 
+  if (!hasSession) {
+    return (
+      <SafeAreaProvider style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar
+            barStyle="dark-content"
+            backgroundColor={colors.background}
+          />
+          <AuthNavigator />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider style={styles.safeArea}>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar
-          barStyle="light-content"
+          barStyle="dark-content"
           backgroundColor={colors.background}
         />
 
-        <View style={styles.content}>
-          {showSchedule ? <ScheduleScreen /> : renderScreen()}
-        </View>
+        <View style={styles.content}>{renderScreen()}</View>
 
-        <BottomNavBar
-          activeTab={activeTab}
-          onTabPress={handleTabPress}
-          onCenterPress={() => setShowSchedule(true)}
-        />
+        <BottomNavBar activeTab={activeTab} onTabPress={setActiveTab} />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -108,17 +139,24 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.neutral,
+    backgroundColor: colors.background,
   },
 
   content: {
     flex: 1,
   },
 
-  scrollContent: {
-    paddingHorizontal: 16,
+  tabContent: {
+    flex: 1,
+    paddingHorizontal: 0,
     paddingTop: 8,
-    paddingBottom: 32,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 100,
+    gap: 24,
   },
 
   placeholder: {

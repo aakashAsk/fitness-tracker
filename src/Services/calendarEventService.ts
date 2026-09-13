@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import type { DayKey } from '../Screens/Workout/Types';
 import type { WorkoutPlan } from './workoutPlanService';
-import { CURRENT_USER_ID } from './userService';
+import { getCurrentUserId } from './userService';
 import { useWorkoutPlans } from '../Store/workoutPlansSlice';
 
 export type CalendarEventType = 'workout';
@@ -52,10 +52,11 @@ function workoutPlanToEvent(plan: WorkoutPlan): CalendarEvent {
  */
 export function getEventsForDate(date: Date, plans: WorkoutPlan[]): CalendarEvent[] {
   const weekday = WEEKDAY_BY_INDEX[date.getDay()];
+  const userId = getCurrentUserId();
   return plans
     .filter(
       (plan) =>
-        plan.userId === CURRENT_USER_ID &&
+        plan.userId === userId &&
         plan.status === 'live' &&
         plan.days.includes(weekday) &&
         plan.time,

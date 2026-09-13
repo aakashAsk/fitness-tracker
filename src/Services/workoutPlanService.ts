@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import type { DayKey } from '../Screens/Workout/Types';
-import { CURRENT_USER_ID } from './userService';
+import { getCurrentUserId } from './userService';
 
 const PLANS_COLLECTION = 'workoutPlans';
 
@@ -56,7 +56,7 @@ function toWorkoutPlan(id: string, data: Record<string, unknown>): WorkoutPlan {
     // Older docs predate the status field too — treat them as live.
     status: (data.status as WorkoutPlanStatus) ?? 'live',
     // Older docs predate per-user scoping.
-    userId: (data.userId as string) ?? CURRENT_USER_ID,
+    userId: (data.userId as string) ?? getCurrentUserId(),
     createdAt,
   };
 }
@@ -74,12 +74,12 @@ export function parseTimeToMinutes(time: string): number {
   return hour * 60 + parseInt(minuteStr, 10);
 }
 
-/** Saves a new workout plan (scoped to CURRENT_USER_ID) and returns its id. */
+/** Saves a new workout plan (scoped to the signed-in user) and returns its id. */
 export async function createWorkoutPlan(plan: WorkoutPlanInput): Promise<string> {
   try {
     const ref = await addDoc(collection(db, PLANS_COLLECTION), {
       ...plan,
-      userId: CURRENT_USER_ID,
+      userId: getCurrentUserId(),
       createdAt: serverTimestamp(),
     });
     return ref.id;
@@ -98,16 +98,17 @@ export async function createWorkoutPlan(plan: WorkoutPlanInput): Promise<string>
  * the field entirely — every plan saved before per-user scoping was added
  * has no `userId` field at all, and a server-side filter would silently
  * hide them forever. `toWorkoutPlan` already defaults a missing `userId`
- * to CURRENT_USER_ID, so filtering after that mapping keeps old data
- * visible under the current placeholder user.
+ * to getCurrentUserId(), so filtering after that mapping keeps old data
+ * visible under whichever account is currently signed in.
  */
 export async function fetchWorkoutPlans(): Promise<WorkoutPlan[]> {
   try {
     const q = query(collection(db, PLANS_COLLECTION), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
+    const userId = getCurrentUserId();
     return snapshot.docs
       .map((d) => toWorkoutPlan(d.id, d.data()))
-      .filter((plan) => plan.userId === CURRENT_USER_ID);
+      .filter((plan) => plan.userId === userId);
   } catch (err) {
     throw new WorkoutPlanServiceError(
       err instanceof Error ? err.message : 'Failed to load workout plans.',
@@ -127,12 +128,14 @@ export function subscribeToWorkoutPlans(
   const q = query(collection(db, PLANS_COLLECTION), orderBy('createdAt', 'desc'));
   return onSnapshot(
     q,
-    (snapshot) =>
+    (snapshot) => {
+      const userId = getCurrentUserId();
       onChange(
         snapshot.docs
           .map((d) => toWorkoutPlan(d.id, d.data()))
-          .filter((plan) => plan.userId === CURRENT_USER_ID),
-      ),
+          .filter((plan) => plan.userId === userId),
+      );
+    },
     (err) => onError?.(new WorkoutPlanServiceError(err.message)),
   );
 }

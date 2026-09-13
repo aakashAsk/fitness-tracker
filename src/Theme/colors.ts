@@ -1,91 +1,149 @@
-// Single source of truth for color tokens — FitTrack "Kinetic Obsidian".
+// Single source of truth for color tokens — PulseFit.
 //
-// Values come from the project color system spec. Token names are kept
-// stable so every consumer picks up the palette automatically; several
-// names are aliases that resolve to the same hex (e.g. `onSurface` /
-// `textPrimary`) to avoid churn in existing screens.
+// Sourced from the PulseFit Design Tokens spec (brand / domain /
+// feedback / themes.light / themes.dark). `colors` below is flattened
+// to the dark theme, since the app is dark-only today; `lightColors`
+// and `darkColors` are kept as full theme objects for when light-mode
+// support is added.
 //
-// There is intentionally only ONE `colors` export and ONE file. Add new
-// shades here — do not re-introduce `color.ts`.
-export const colors = {
-  // ── Brand & core accents ───────────────────────────────────
-  primary: '#7CFF4F', // Electric Lime — primary CTA, active pills, progress
-  primaryContainer: '#7CFF4F',
-  primaryDark: '#5ED936', // Kinetic Green Dark — pressed states, active borders
-  primaryHighlight: '#5ED936',
-  success: '#4ADE80', // completed checkmarks, sync confirmation
-  onPrimary: '#0C0E12', // text/icons on top of Electric Lime
-  onPrimaryFixed: '#0C0E12',
-  textOnAccent: '#0C0E12',
+// There is intentionally only ONE `colors` export and ONE file. Add
+// new shades here — do not re-introduce `color.ts`.
 
-  // ── Surfaces & background hierarchy ────────────────────────
-  canvasDeep: '#0C0E12', // deepest app canvas
-  background: '#0F1115', // root screen background
-  neutral: '#0F1115',
-  surface: '#111317', // bottom nav, global header
-  surfaceBase: '#111317',
-  cardBackgroud: '#181B21', // standard content cards / panels
-  surfaceContainer: '#181B21',
-  surfaceCard: '#181B21',
-  surfaceContainerLow: '#1A1C20', // secondary grouped / inactive cards
-  backgroundSecondary: '#20242C', // input fields, nested blocks, selectors
-  surfaceElevated: '#20242C',
-  surfaceContainerHigh: '#282A2E', // hover states, active segments
-  surfaceContainerHighest: '#37393E',
-  surfaceBright: '#37393E',
-
-  // ── Borders, dividers, outlines ───────────────────────────
-  border: '#292D35', // standard 1px structural border
-  cardBorder: '#292D35',
-  divider: '#1F232B', // timeline guides, nav top border
-  barNormal: '#1F232B',
-  activeOutline: 'rgba(124, 255, 79, 0.3)', // neon glow on active cards
-  pillBorder: 'rgba(124, 255, 79, 0.3)',
-  pillSuccessBorder: 'rgba(124, 255, 79, 0.3)',
-
-  // ── Typography ────────────────────────────────────────────
-  textPrimary: '#F5F7FA', // headers, card titles, key metrics
-  onSurface: '#F5F7FA',
-  textSecondary: '#9AA1AD', // subtitles, metadata, unit labels
-  onSurfaceVariant: '#9AA1AD',
-  textMuted: '#6B7280', // inactive days, disabled options, timestamps
-
-  // ── Pills / status badges ─────────────────────────────────
-  pillBackground: '#304B2C',
-  pillText: '#7CFF4F',
-
-  // ── Semantic event & category accents ─────────────────────
-  workout: '#7CFF4F', // training days, workout cards
-  meal: '#FB923C', // warm orange — scheduled meals, food icons
-  mealAmber: '#FBBF24', // amber — macro carb indicators
-  warning: '#FBBF24',
-  tertiaryContainer: '#FB923C',
-  gym: '#38BDF8', // sky blue — gym venue badges
-  water: '#60A5FA', // cobalt — hydration logs & pacer
-  aiRecovery: '#A78BFA', // muted violet — Kinetic AI, NSDR, supplements
-  secondary: '#A78BFA',
-  secondaryHighlight: '#252039',
-  error: '#F87171', // soft coral — alerts, missed intervals, cancel
-  alert: '#F87171',
-
-  // ── Absolutes ─────────────────────────────────────────────
-  white: '#FFFFFF',
-  black: '#000000',
+const brand = {
+    primary: '#4F6BF6',
+    primaryGlow: 'rgba(79, 107, 246, 0.35)',
+    secondary: '#FF6433',
+    secondaryGlow: 'rgba(255, 100, 51, 0.35)',
 } as const;
+
+const domain = {
+    // Nutrition
+    calories: '#FF6433',
+    protein: '#4F6BF6',
+    carbs: '#FF8A65',
+    fats: '#F59E0B',
+
+    // Fitness
+    hypertrophy: '#6366F1',
+    cardio: '#EC4899',
+    recovery: '#8B5CF6',
+
+    // Hydration
+    water: '#0284C7',
+    waterBg: 'rgba(2, 132, 199, 0.12)',
+} as const;
+
+const feedback = {
+    success: '#10B981',
+    warning: '#F59E0B',
+    error: '#EF4444',
+    info: '#3B82F6',
+} as const;
+
+const surfacesLight = {
+    background: '#FAF8FF',
+    surface: '#FFFFFF',
+    surfaceLow: '#F2F3FF',
+    surfaceContainer: '#ECEEFB',
+    textPrimary: '#111827',
+    textSecondary: '#6B7280',
+    textMuted: '#9CA3AF',
+    border: 'rgba(0, 0, 0, 0.06)',
+    navBackground: 'rgba(255, 255, 255, 0.85)',
+} as const;
+
+const surfacesDark = {
+    background: '#10131A',
+    surface: '#191B23',
+    surfaceLow: '#0B0E15',
+    surfaceContainer: '#1F273D',
+    textPrimary: '#F9FAFB',
+    textSecondary: '#94A3B8',
+    textMuted: '#64748B',
+    border: 'rgba(255, 255, 255, 0.08)',
+    navBackground: 'rgba(16, 19, 26, 0.85)',
+} as const;
+
+const absolutes = {
+    black: '#000000',
+    white: '#FFFFFF',
+} as const;
+
+export const lightColors = {
+    ...brand,
+    ...domain,
+    ...feedback,
+    ...surfacesLight,
+    ...absolutes,
+} as const;
+
+export const darkColors = {
+    ...brand,
+    ...domain,
+    ...feedback,
+    ...surfacesDark,
+    ...absolutes,
+} as const;
+
+// Compatibility bridge — old "Kinetic Obsidian" (dark theme) token
+// names, kept working while screens still reference them (Workout
+// plan-builder, Schedule) so they don't hard-crash after the PulseFit
+// palette swap. Remove an entry here once every file using it has been
+// migrated to the token names above.
+const legacyAliases = {
+    canvasDeep: lightColors.background,
+    cardBackgroud: lightColors.surface,
+    cardBorder: lightColors.border,
+    onPrimary: lightColors.white,
+    onPrimaryFixed: lightColors.white,
+    onSurface: lightColors.textPrimary,
+    onSurfaceVariant: lightColors.textSecondary,
+    pillBackground: '#4F6BF624', // withOpacity(primary, 0.14)
+    pillSuccessBorder: '#10B9814d', // withOpacity(success, 0.3)
+    pillText: lightColors.primary,
+    primaryContainer: lightColors.primary,
+    primaryDark: lightColors.primary,
+    surfaceContainerHigh: lightColors.surfaceContainer,
+    surfaceContainerHighest: lightColors.surfaceContainer,
+    surfaceContainerLow: lightColors.surfaceLow,
+    aiRecovery: domain.recovery,
+    gym: feedback.info,
+} as const;
+
+// App-wide default palette — light theme, matching the current PulseFit
+// UI direction (dashboard redesign onward), plus the legacy aliases
+// above. `darkColors` is kept ready for whenever dark-mode support is
+// added back.
+export const colors = { ...lightColors, ...legacyAliases };
 
 export type AppColors = typeof colors;
 
 /**
- * Adds an alpha channel to a 6-digit hex token, e.g.
- * withOpacity(colors.success, 0.4) -> '#4ADE8066'
+ * Overrides a color token's alpha, accepting either a 6-digit hex
+ * token (withOpacity('#10B981', 0.4) -> '#10B98166') or an
+ * 'rgba(r, g, b, a)' string (several tokens — border, navBackground,
+ * primaryGlow, waterBg, secondaryGlow — are rgba to begin with).
+ * Naively appending a hex alpha suffix to an rgba string produces an
+ * invalid CSS value (e.g. 'rgba(0, 0, 0, 0.06)99'), which RN Web
+ * rejects outright — so rgba inputs get their existing alpha replaced
+ * instead of a suffix appended.
  *
  * Applied inline via `style` so it never depends on how a given Tailwind
  * version resolves opacity on arbitrary values.
  */
-export const withOpacity = (hex: string, alpha: number): string => {
-  const clamped = Math.max(0, Math.min(1, alpha));
-  const channel = Math.round(clamped * 255)
-    .toString(16)
-    .padStart(2, '0');
-  return `${hex}${channel}`;
+export const withOpacity = (color: string, alpha: number): string => {
+    const clamped = Math.max(0, Math.min(1, alpha));
+
+    const rgbaMatch = color.match(
+        /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*[\d.]+\s*)?\)$/,
+    );
+    if (rgbaMatch) {
+        const [, r, g, b] = rgbaMatch;
+        return `rgba(${r}, ${g}, ${b}, ${clamped})`;
+    }
+
+    const channel = Math.round(clamped * 255)
+        .toString(16)
+        .padStart(2, '0');
+    return `${color}${channel}`;
 };

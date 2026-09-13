@@ -11,6 +11,10 @@ export const spacing = {
   gutterMobile: 16,
   cardPadding: 20,
   bottomNavHeight: 72,
+  // Side padding applied per-section on screens with no global screen
+  // padding (e.g. the Workout tab) — kept as one constant so shadows
+  // have consistent breathing room and can be retuned in one place.
+  screenHorizontalPadding: 20,
 } as const;
 
 export const radius = {
