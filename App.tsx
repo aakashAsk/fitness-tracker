@@ -36,6 +36,7 @@ import { NutritionScreen } from './src/Screens/Nutrition/NutritionScreen';
 import { store } from './src/Store/store';
 import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 import { auth } from './src/Firebase/firebaseConfig';
+import { DialogProvider } from './src/Components/Dialog';
 
 function AppContent() {
   // One Firestore listener for the whole app — every screen reads the
@@ -131,7 +132,12 @@ function AppContent() {
 export default function App() {
   return (
     <Provider store={store}>
-      <AppContent />
+      {/* One dialog host for the whole app — screens call useDialog()
+          instead of Alert.alert so confirmations match the app's own
+          surfaces rather than the platform's. */}
+      <DialogProvider>
+        <AppContent />
+      </DialogProvider>
     </Provider>
   );
 }

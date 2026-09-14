@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
     ScrollView,
     View,
     Text,
@@ -18,6 +17,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import {
+    CalendarDays,
     ChevronDown,
     Dumbbell,
     Flame,
@@ -27,7 +27,6 @@ import {
     Rows3,
     RotateCcw,
     SlidersHorizontal,
-    Timer,
     Trash2,
     TrendingUp,
 } from 'lucide-react-native';
@@ -35,10 +34,12 @@ import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import WorkoutDateStrip from './WorkoutDateStrip';
+import PlanLibrary from './PlanLibrary';
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
     WorkoutPlanServiceError,
+    type WorkoutPlan,
 } from '../../Services/workoutPlanService';
 import {
     fetchExerciseLogLookup,
@@ -56,11 +57,17 @@ import {
     getEventsForDate,
 } from '../../Services/calendarEventService';
 import {
+    describeConflict,
+    findScheduleConflict,
+    MAX_PLANS_PER_USER,
+} from '../../Services/planValidation';
+import {
     Exercise,
     fetchExercisesBulk,
     isWeightedEquipment,
 } from '../../Services/exerciseService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
+import { useDialog } from '../../Components/Dialog';
 
 // Live version of the Workout tab: the exercise list below the date
 // strip is now the real workout plan(s) scheduled on whichever weekday
@@ -217,6 +224,7 @@ const ExerciseSkeleton: React.FC<{ rows: number }> = ({ rows }) => {
 };
 
 export const WorkoutSession: React.FC = () => {
+    const dialog = useDialog();
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const [activeFilter, setActiveFilter] = useState('Push');
     const [showNewPlanModal, setShowNewPlanModal] = useState(false);
@@ -297,6 +305,9 @@ export const WorkoutSession: React.FC = () => {
     // objects, which carry a time-of-day and would reclassify the
     // selected day as the clock rolls past midnight mid-session.
     const isPastDay = selectedDateKey < todayDateKey();
+    const isToday = selectedDateKey === todayDateKey();
+    // Nothing can be logged for a day that hasn't happened yet.
+    const isFutureDay = selectedDateKey > todayDateKey();
 
     // This date's materialized occurrences (see workoutLogService):
     // rows that either override the plan's exercise list for this day
@@ -511,9 +522,18 @@ export const WorkoutSession: React.FC = () => {
                                 existing.every((set) => !set.reps && !set.weight);
                             if (!isEmpty) return;
 
+                            // A 'planned' row is a saved entry too, and
+                            // any exercise added by a single-day edit
+                            // sits in it with NO sets. Letting that win
+                            // the lookup suppresses the carry-forward
+                            // and leaves the field blank, so an entry
+                            // only counts when it holds actual numbers.
+                            const saved =
+                                savedForDate[savedEntryKey(plan.planDocId, exercise.exerciseId)];
                             const match =
-                                savedForDate[savedEntryKey(plan.planDocId, exercise.exerciseId)] ??
-                                nearest[exercise.exerciseId];
+                                saved && saved.sets.length > 0
+                                    ? saved
+                                    : nearest[exercise.exerciseId];
                             if (!match || match.sets.length === 0) return;
 
                             next[key] = match.sets.map((set) => ({
@@ -592,17 +612,18 @@ export const WorkoutSession: React.FC = () => {
             // The row just changed state to 'completed' — re-read so the
             // day view reflects it without a manual refresh.
             setOccurrenceRefreshKey((key) => key + 1);
-            Alert.alert(
-                wasAlreadyLogged ? 'Updated' : 'Saved',
-                `${plan.title} logged for ${dateKey}.`,
-            );
+            dialog.show({
+                title: wasAlreadyLogged ? 'Updated' : 'Saved',
+                message: `${plan.title} logged for ${dateKey}.`,
+            });
         } catch (error) {
-            Alert.alert(
-                'Could not save workout',
-                error instanceof WorkoutLogServiceError
-                    ? error.message
-                    : 'Something went wrong. Please try again.',
-            );
+            dialog.show({
+                title: 'Could not save workout',
+                message:
+                    error instanceof WorkoutLogServiceError
+                        ? error.message
+                        : 'Something went wrong. Please try again.',
+            });
         } finally {
             setSavingPlanId(null);
         }
@@ -614,6 +635,32 @@ export const WorkoutSession: React.FC = () => {
     // Firestore-synced plans list, so a plan scheduled on the selected
     // day's weekday appears here automatically once the write lands.
     const savePlan = async (payload: NewPlanPayload, status: 'live' | 'draft') => {
+        // The cap counts every plan the user owns, drafts and paused
+        // ones included — they all occupy a slot in the library.
+        if (workoutPlans.length >= MAX_PLANS_PER_USER) {
+            dialog.show({
+                title: 'Plan limit reached',
+                message: `You can keep up to ${MAX_PLANS_PER_USER} plans. Delete or replace one before adding another.`,
+            });
+            return;
+        }
+
+        // Only a live plan can clash — a draft isn't on the calendar
+        // yet, so the check runs again when it is made live.
+        if (status === 'live') {
+            const conflict = findScheduleConflict(workoutPlans, {
+                days: payload.days,
+                time: payload.time,
+            });
+            if (conflict) {
+                dialog.show({
+                    title: 'That time is already taken',
+                    message: describeConflict(conflict),
+                });
+                return;
+            }
+        }
+
         setIsSavingPlan(true);
         try {
             await createWorkoutPlan({
@@ -626,12 +673,13 @@ export const WorkoutSession: React.FC = () => {
             });
             setShowNewPlanModal(false);
         } catch (error) {
-            Alert.alert(
-                'Could not save workout plan',
-                error instanceof WorkoutPlanServiceError
-                    ? error.message
-                    : 'Something went wrong. Please try again.',
-            );
+            dialog.show({
+                title: 'Could not save workout plan',
+                message:
+                    error instanceof WorkoutPlanServiceError
+                        ? error.message
+                        : 'Something went wrong. Please try again.',
+            });
         } finally {
             setIsSavingPlan(false);
         }
@@ -675,7 +723,11 @@ export const WorkoutSession: React.FC = () => {
             planName: plan.title,
             scope,
             initial: {
-                name: planDoc?.name ?? plan.title,
+                // For a single day, start from the name that day is
+                // actually showing — which is its own, if it has been
+                // renamed before. Starting from the plan's name would
+                // quietly revert a custom one on the next save.
+                name: scope === 'thisDay' ? plan.title : (planDoc?.name ?? plan.title),
                 muscles: planDoc?.muscles ?? [],
                 // For a single day, start from what that day currently
                 // shows (the override if there is one), not from the
@@ -686,6 +738,24 @@ export const WorkoutSession: React.FC = () => {
                         : (planDoc?.exerciseIds ?? []),
                 days: planDoc?.days ?? [],
                 time: planDoc?.time ?? '',
+            },
+        });
+    };
+
+    // Editing straight from the plan library. Always whole-plan scope:
+    // that list isn't tied to a date, so there is no single day a change
+    // could be scoped to, and no prompt to show.
+    const openPlanEditorFromLibrary = (planDoc: WorkoutPlan) => {
+        setEditingPlan({
+            planDocId: planDoc.id,
+            planName: planDoc.name,
+            scope: 'rule',
+            initial: {
+                name: planDoc.name,
+                muscles: planDoc.muscles,
+                exerciseIds: planDoc.exerciseIds,
+                days: planDoc.days,
+                time: planDoc.time,
             },
         });
     };
@@ -701,15 +771,15 @@ export const WorkoutSession: React.FC = () => {
             return;
         }
 
-        Alert.alert(
-            'Edit workout',
-            `"${plan.title}" repeats every week. Apply your changes to this day only, or to the whole plan?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'This day only', onPress: () => beginEdit(plan, 'thisDay') },
-                { text: 'The whole plan', onPress: () => beginEdit(plan, 'rule') },
+        dialog.show({
+            title: 'Edit workout',
+            message: `"${plan.title}" repeats every week. Apply your changes to this day only, or to the whole plan?`,
+            actions: [
+                { label: 'Cancel', style: 'cancel' },
+                { label: 'This day only', onPress: () => beginEdit(plan, 'thisDay') },
+                { label: 'The whole plan', onPress: () => beginEdit(plan, 'rule') },
             ],
-        );
+        });
     };
 
     // Commits the edit, to whichever of the two places the chosen scope
@@ -719,6 +789,29 @@ export const WorkoutSession: React.FC = () => {
     // way, so a 'thisDay' save re-reads them explicitly.
     const handleUpdatePlan = async (payload: NewPlanPayload) => {
         if (!editingPlan) return;
+
+        // Rescheduling the rule can move a plan on top of another one.
+        // Excluded from the search by id, or it would clash with itself.
+        // Single-day edits skip this: they change only the exercise
+        // list, never the day or time.
+        if (editingPlan.scope === 'rule') {
+            const editedPlan = workoutPlans.find((plan) => plan.id === editingPlan.planDocId);
+            if (editedPlan?.status === 'live') {
+                const conflict = findScheduleConflict(
+                    workoutPlans,
+                    { days: payload.days, time: payload.time },
+                    { excludePlanId: editingPlan.planDocId },
+                );
+                if (conflict) {
+                    dialog.show({
+                    title: 'That time is already taken',
+                    message: describeConflict(conflict),
+                });
+                    return;
+                }
+            }
+        }
+
         setIsSavingPlan(true);
         try {
             if (editingPlan.scope === 'thisDay') {
@@ -746,7 +839,9 @@ export const WorkoutSession: React.FC = () => {
 
                 await savePlannedOccurrence({
                     planId: editingPlan.planDocId,
-                    planName: editingPlan.planName,
+                    // The name from the sheet, not the plan's — renaming
+                    // here renames this date's session only.
+                    planName: payload.name.trim() || editingPlan.planName,
                     date: selectedDateKey,
                     exercises: payload.exerciseIds.map((exerciseId) => ({
                         exerciseId,
@@ -765,13 +860,14 @@ export const WorkoutSession: React.FC = () => {
             }
             setEditingPlan(null);
         } catch (error) {
-            Alert.alert(
-                'Could not update workout plan',
-                error instanceof WorkoutPlanServiceError ||
+            dialog.show({
+                title: 'Could not update workout plan',
+                message:
+                    error instanceof WorkoutPlanServiceError ||
                     error instanceof WorkoutLogServiceError
-                    ? error.message
-                    : 'Something went wrong. Please try again.',
-            );
+                        ? error.message
+                        : 'Something went wrong. Please try again.',
+            });
         } finally {
             setIsSavingPlan(false);
         }
@@ -924,6 +1020,23 @@ export const WorkoutSession: React.FC = () => {
                         </Text>
                     </View>
                 </View>
+
+                {/* Jump back to the current date — sits in the header
+                    row's empty right slot. The strip spans two months
+                    either side of today, so it is easy to scroll a long
+                    way off and tedious to swipe back. Disabled rather
+                    than hidden when today is already selected, so the
+                    heading row doesn't reflow as you scrub dates. */}
+                <TouchableOpacity
+                    accessibilityLabel="Jump to today"
+                    activeOpacity={0.8}
+                    disabled={isToday}
+                    onPress={() => setSelectedDate(new Date())}
+                    style={[styles.todayButton, isToday && styles.todayButtonDisabled]}
+                >
+                    <CalendarDays size={12} color={colors.primary} strokeWidth={2.6} />
+                    <Text style={styles.todayButtonText}>Today</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Date strip */}
@@ -1100,21 +1213,24 @@ export const WorkoutSession: React.FC = () => {
 
                         <TouchableOpacity
                             activeOpacity={0.85}
-                            disabled={savingPlanId === plan.id || isDayLoading}
+                            disabled={savingPlanId === plan.id || isDayLoading || isFutureDay}
                             onPress={() => handleSaveWorkout(plan)}
                             style={[
                                 styles.saveWorkoutButton,
-                                savingPlanId === plan.id && styles.submitButtonDisabled,
+                                (savingPlanId === plan.id || isFutureDay) &&
+                                    styles.submitButtonDisabled,
                             ]}
                         >
                             <Text style={styles.saveWorkoutButtonText}>
                                 {savingPlanId === plan.id
                                     ? 'Saving…'
-                                    : !isLogStateKnown
-                                      ? 'Loading…'
-                                      : isLogged
-                                        ? 'Update Log'
-                                        : 'Save Log'}
+                                    : isFutureDay
+                                      ? 'Upcoming'
+                                      : !isLogStateKnown
+                                        ? 'Loading…'
+                                        : isLogged
+                                          ? 'Update Log'
+                                          : 'Save Log'}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -1122,25 +1238,10 @@ export const WorkoutSession: React.FC = () => {
                 })
             )}
 
-            {/* Rest timer widget */}
-            {hasWorkoutToday ? (
-            <View style={styles.restTimerCard}>
-                <View style={styles.restTimerLeft}>
-                    <View style={styles.restTimerIcon}>
-                        <Timer size={20} color={colors.secondary} strokeWidth={2.2} />
-                    </View>
-                    <View>
-                        <Text style={styles.restTimerTitle}>Automated Rest Timer</Text>
-                        <Text style={styles.restTimerSubtitle}>
-                            Auto-starts when a set is checked (90s)
-                        </Text>
-                    </View>
-                </View>
-                <View style={styles.restTimerPill}>
-                    <Text style={styles.restTimerPillText}>90s</Text>
-                </View>
-            </View>
-            ) : null}
+            {/* Every plan the user owns, regardless of date — always
+                rendered, unlike the cards above, which only cover what
+                is scheduled on the selected day. */}
+            <PlanLibrary onEditPlan={openPlanEditorFromLibrary} />
 
             <View style={styles.fabSpacer} />
         </ScrollView>
@@ -1377,6 +1478,23 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+    },
+    todayButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: withOpacity(colors.primary, 0.12),
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 20,
+    },
+    todayButtonDisabled: {
+        opacity: 0.45,
+    },
+    todayButtonText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: colors.primary,
     },
     sectionTitle: {
         fontSize: 16,
@@ -1627,19 +1745,33 @@ const styles = StyleSheet.create({
     stepperValueBlock: {
         flex: 1,
         alignItems: 'center',
+        justifyContent: 'center',
+        // Matches stepperButton, so the value/unit pair centres against
+        // the +/− buttons rather than against the padded row.
+        minHeight: 28,
     },
     stepperValue: {
         fontSize: 14,
+        // Explicit lineHeight plus includeFontPadding:false — on Android
+        // RN adds asymmetric font padding above the glyph by default,
+        // which is what makes an entered number sit visibly high in the
+        // pill while the em-dash placeholder looks fine.
+        lineHeight: 16,
+        includeFontPadding: false,
+        textAlign: 'center',
+        textAlignVertical: 'center',
         fontWeight: '800',
         color: colors.textPrimary,
     },
     stepperUnit: {
         fontSize: 9,
+        lineHeight: 11,
+        includeFontPadding: false,
+        textAlign: 'center',
         fontWeight: '700',
         color: colors.textMuted,
         letterSpacing: 0.3,
         textTransform: 'uppercase',
-        marginTop: 1,
     },
     saveWorkoutButton: {
         backgroundColor: colors.primary,
@@ -1821,55 +1953,6 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '800',
         color: colors.primary,
-    },
-    restTimerCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colors.surfaceContainer,
-        borderRadius: 24,
-        padding: 14,
-        marginHorizontal: spacing.screenHorizontalPadding,
-    },
-    restTimerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        flexShrink: 1,
-    },
-    restTimerIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    restTimerTitle: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.textPrimary,
-    },
-    restTimerSubtitle: {
-        fontSize: 11.5,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    restTimerPill: {
-        backgroundColor: colors.surface,
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-        borderRadius: 14,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 3,
-    },
-    restTimerPillText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: colors.textPrimary,
     },
     fabSpacer: {
         height: 56,

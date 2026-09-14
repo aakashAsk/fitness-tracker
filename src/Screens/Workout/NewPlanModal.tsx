@@ -383,12 +383,13 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   };
 
   const handleCreate = () => {
-    // The name/day checks are skipped in exercises-only mode: both
-    // fields are hidden there and pass through untouched, so a plan
-    // that predates them (no `time`, say) would otherwise fail
-    // validation on a field the user was never shown.
-    if (!exercisesOnly && !name.trim()) {
-      setFormError('Please enter a plan name.');
+    // The name is editable in both modes, so it is always validated.
+    // The training-day check is not: that field is hidden in
+    // exercises-only mode and passes through untouched, so a plan whose
+    // days predate the field would otherwise fail validation on
+    // something the user was never shown.
+    if (!name.trim()) {
+      setFormError(exercisesOnly ? 'Please enter a session name.' : 'Please enter a plan name.');
       return;
     }
     if (exerciseIds.length < 3) {
@@ -401,6 +402,19 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     }
     setFormError(null);
     onCreate(payload);
+  };
+
+  // A draft is unfinished by definition, so the exercise and
+  // training-day minimums don't apply — but it still needs a name, or
+  // it lands in the plan list as an unidentifiable row.
+  const handleDraft = () => {
+    if (!onSaveDraft) return;
+    if (!name.trim()) {
+      setFormError('Give the draft a name so you can find it later.');
+      return;
+    }
+    setFormError(null);
+    onSaveDraft(payload);
   };
 
   return (
@@ -455,16 +469,19 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* SECTION 1: PLAN NAME */}
-            {exercisesOnly ? null : (
-              <View style={styles.field}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.labelCaps}>PLAN NAME</Text>
-                  <Text style={styles.requiredText}>Required</Text>
-                </View>
-                <PlanNameField value={name} onChangeText={setName} />
+            {/* SECTION 1: PLAN NAME — shown in both modes. Editing a
+                single date renames that session alone, since the
+                occurrence row carries its own name; the recurring plan
+                keeps the one it already had. */}
+            <View style={styles.field}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelCaps}>
+                  {exercisesOnly ? 'SESSION NAME' : 'PLAN NAME'}
+                </Text>
+                <Text style={styles.requiredText}>Required</Text>
               </View>
-            )}
+              <PlanNameField value={name} onChangeText={setName} />
+            </View>
 
             {/* SECTION 2: TARGET MUSCLE GROUP */}
             <View style={styles.fieldLoose}>
@@ -814,7 +831,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
             {onSaveDraft ? (
               <View style={styles.draftBtnClip}>
                 <Pressable
-                  onPress={() => onSaveDraft(payload)}
+                  onPress={handleDraft}
                   android_ripple={{ color: colors.surfaceContainerHigh }}
                   style={styles.draftBtn}
                 >

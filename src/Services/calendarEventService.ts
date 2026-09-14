@@ -109,6 +109,12 @@ export function applyOccurrencesToEvents(
     if (!occurrence) return event;
     return {
       ...event,
+      // The row's own name always wins, because it is the name this
+      // particular session has: either one the user typed when editing
+      // this single date, or the one the plan carried when the session
+      // was logged. Either way renaming the plan afterwards must not
+      // retitle it — that is the whole point of a per-date row.
+      title: occurrence.planName || event.title,
       exerciseIds: occurrence.exercises.map((entry) => entry.exerciseId),
       isOverridden: true,
     };
