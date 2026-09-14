@@ -342,6 +342,24 @@ export interface ExerciseLogLookup {
    * logged, would lock the day against any further edits.
    */
   completedPlanIds: string[];
+  /**
+   * Every *completed* session for each requested exercise, up to and
+   * including `dateKey`, oldest first — the raw material for a progress
+   * chart. Keyed by `exerciseId` alone, like `nearest`: how an exercise
+   * has progressed is a user-wide question, not a per-plan one.
+   *
+   * Comes free with the lookup's existing scan, so charting costs no
+   * extra reads. Sessions after `dateKey` are excluded so the trend
+   * shown while looking at a past day doesn't run into that day's
+   * future.
+   */
+  history: Record<string, ExerciseSessionEntry[]>;
+}
+
+export interface ExerciseSessionEntry {
+  /** "YYYY-MM-DD" */
+  date: string;
+  sets: ExerciseSetEntry[];
 }
 
 /**
@@ -359,7 +377,7 @@ export async function fetchExerciseLogLookup(
   dateKey: string,
 ): Promise<ExerciseLogLookup> {
   if (exerciseIds.length === 0) {
-    return { savedForDate: {}, nearest: {}, completedPlanIds: [] };
+    return { savedForDate: {}, nearest: {}, completedPlanIds: [], history: {} };
   }
 
   const logs = await fetchWorkoutLogsForUser();
@@ -368,6 +386,18 @@ export async function fetchExerciseLogLookup(
   const earlier: Record<string, ExerciseLogEntry> = {};
   const later: Record<string, ExerciseLogEntry> = {};
   const completedPlanIds = new Set<string>();
+  const history: Record<string, ExerciseSessionEntry[]> = {};
+
+  // Collected newest-first during the walk below, then reversed once at
+  // the end — cheaper than unshifting into the front of an array per hit.
+  const pushHistory = (log: WorkoutLog) => {
+    if (log.state !== 'completed' || log.date > dateKey) return;
+    for (const entry of log.exercises) {
+      if (!wanted.has(entry.exerciseId)) continue;
+      if (entry.sets.length === 0) continue; // nothing performed to plot
+      (history[entry.exerciseId] ??= []).push({ date: log.date, sets: entry.sets });
+    }
+  };
 
   // `logs` is newest-first, so a single walk gets both: the FIRST
   // earlier hit per exercise is the closest earlier one, while each
@@ -403,10 +433,15 @@ export async function fetchExerciseLogLookup(
     }
   }
 
+  // Collected newest-first above; reversed once here rather than
+  // unshifting on every hit.
+  Object.values(history).forEach((entries) => entries.reverse());
+
   // An earlier session always wins over a later one where both exist.
   return {
     savedForDate,
     nearest: { ...later, ...earlier },
     completedPlanIds: Array.from(completedPlanIds),
+    history,
   };
 }

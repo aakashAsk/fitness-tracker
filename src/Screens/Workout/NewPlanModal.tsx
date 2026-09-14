@@ -2,13 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Modal,
   View,
   Text,
+  Platform,
   Pressable,
   ScrollView,
   TextInput,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import {
   X,
@@ -178,6 +181,35 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
       return next;
     });
   const formattedTime = `${timeHour}:${String(timeMinute).padStart(2, '0')} ${timePeriod}`;
+
+  // How much of the screen the keyboard currently covers. Tracked
+  // explicitly rather than via KeyboardAvoidingView: inside a Modal on
+  // Android that component frequently measures nothing, which is what
+  // left the exercise search box sitting behind the keypad.
+  const { height: windowHeight } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    // iOS fires the "will" events ahead of the animation, so the sheet
+    // moves in step with the keyboard instead of snapping after it.
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (event) =>
+      setKeyboardHeight(event.endCoordinates?.height ?? 0),
+    );
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Lets focusing the search box scroll its section to the top of the
+  // sheet — shrinking the sheet alone isn't enough when the field
+  // started out below the fold.
+  const bodyRef = useRef<ScrollView>(null);
+  const exerciseSectionY = useRef(0);
 
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
@@ -423,7 +455,20 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            // Lifted clear of the keyboard rather than left behind it.
+            // A KeyboardAvoidingView is unreliable inside a Modal on
+            // Android, so the inset is applied directly — and maxHeight
+            // shrinks with it, or the sheet would simply grow upward off
+            // the top of the screen instead of staying scrollable.
+            {
+              marginBottom: keyboardHeight,
+              maxHeight: (windowHeight - keyboardHeight) * 0.92,
+            },
+          ]}
+        >
           {/* Drag pill */}
           <View style={styles.dragBar}>
             <View style={styles.dragPill} />
@@ -464,6 +509,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
 
           {/* Scrollable body */}
           <ScrollView
+            ref={bodyRef}
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
@@ -536,7 +582,12 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
             </View>
 
             {/* SECTION 3: SELECT EXERCISES */}
-            <View style={styles.fieldLoose}>
+            <View
+              style={styles.fieldLoose}
+              onLayout={(event) => {
+                exerciseSectionY.current = event.nativeEvent.layout.y;
+              }}
+            >
               <View style={styles.labelRow}>
                 <Text style={styles.labelCaps}>
                   SELECT EXERCISES ({exerciseIds.length} Selected)
@@ -552,6 +603,12 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                   <TextInput
                     value={exerciseSearch}
                     onChangeText={setExerciseSearch}
+                    onFocus={() =>
+                      bodyRef.current?.scrollTo({
+                        y: Math.max(exerciseSectionY.current - 8, 0),
+                        animated: true,
+                      })
+                    }
                     placeholder="Search loaded exercises…"
                     placeholderTextColor={colors.textMuted}
                     style={styles.searchInput}
@@ -975,35 +1032,41 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: withOpacity(colors.black, 0.75),
+    backgroundColor: 'rgba(17, 24, 39, 0.5)',
   },
   sheet: {
     width: '100%',
-    maxHeight: '92%',
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
     overflow: 'hidden',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 16,
   },
 
-  dragBar: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },
+  dragBar: { alignItems: 'center', paddingTop: 10, paddingBottom: 2 },
   dragPill: {
-    width: 48,
-    height: 5,
+    width: 40,
+    height: 4,
     borderRadius: radius.full,
-    backgroundColor: colors.surfaceContainerHighest,
+    // The old token resolved to the same near-white as the sheet, so
+    // the grabber was effectively invisible.
+    backgroundColor: withOpacity(colors.textMuted, 0.45),
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: withOpacity(colors.surfaceContainer, 0.5),
+    borderBottomColor: colors.border,
   },
   headerTextWrap: { flex: 1, gap: 2 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -1023,7 +1086,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     letterSpacing: -0.3,
   },
-  headerSubtitle: { fontSize: 12, color: colors.onSurfaceVariant },
+  headerSubtitle: { fontSize: 12, lineHeight: 17, color: colors.onSurfaceVariant },
   closeBtn: {
     width: 36,
     height: 36,
@@ -1036,13 +1099,14 @@ const styles = StyleSheet.create({
 
   body: { flexGrow: 0 },
   bodyContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    gap: 22,
   },
 
-  field: { gap: 6 },
-  fieldLoose: { gap: 8 },
+  field: { gap: 8 },
+  fieldLoose: { gap: 10 },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1065,14 +1129,14 @@ const styles = StyleSheet.create({
     paddingRight: 40,
     fontSize: 14,
     borderRadius: radius.md,
-    backgroundColor: colors.canvasDeep,
+    backgroundColor: colors.surfaceLow,
     color: colors.onSurface,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   inputFocused: {
     borderColor: colors.primary,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.white,
   },
   inputClearBtn: {
     position: 'absolute',
@@ -1089,12 +1153,12 @@ const styles = StyleSheet.create({
   autoBalancedText: { fontSize: 12, fontWeight: '500', color: colors.secondary },
 
   selectorField: {
-    height: 44,
+    height: 46,
     paddingHorizontal: 14,
     borderRadius: radius.md,
-    backgroundColor: colors.canvasDeep,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
+    backgroundColor: colors.surfaceLow,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1148,12 +1212,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    height: 38,
+    height: 42,
     paddingHorizontal: 12,
     borderRadius: radius.md,
-    backgroundColor: colors.canvasDeep,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
+    backgroundColor: colors.surfaceLow,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
   searchInput: {
     flex: 1,
@@ -1320,13 +1384,13 @@ const styles = StyleSheet.create({
   periodText: { fontSize: 11, fontWeight: '700' },
 
   footer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    backgroundColor: colors.surfaceContainerLow,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 20,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: withOpacity(colors.border, 0.6),
-    gap: 8,
+    borderTopColor: colors.border,
+    gap: 10,
   },
   formErrorText: {
     fontSize: 12,
@@ -1338,9 +1402,10 @@ const styles = StyleSheet.create({
   // layer below it.
   ctaGlow: {
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 6,
   },
   // `overflow: 'hidden'` only clips a view's CHILDREN — it does not clip
   // that same view's own native android_ripple foreground. So the ripple
@@ -1348,7 +1413,7 @@ const styles = StyleSheet.create({
   // view, one level below where the shape/background/overflow are set.
   ctaClip: {
     width: '100%',
-    height: 48,
+    height: 52,
     borderRadius: radius.md,
     overflow: 'hidden',
     backgroundColor: colors.primary,
@@ -1361,15 +1426,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ctaBtnPressed: { backgroundColor: colors.primaryDark, transform: [{ scale: 0.98 }] },
-  ctaText: { fontSize: 16, fontWeight: '700', color: colors.onPrimary },
+  ctaText: { fontSize: 16, fontWeight: '800', color: colors.onPrimary },
   draftBtnClip: {
     width: '100%',
     height: 48,
     borderRadius: radius.md,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
+    backgroundColor: colors.surfaceLow,
   },
   draftBtn: {
     flex: 1,
@@ -1378,7 +1441,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  draftBtnText: { fontSize: 16, fontWeight: '700', color: colors.secondary },
+  draftBtnText: { fontSize: 15, fontWeight: '700', color: colors.secondary },
 
   exerciseRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   infoBtn: {
@@ -1403,17 +1466,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: withOpacity(colors.black, 0.75),
+    backgroundColor: 'rgba(17, 24, 39, 0.5)',
   },
   infoCard: {
     width: '100%',
     maxWidth: 420,
     maxHeight: '85%',
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
+    backgroundColor: colors.surface,
     overflow: 'hidden',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 12,
   },
   infoHeader: {
     flexDirection: 'row',

@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     StyleSheet,
 } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 import Animated, {
     FadeIn,
     FadeOut,
@@ -28,13 +27,13 @@ import {
     RotateCcw,
     SlidersHorizontal,
     Trash2,
-    TrendingUp,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
+import WorkoutProgressCard from './WorkoutProgressCard';
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
@@ -182,18 +181,6 @@ const EXERCISE_ICON_STYLES: { Icon: typeof PersonStanding; iconColor: string }[]
     { Icon: Dumbbell, iconColor: colors.primary },
     { Icon: PersonStanding, iconColor: colors.fats },
     { Icon: Rows3, iconColor: colors.secondary },
-];
-
-// Chart geometry for the 1RM trend line (matches the reference SVG viewBox).
-const CHART_WIDTH = 320;
-const CHART_HEIGHT = 85;
-const CHART_POINTS = [
-    { x: 10, y: 70 },
-    { x: 70, y: 63 },
-    { x: 130, y: 52 },
-    { x: 190, y: 42 },
-    { x: 250, y: 27 },
-    { x: 310, y: 10 },
 ];
 
 // Placeholder rows shown while a newly selected day resolves its exercise
@@ -458,6 +445,8 @@ export const WorkoutSession: React.FC = () => {
     // that day's actual record or just carried forward from an earlier
     // session.
     const [loggedPlanIds, setLoggedPlanIds] = useState<Set<string>>(new Set());
+
+
 
     // Fills in each exercise's sets/reps/weight for the selected day, in
     // priority order:
@@ -896,119 +885,13 @@ export const WorkoutSession: React.FC = () => {
                             : 'No workout scheduled for this day'}
                     </Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.7} style={styles.historyButton}>
-                    <RotateCcw size={14} color={colors.primary} strokeWidth={2.4} />
-                    <Text style={styles.historyButtonText}>Log History</Text>
-                </TouchableOpacity>
             </View>
 
-            {/* Filter chips */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterRow}
-            >
-                {FILTERS.map((filter) => {
-                    const active = filter === activeFilter;
-                    return (
-                        <TouchableOpacity
-                            key={filter}
-                            activeOpacity={0.85}
-                            onPress={() => setActiveFilter(filter)}
-                            style={[styles.filterChip, active && styles.filterChipActive]}
-                        >
-                            <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                                {filter}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
 
-            {/* 1RM trend card */}
-            <View style={styles.card}>
-                <View style={styles.trendHeaderRow}>
-                    <View>
-                        <View style={styles.trendTitleRow}>
-                            <TrendingUp size={16} color={colors.primary} strokeWidth={2.4} />
-                            <Text style={styles.trendTitle}>
-                                {planCards[0]?.exercises[0]
-                                    ? `${planCards[0].exercises[0].name} 1RM Trend`
-                                    : '1RM Trend'}
-                            </Text>
-                        </View>
-                        <View style={styles.trendStatRow}>
-                            <Text style={styles.trendValue}>85</Text>
-                            <Text style={styles.trendUnit}>kg</Text>
-                            <View style={styles.prBadge}>
-                                <Text style={styles.prBadgeText}>+5 kg PR</Text>
-                            </View>
-                        </View>
-                    </View>
-                    <View style={styles.runsPill}>
-                        <Text style={styles.runsPillText}>Last 6 Runs</Text>
-                    </View>
-                </View>
-
-                <Svg
-                    width="100%"
-                    height={110}
-                    viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-                    style={styles.chart}
-                >
-                    <Defs>
-                        <LinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2={CHART_HEIGHT}>
-                            <Stop offset="0%" stopColor={colors.primary} stopOpacity={0.25} />
-                            <Stop offset="100%" stopColor={colors.primary} stopOpacity={0} />
-                        </LinearGradient>
-                    </Defs>
-
-                    <Line x1={0} y1={20} x2={CHART_WIDTH} y2={20} stroke={colors.surfaceContainer} strokeWidth={1} strokeDasharray="3 3" />
-                    <Line x1={0} y1={50} x2={CHART_WIDTH} y2={50} stroke={colors.surfaceContainer} strokeWidth={1} strokeDasharray="3 3" />
-                    <Line x1={0} y1={80} x2={CHART_WIDTH} y2={80} stroke={colors.surfaceContainer} strokeWidth={1} />
-
-                    <Path
-                        d="M 10 70 C 50 68, 80 58, 120 54 C 160 50, 190 42, 230 32 C 270 24, 290 14, 310 10 L 310 85 L 10 85 Z"
-                        fill="url(#areaGradient)"
-                    />
-                    <Path
-                        d="M 10 70 C 50 68, 80 58, 120 54 C 160 50, 190 42, 230 32 C 270 24, 290 14, 310 10"
-                        stroke={colors.primary}
-                        strokeWidth={3.5}
-                        strokeLinecap="round"
-                        fill="none"
-                    />
-
-                    {CHART_POINTS.slice(0, -1).map((point) => (
-                        <Circle
-                            key={point.x}
-                            cx={point.x}
-                            cy={point.y}
-                            r={3.5}
-                            fill={colors.white}
-                            stroke={colors.primary}
-                            strokeWidth={2.5}
-                        />
-                    ))}
-                    <Circle
-                        cx={CHART_POINTS[CHART_POINTS.length - 1].x}
-                        cy={CHART_POINTS[CHART_POINTS.length - 1].y}
-                        r={5}
-                        fill={colors.primary}
-                        stroke={colors.white}
-                        strokeWidth={2.5}
-                    />
-                </Svg>
-
-                <View style={styles.chartLabelsRow}>
-                    <Text style={styles.chartLabel}>Wk 1</Text>
-                    <Text style={styles.chartLabel}>Wk 2</Text>
-                    <Text style={styles.chartLabel}>Wk 3</Text>
-                    <Text style={styles.chartLabel}>Wk 4</Text>
-                    <Text style={styles.chartLabel}>Wk 5</Text>
-                    <Text style={styles.chartLabelActive}>Today</Text>
-                </View>
-            </View>
+            {/* Progress across every logged session — sets, reps and
+                weight rolled up per day. Not tied to the selected date,
+                so it has data to draw whenever the user has trained. */}
+            <WorkoutProgressCard refreshKey={occurrenceRefreshKey} />
 
             {/* Section title */}
             <View style={styles.sectionHeaderRow}>
