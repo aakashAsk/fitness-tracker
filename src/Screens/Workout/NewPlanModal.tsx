@@ -11,7 +11,6 @@ import {
   ScrollView,
   TextInput,
   StyleSheet,
-  useWindowDimensions,
 } from 'react-native';
 import {
   X,
@@ -30,7 +29,7 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { DayKey } from './Types';
-import { DAY_ORDER } from './Data';
+import { DAY_ORDER, todayDayKey } from './Data';
 import {
   Exercise,
   ExerciseApiError,
@@ -160,7 +159,12 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   const [name, setName] = useState(initialPlan?.name ?? 'Hypertrophy Push & Delts');
   const [muscles, setMuscles] = useState<string[]>(initialPlan?.muscles ?? []);
   const [exerciseIds, setExerciseIds] = useState<string[]>(initialPlan?.exerciseIds ?? []);
-  const [days, setDays] = useState<Record<DayKey, boolean>>(() => toDayRecord(initialPlan?.days));
+  // A new plan starts on today's weekday — the day the user is almost
+  // always thinking about when they open this. An existing plan keeps
+  // exactly the days it was saved with, including none.
+  const [days, setDays] = useState<Record<DayKey, boolean>>(() =>
+    toDayRecord(initialPlan ? initialPlan.days : [todayDayKey()]),
+  );
 
   // Session time — the same slot applies to every selected training day.
   const [timeHour, setTimeHour] = useState(initialTime.hour);
@@ -186,7 +190,6 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   // explicitly rather than via KeyboardAvoidingView: inside a Modal on
   // Android that component frequently measures nothing, which is what
   // left the exercise search box sitting behind the keypad.
-  const { height: windowHeight } = useWindowDimensions();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
     // iOS fires the "will" events ahead of the animation, so the sheet
@@ -205,11 +208,31 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     };
   }, []);
 
+
   // Lets focusing the search box scroll its section to the top of the
   // sheet — shrinking the sheet alone isn't enough when the field
   // started out below the fold.
   const bodyRef = useRef<ScrollView>(null);
   const exerciseSectionY = useRef(0);
+
+
+  // The modal's own content box, measured rather than assumed. An RN
+  // <Modal> on Android is a separate window: it does not inherit the
+  // activity's adjustResize, and its height is not the app window's.
+  // Measuring is the only thing that is true on both platforms.
+  const [overlayHeight, setOverlayHeight] = useState(0);
+
+  // Lift the sheet clear of the keyboard, and cap it so that lift can
+  // never push its top off the screen. Correct whether or not the
+  // window itself resized: either way the sheet plus its lift comes to
+  // the measured height minus the gap.
+  const sheetSizing =
+    overlayHeight > 0
+      ? {
+          marginBottom: keyboardHeight,
+          maxHeight: Math.max(overlayHeight - keyboardHeight - 24, 220),
+        }
+      : undefined;
 
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [infoExercise, setInfoExercise] = useState<Exercise | null>(null);
@@ -451,24 +474,23 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
 
   return (
     <>
-    <Modal transparent visible={isVisible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+    <Modal
+      transparent
+      visible={isVisible}
+      animationType="slide"
+      onRequestClose={onClose}
+      // Makes the modal window full-screen, so the height measured
+      // below and the keyboard height reported by Keyboard events are
+      // in the same coordinate space.
+      statusBarTranslucent
+    >
+      <View
+        style={styles.overlay}
+        onLayout={(event) => setOverlayHeight(event.nativeEvent.layout.height)}
+      >
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <View
-          style={[
-            styles.sheet,
-            // Lifted clear of the keyboard rather than left behind it.
-            // A KeyboardAvoidingView is unreliable inside a Modal on
-            // Android, so the inset is applied directly — and maxHeight
-            // shrinks with it, or the sheet would simply grow upward off
-            // the top of the screen instead of staying scrollable.
-            {
-              marginBottom: keyboardHeight,
-              maxHeight: (windowHeight - keyboardHeight) * 0.92,
-            },
-          ]}
-        >
+        <View style={[styles.sheet, sheetSizing]}>
           {/* Drag pill */}
           <View style={styles.dragBar}>
             <View style={styles.dragPill} />
@@ -1341,7 +1363,9 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginTop: 6,
-    backgroundColor: colors.surfaceContainerHighest,
+    // Was surfaceContainerHighest — the same near-white as the tile it
+    // sits on, so the marker could not be seen at all.
+    backgroundColor: colors.textMuted,
   },
   recurrenceNote: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
 

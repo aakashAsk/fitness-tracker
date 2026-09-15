@@ -20,7 +20,8 @@ import {
     type WorkoutPlan,
     type WorkoutPlanStatus,
 } from '../../Services/workoutPlanService';
-import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
+import { useWorkoutPlans, useWorkoutPlansLoading } from '../../Store/workoutPlansSlice';
+import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import { useDialog } from '../../Components/Dialog';
 import {
     describeConflict,
@@ -70,6 +71,7 @@ export interface PlanLibraryProps {
 
 export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
     const plans = useWorkoutPlans();
+    const isLoading = useWorkoutPlansLoading();
     const dialog = useDialog();
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     // Accordion — one plan's details open at a time, matching the
@@ -158,12 +160,27 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                     the user hits it, rather than only as an alert. */}
                 <View style={styles.countPill}>
                     <Text style={styles.countText}>
-                        {plans.length}/{MAX_PLANS_PER_USER}
+                        {isLoading ? '—' : `${plans.length}/${MAX_PLANS_PER_USER}`}
                     </Text>
                 </View>
             </View>
 
-            {ordered.length === 0 ? (
+            {isLoading ? (
+                <View style={styles.list}>
+                    {[0, 1, 2].map((row) => (
+                        <SkeletonGroup key={row} style={styles.row}>
+                            <View style={styles.rowHeader}>
+                                <SkeletonBlock width={32} height={32} radius={10} />
+                                <View style={styles.rowText}>
+                                    <SkeletonBlock width="55%" height={11} />
+                                    <SkeletonBlock width="35%" height={9} radius={5} />
+                                </View>
+                                <SkeletonBlock width={58} height={22} radius={20} />
+                            </View>
+                        </SkeletonGroup>
+                    ))}
+                </View>
+            ) : ordered.length === 0 ? (
                 <Text style={styles.emptyText}>
                     No plans yet — tap "Add Workout Plan" to create your first one.
                 </Text>

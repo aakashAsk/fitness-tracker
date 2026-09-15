@@ -1,17 +1,19 @@
 import { configureStore } from '@reduxjs/toolkit';
 import workoutPlansReducer from './workoutPlansSlice';
+import mealPlansReducer from './mealPlansSlice';
 
 export const store = configureStore({
   reducer: {
     workoutPlans: workoutPlansReducer,
+    mealPlans: mealPlansReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      // WorkoutPlan.createdAt is a real Date (converted from a Firestore
-      // Timestamp in workoutPlanService) — exempt it instead of
-      // serializing/deserializing on every snapshot.
+      // WorkoutPlan.createdAt and MealPlan.createdAt are real Dates
+      // (converted from Firestore Timestamps in their services) — exempt
+      // them instead of serializing/deserializing on every snapshot.
       serializableCheck: {
-        ignoredPaths: ['workoutPlans.plans'],
+        ignoredPaths: ['workoutPlans.plans', 'mealPlans.plans'],
         ignoredActionPaths: ['payload'],
       },
     }),

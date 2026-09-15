@@ -11,6 +11,7 @@ import {
     type WorkoutProgress,
 } from '../../Services/progressService';
 import TrendGraph from './TrendGraph';
+import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 
 // Progress across every logged session — not scoped to the selected
 // date or to one exercise, so it has something to draw whenever the
@@ -100,11 +101,15 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
 
                     <View style={styles.statRow}>
                         <Text style={styles.value}>
-                            {metric === 'volume' ? formatCompact(latest) : latest || '—'}
+                            {loading
+                                ? '—'
+                                : metric === 'volume'
+                                  ? formatCompact(latest)
+                                  : latest || '—'}
                         </Text>
                         {active.unit ? <Text style={styles.unit}>{active.unit}</Text> : null}
 
-                        {delta !== 0 ? (
+                        {!loading && delta !== 0 ? (
                             <View
                                 style={[
                                     styles.deltaBadge,
@@ -129,7 +134,7 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
                     </View>
                 </View>
 
-                {sessions.length > 0 ? (
+                {!loading && sessions.length > 0 ? (
                     <View style={styles.runsPill}>
                         <Text style={styles.runsPillText}>
                             {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
@@ -138,7 +143,7 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
                 ) : null}
             </View>
 
-            {sessions.length > 0 ? (
+            {!loading && sessions.length > 0 ? (
                 <View style={styles.metricRow}>
                     {METRICS.map((entry) => {
                         const isActive = entry.key === metric;
@@ -163,7 +168,16 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
                 </View>
             ) : null}
 
-            {sessions.length >= 2 ? (
+            {loading ? (
+                <SkeletonGroup style={styles.loadingBlock}>
+                    <SkeletonBlock height={110} radius={16} />
+                    <View style={styles.loadingTiles}>
+                        {[0, 1, 2, 3].map((tile) => (
+                            <SkeletonBlock key={tile} height={46} radius={14} style={styles.loadingTile} />
+                        ))}
+                    </View>
+                </SkeletonGroup>
+            ) : sessions.length >= 2 ? (
                 <>
                     <TrendGraph values={values} />
 
@@ -201,9 +215,7 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
                 <View style={styles.emptyBox}>
                     <Activity size={18} color={colors.textMuted} strokeWidth={2.2} />
                     <Text style={styles.emptyText}>
-                        {loading
-                            ? 'Loading your training history…'
-                            : sessions.length === 1
+                        {sessions.length === 1
                               ? 'One session logged. Log another to see your trend.'
                               : 'Log a workout to start tracking your progress.'}
                     </Text>
@@ -216,6 +228,9 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
 export default WorkoutProgressCard;
 
 const styles = StyleSheet.create({
+    loadingBlock: { marginTop: 12, gap: 14 },
+    loadingTiles: { flexDirection: 'row', gap: 8 },
+    loadingTile: { flex: 1 },
     card: {
         backgroundColor: colors.surface,
         borderRadius: 24,

@@ -42,12 +42,20 @@ export interface WorkoutDateStripProps {
     // tiles so exactly VISIBLE_TILES fit on screen. Defaults to
     // WorkoutSession's own screen padding (App.tsx's tabContent: 20).
     screenHorizontalPadding?: number;
+    /**
+     * Colour of the selected tile. Defaults to the app's primary blue,
+     * which is what the Workout and Schedule tabs use; the Nutrition
+     * tab passes its own orange so the strip matches the accent of the
+     * screen it sits on.
+     */
+    accentColor?: string;
 }
 
 export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
     selectedDate,
     onSelectDate,
     screenHorizontalPadding = spacing.screenHorizontalPadding,
+    accentColor = colors.primary,
 }) => {
     const { width: windowWidth } = useWindowDimensions();
     const listRef = useRef<FlatList<Date>>(null);
@@ -74,6 +82,11 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
             }
         },
         [dates],
+    );
+
+    const selectedIndex = useMemo(
+        () => dates.findIndex((date) => isSameDay(date, selectedDate)),
+        [dates, selectedDate],
     );
 
     const hasCenteredRef = useRef(false);
@@ -104,7 +117,12 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
                 <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => onSelectDate(date)}
-                    style={[styles.dateTile, { width: tileWidth }, active && styles.dateTileActive]}
+                    style={[
+                        styles.dateTile,
+                        { width: tileWidth },
+                        active && styles.dateTileActive,
+                        active && { backgroundColor: accentColor, shadowColor: accentColor },
+                    ]}
                 >
                     <Text style={[styles.dateTileDay, active && styles.dateTileDayActive]}>
                         {DAY_LABELS[date.getDay()]}
@@ -116,7 +134,7 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
                 </TouchableOpacity>
             );
         },
-        [selectedDate, onSelectDate, tileWidth],
+        [selectedDate, onSelectDate, tileWidth, accentColor],
     );
 
     return (
@@ -127,7 +145,10 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
             renderItem={renderItem}
             horizontal
             showsHorizontalScrollIndicator={false}
-            initialScrollIndex={dates.findIndex((d) => isSameDay(d, selectedDate))}
+            // initialScrollIndex puts the item at the LEFT edge, so it
+            // is offset by half a screenful of tiles to land centred on
+            // the very first paint rather than sliding into place after.
+            initialScrollIndex={Math.max(selectedIndex - Math.floor(VISIBLE_TILES / 2), 0)}
             getItemLayout={getItemLayout}
             onScrollToIndexFailed={(info) => {
                 setTimeout(() => {
@@ -138,6 +159,11 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
                     });
                 }, 50);
             }}
+            // Centring on mount can run before the list has measured, in
+            // which case scrollToIndex silently does nothing. Re-centring
+            // once layout lands makes it deterministic; it is a no-op when
+            // the date is already in the middle.
+            onLayout={() => scrollToDate(selectedDate, false)}
             contentContainerStyle={{
                 gap: TILE_GAP,
                 paddingVertical: 2,
@@ -193,7 +219,7 @@ const styles = StyleSheet.create({
         width: 5,
         height: 5,
         borderRadius: 2.5,
-        backgroundColor: colors.secondaryGlow,
+        backgroundColor: withOpacity(colors.white, 0.65),
         marginTop: 1,
     },
 });

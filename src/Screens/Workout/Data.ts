@@ -89,3 +89,12 @@ export const DURATION_OPTIONS = ['30m', '45m', '60m', '75m', '90m'] as const;
 export const REMINDER_OFFSET_OPTIONS = ['10m', '15m', '30m'] as const;
 
 export const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+// DAY_ORDER starts on Monday for display, but Date.getDay() counts from
+// Sunday — hence the separate lookup rather than indexing DAY_ORDER.
+const DAY_BY_DATE_INDEX = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/** Today's weekday key, used to preselect it when creating a new plan. */
+export function todayDayKey(): (typeof DAY_BY_DATE_INDEX)[number] {
+  return DAY_BY_DATE_INDEX[new Date().getDay()];
+}

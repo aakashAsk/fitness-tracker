@@ -35,18 +35,22 @@ import { WorkoutSession } from './src/Screens/Workout/WorkoutSession';
 import { NutritionScreen } from './src/Screens/Nutrition/NutritionScreen';
 import { store } from './src/Store/store';
 import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
+import { useMealPlansSync } from './src/Store/mealPlansSlice';
 import { auth } from './src/Firebase/firebaseConfig';
 import { DialogProvider } from './src/Components/Dialog';
 
 function AppContent() {
-  // One Firestore listener for the whole app — every screen reads the
-  // result from the Redux store instead of subscribing individually.
-  useWorkoutPlansSync();
-
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
   const hasSession = !!firebaseUser;
 
   useEffect(() => onAuthStateChanged(auth, setFirebaseUser), []);
+
+  // One Firestore listener per collection for the whole app — every
+  // screen reads the result from the Redux store instead of subscribing
+  // individually. Started only once the uid is known: the queries filter
+  // on it, and the security rules reject them without it.
+  useWorkoutPlansSync(firebaseUser?.uid);
+  useMealPlansSync(firebaseUser?.uid);
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 

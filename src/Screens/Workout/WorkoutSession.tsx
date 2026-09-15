@@ -6,15 +6,7 @@ import {
     TouchableOpacity,
     StyleSheet,
 } from 'react-native';
-import Animated, {
-    FadeIn,
-    FadeOut,
-    LinearTransition,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import {
     CalendarDays,
     ChevronDown,
@@ -33,6 +25,7 @@ import { spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
+import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import WorkoutProgressCard from './WorkoutProgressCard';
 import {
     createWorkoutPlan,
@@ -183,32 +176,22 @@ const EXERCISE_ICON_STYLES: { Icon: typeof PersonStanding; iconColor: string }[]
     { Icon: Rows3, iconColor: colors.secondary },
 ];
 
-// Placeholder rows shown while a newly selected day resolves its exercise
-// names and logged numbers — a pulsing outline reads as "loading" without
-// the layout jump of swapping real content in and out.
-const ExerciseSkeleton: React.FC<{ rows: number }> = ({ rows }) => {
-    const pulse = useSharedValue(0.45);
-
-    useEffect(() => {
-        pulse.value = withRepeat(withTiming(1, { duration: 750 }), -1, true);
-    }, [pulse]);
-
-    const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
-
-    return (
-        <View style={styles.skeletonList}>
-            {Array.from({ length: rows }).map((_, index) => (
-                <Animated.View key={index} style={[styles.skeletonRow, pulseStyle]}>
-                    <View style={styles.skeletonIcon} />
-                    <View style={styles.skeletonTextBlock}>
-                        <View style={styles.skeletonLineWide} />
-                        <View style={styles.skeletonLineNarrow} />
-                    </View>
-                </Animated.View>
-            ))}
-        </View>
-    );
-};
+// Placeholder rows shown while a newly selected day resolves its
+// exercise names and logged numbers — a pulsing outline reads as
+// "loading" without the layout jump of swapping real content in and out.
+const ExerciseSkeleton: React.FC<{ rows: number }> = ({ rows }) => (
+    <SkeletonGroup style={styles.skeletonList}>
+        {Array.from({ length: rows }).map((_, index) => (
+            <View key={index} style={styles.skeletonRow}>
+                <SkeletonBlock width={38} height={38} radius={12} />
+                <View style={styles.skeletonTextBlock}>
+                    <SkeletonBlock width="60%" height={11} />
+                    <SkeletonBlock width="35%" height={9} radius={5} />
+                </View>
+            </View>
+        ))}
+    </SkeletonGroup>
+);
 
 export const WorkoutSession: React.FC = () => {
     const dialog = useDialog();

@@ -64,20 +64,39 @@ export const selectWorkoutPlansError = (state: { workoutPlans: WorkoutPlansState
  * updates automatically whenever a plan is created, edited, or its status
  * changes, with no extra wiring per screen.
  */
-export function useWorkoutPlansSync() {
+export function useWorkoutPlansSync(userId: string | null | undefined) {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
+    // Wait for auth to resolve. Firebase restores the session from
+    // AsyncStorage asynchronously, so on the first render
+    // auth.currentUser is still null — getCurrentUserId() would return
+    // 'guest-user', the query would filter on that, and the security
+    // rules would reject it outright. The listener is created once, so
+    // that failure would then be permanent.
+    if (!userId) return;
+
     dispatch(workoutPlansLoading());
     const unsubscribe = subscribeToWorkoutPlans(
       (plans) => dispatch(workoutPlansReceived(plans)),
       (err) => dispatch(workoutPlansFailed(err.message)),
     );
+    // Keyed on the uid, so signing in as someone else re-subscribes
+    // instead of leaving the previous account's plans on screen.
     return unsubscribe;
-  }, [dispatch]);
+  }, [dispatch, userId]);
 }
 
 /** Convenience hook for read-only consumers — just the plans array. */
 export function useWorkoutPlans() {
   return useAppSelector(selectWorkoutPlans);
+}
+
+/** True until the first snapshot lands. An empty plans array means
+ * nothing on its own — it is the initial state as well as the state of a
+ * user with no plans — so anything that renders an empty message has to
+ * check this first. */
+export function useWorkoutPlansLoading() {
+  const status = useAppSelector(selectWorkoutPlansStatus);
+  return status === 'idle' || status === 'loading';
 }
