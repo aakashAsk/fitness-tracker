@@ -38,6 +38,19 @@ import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 import { useMealPlansSync } from './src/Store/mealPlansSlice';
 import { auth } from './src/Firebase/firebaseConfig';
 import { DialogProvider } from './src/Components/Dialog';
+import { useReminderSync } from './src/Store/useReminderSync';
+import * as Notifications from 'expo-notifications';
+
+// Without a handler, a reminder that arrives while the app is open is
+// delivered silently — the user sees nothing until they background it.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 function AppContent() {
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
@@ -51,6 +64,9 @@ function AppContent() {
   // on it, and the security rules reject them without it.
   useWorkoutPlansSync(firebaseUser?.uid);
   useMealPlansSync(firebaseUser?.uid);
+
+  // Reschedules the device's reminders whenever a plan changes.
+  useReminderSync(hasSession);
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
@@ -105,43 +121,39 @@ function AppContent() {
 
   if (!hasSession) {
     return (
-      <SafeAreaProvider style={styles.safeArea}>
-        <SafeAreaView style={styles.safeArea}>
-          <StatusBar
-            barStyle="dark-content"
-            backgroundColor={colors.background}
-          />
-          <AuthNavigator />
-        </SafeAreaView>
-      </SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <AuthNavigator />
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaProvider style={styles.safeArea}>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar
-          barStyle="dark-content"
-          backgroundColor={colors.background}
-        />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
 
-        <View style={styles.content}>{renderScreen()}</View>
+      <View style={styles.content}>{renderScreen()}</View>
 
-        <BottomNavBar activeTab={activeTab} onTabPress={setActiveTab} />
-      </SafeAreaView>
-    </SafeAreaProvider>
+      <BottomNavBar activeTab={activeTab} onTabPress={setActiveTab} />
+    </SafeAreaView>
   );
 }
 
 export default function App() {
   return (
     <Provider store={store}>
-      {/* One dialog host for the whole app — screens call useDialog()
-          instead of Alert.alert so confirmations match the app's own
-          surfaces rather than the platform's. */}
-      <DialogProvider>
-        <AppContent />
-      </DialogProvider>
+      {/* SafeAreaProvider is outermost on purpose: DialogProvider and
+          the modal sheets below it call useSafeAreaInsets(), which
+          throws unless a provider is an ancestor. It used to live
+          inside AppContent — i.e. below the dialog host. */}
+      <SafeAreaProvider style={styles.safeArea}>
+        {/* One dialog host for the whole app — screens call useDialog()
+            instead of Alert.alert so confirmations match the app's own
+            surfaces rather than the platform's. */}
+        <DialogProvider>
+          <AppContent />
+        </DialogProvider>
+      </SafeAreaProvider>
     </Provider>
   );
 }

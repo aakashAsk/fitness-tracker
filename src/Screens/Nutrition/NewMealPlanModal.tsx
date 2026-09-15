@@ -9,6 +9,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import {
@@ -22,6 +23,13 @@ import {
     UtensilsCrossed,
     X,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+    interpolateColor,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from 'react-native-reanimated';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import { DAY_ORDER, todayDayKey } from '../Workout/Data';
@@ -57,6 +65,10 @@ interface NewMealPlanModalProps {
     /** "YYYY-MM-DD" of the day being logged, shown in the header. */
     logDateLabel?: string;
 }
+
+// Thumb travel = button width + gap, so the three must agree.
+const PERIOD_BTN_WIDTH = 46;
+const PERIOD_GAP = 4;
 
 const EMPTY_ITEM: MealItem = { name: '', quantity: '', unit: 'g' };
 /** Units a food item can be measured in. Kept short for now — more can
@@ -172,6 +184,15 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
     // Measuring is the only thing that is true on both platforms.
     const [overlayHeight, setOverlayHeight] = useState(0);
 
+    // See the workout sheet — the modal window is full-screen, so the
+    // system bars overlap it without these.
+    const insets = useSafeAreaInsets();
+
+    // The unit picker is sized from the window rather than from inset-0
+    // against this sheet's overlay — that overlay is a flex column the
+    // sheet sets margins on, so its box is not dependably the screen.
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
     // Lift the sheet clear of the keyboard, and cap it so that lift can
     // never push its top off the screen. Correct whether or not the
     // window itself resized: either way the sheet plus its lift comes to
@@ -180,7 +201,7 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
       overlayHeight > 0
         ? {
             marginBottom: keyboardHeight,
-            maxHeight: Math.max(overlayHeight - keyboardHeight - 24, 220),
+            maxHeight: Math.max(overlayHeight - keyboardHeight - insets.top - 24, 220),
           }
         : undefined;
 
@@ -202,6 +223,30 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
     };
 
     const formattedTime = `${hour}:${String(minute).padStart(2, '0')} ${period}`;
+
+    // See the workout sheet — same sliding thumb, laid out as a row here.
+    const periodShift = useSharedValue(period === 'AM' ? 0 : 1);
+    useEffect(() => {
+        periodShift.value = withTiming(period === 'AM' ? 0 : 1, { duration: 200 });
+    }, [period, periodShift]);
+
+    const periodThumbStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: periodShift.value * (PERIOD_BTN_WIDTH + PERIOD_GAP) }],
+    }));
+    const amTextStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(
+            periodShift.value,
+            [0, 1],
+            [colors.white, colors.textSecondary],
+        ),
+    }));
+    const pmTextStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(
+            periodShift.value,
+            [0, 1],
+            [colors.textSecondary, colors.white],
+        ),
+    }));
     const activeDays = useMemo(() => DAY_ORDER.filter((day) => days[day]) as DayKey[], [days]);
 
     const cycleHour = (delta: 1 | -1) => {
@@ -596,31 +641,28 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                                 </View>
 
                                 <View style={styles.periodWrap}>
-                                    {(['AM', 'PM'] as const).map((value) => {
-                                        const selected = period === value;
-                                        return (
-                                            <Pressable
-                                                key={value}
-                                                onPress={() => {
-                                                    timeTouched.current = true;
-                                                    setPeriod(value);
-                                                }}
+                                    <Animated.View
+                                        style={[styles.periodThumb, periodThumbStyle]}
+                                    />
+                                    {(['AM', 'PM'] as const).map((value) => (
+                                        <Pressable
+                                            key={value}
+                                            onPress={() => {
+                                                timeTouched.current = true;
+                                                setPeriod(value);
+                                            }}
+                                            style={styles.periodBtn}
+                                        >
+                                            <Animated.Text
                                                 style={[
-                                                    styles.periodBtn,
-                                                    selected && styles.periodBtnActive,
+                                                    styles.periodText,
+                                                    value === 'AM' ? amTextStyle : pmTextStyle,
                                                 ]}
                                             >
-                                                <Text
-                                                    style={[
-                                                        styles.periodText,
-                                                        selected && styles.periodTextActive,
-                                                    ]}
-                                                >
-                                                    {value}
-                                                </Text>
-                                            </Pressable>
-                                        );
-                                    })}
+                                                {value}
+                                            </Animated.Text>
+                                        </Pressable>
+                                    ))}
                                 </View>
                             </View>
 
@@ -634,7 +676,12 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                         </View>
                     </ScrollView>
 
-                    <View style={styles.footer}>
+                    <View
+                        style={[
+                            styles.footer,
+                            { paddingBottom: Math.max(insets.bottom, 20) },
+                        ]}
+                    >
                         {formError ? <Text style={styles.formErrorText}>{formError}</Text> : null}
 
                         <Pressable
@@ -666,7 +713,10 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                     web only. */}
                 {unitPickerFor !== null ? (
                     <Pressable
-                        style={styles.pickerOverlay}
+                        style={[
+                            styles.pickerOverlay,
+                            { width: windowWidth, height: windowHeight },
+                        ]}
                         onPress={() => setUnitPickerFor(null)}
                     >
                             <View style={styles.pickerCard}>
@@ -854,10 +904,10 @@ const styles = StyleSheet.create({
 
     pickerOverlay: {
         position: 'absolute',
+        // Pinned to the sheet overlay's top-left with an explicit window
+        // size, instead of stretching to all four insets.
         top: 0,
         left: 0,
-        right: 0,
-        bottom: 0,
         alignItems: 'center',
         justifyContent: 'center',
         padding: spacing.xl,
@@ -959,16 +1009,24 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     dayPillIdle: {
-        backgroundColor: colors.surfaceLow,
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: withOpacity(colors.border, 0.6),
+        borderColor: withOpacity(colors.textMuted, 0.28),
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 5,
+        elevation: 2,
     },
     dayPillActive: {
         backgroundColor: colors.secondary,
         shadowColor: colors.secondary,
-        shadowOffset: { width: 0, height: 0 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35,
-        shadowRadius: 8,
+        shadowRadius: 10,
+        // Android draws from elevation, not shadow* — without it the
+        // glow shows on iOS only.
+        elevation: 6,
     },
     dayPillText: {
         fontSize: 11,
@@ -1028,16 +1086,32 @@ const styles = StyleSheet.create({
         lineHeight: 26,
         includeFontPadding: false,
     },
-    periodWrap: { flexDirection: 'row', gap: 6 },
-    periodBtn: {
-        paddingHorizontal: 13,
-        paddingVertical: 8,
-        borderRadius: radius.DEFAULT,
+    periodWrap: {
+        flexDirection: 'row',
+        gap: PERIOD_GAP,
+        marginLeft: 'auto',
+        padding: 4,
+        borderRadius: 16,
         backgroundColor: colors.surface,
     },
-    periodBtnActive: { backgroundColor: colors.secondary },
-    periodText: { fontSize: 12, fontWeight: '800', color: colors.textSecondary },
-    periodTextActive: { color: colors.white },
+    // Sits under both buttons and slides between them.
+    periodThumb: {
+        position: 'absolute',
+        top: 4,
+        left: 4,
+        width: PERIOD_BTN_WIDTH,
+        height: 32,
+        borderRadius: 12,
+        backgroundColor: colors.secondary,
+    },
+    periodBtn: {
+        width: PERIOD_BTN_WIDTH,
+        height: 32,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    periodText: { fontSize: 12, fontWeight: '800' },
     scheduleNote: { fontSize: 11.5, color: colors.textMuted },
 
     footer: {

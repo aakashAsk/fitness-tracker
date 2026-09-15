@@ -1,0 +1,5 @@
+1. improve popup modal
+2. add step counter
+3. improve graph of workout logs
+4. add ai for creating plans and meal diet according to the indian bujet
+5. push notifications

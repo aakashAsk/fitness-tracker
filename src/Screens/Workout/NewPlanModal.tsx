@@ -24,8 +24,18 @@ import {
   Bookmark,
   Info,
   Clock,
+  CalendarCheck,
+  Dumbbell,
+  ListFilter,
 } from 'lucide-react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  interpolateColor,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { DayKey } from './Types';
@@ -101,12 +111,15 @@ const PlanNameField = React.memo(({ value, onChangeText }: PlanNameFieldProps) =
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.inputWrap}>
+      <View style={styles.inputLeadingIcon} pointerEvents="none">
+        <Dumbbell size={17} color={colors.textMuted} strokeWidth={2.2} />
+      </View>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        placeholder="e.g., Push Hypertrophy, Upper Body Power"
+        placeholder="e.g. Upper Body Hypertrophy"
         placeholderTextColor={colors.textMuted}
         style={[styles.input, focused && styles.inputFocused]}
       />
@@ -123,6 +136,11 @@ const PlanNameField = React.memo(({ value, onChangeText }: PlanNameFieldProps) =
     </View>
   );
 });
+
+// The thumb's travel is the button height plus the tray gap, so all
+// three have to agree — hence the shared constants.
+const PERIOD_BTN_HEIGHT = 30;
+const PERIOD_GAP = 4;
 
 const MUSCLE_CHIPS = ["biceps", "forearms", "chest", "triceps", "shoulders", "lower back",
   "middle back", "neck", "abdominals",
@@ -186,6 +204,34 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     });
   const formattedTime = `${timeHour}:${String(timeMinute).padStart(2, '0')} ${timePeriod}`;
 
+  // AM = 0, PM = 1. A filled thumb slides between the two rather than
+  // the background jumping from one button to the other, which makes it
+  // obvious that this is one control with two positions.
+  const periodShift = useSharedValue(timePeriod === 'AM' ? 0 : 1);
+  useEffect(() => {
+    periodShift.value = withTiming(timePeriod === 'AM' ? 0 : 1, { duration: 200 });
+  }, [timePeriod, periodShift]);
+
+  const periodThumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: periodShift.value * (PERIOD_BTN_HEIGHT + PERIOD_GAP) }],
+  }));
+
+  // Both labels cross-fade against the thumb as it passes under them.
+  const amTextStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(
+      periodShift.value,
+      [0, 1],
+      [colors.white, colors.textSecondary],
+    ),
+  }));
+  const pmTextStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(
+      periodShift.value,
+      [0, 1],
+      [colors.textSecondary, colors.white],
+    ),
+  }));
+
   // How much of the screen the keyboard currently covers. Tracked
   // explicitly rather than via KeyboardAvoidingView: inside a Modal on
   // Android that component frequently measures nothing, which is what
@@ -222,6 +268,10 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   // Measuring is the only thing that is true on both platforms.
   const [overlayHeight, setOverlayHeight] = useState(0);
 
+  // The modal window is full-screen (statusBarTranslucent), so the
+  // system bars overlap it unless their insets are subtracted here.
+  const insets = useSafeAreaInsets();
+
   // Lift the sheet clear of the keyboard, and cap it so that lift can
   // never push its top off the screen. Correct whether or not the
   // window itself resized: either way the sheet plus its lift comes to
@@ -230,7 +280,10 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     overlayHeight > 0
       ? {
           marginBottom: keyboardHeight,
-          maxHeight: Math.max(overlayHeight - keyboardHeight - 24, 220),
+          // Top inset keeps a tall sheet clear of the status bar; the
+          // bottom one is handled by the footer's own padding, so it is
+          // not subtracted twice here.
+          maxHeight: Math.max(overlayHeight - keyboardHeight - insets.top - 24, 220),
         }
       : undefined;
 
@@ -546,7 +599,9 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                 <Text style={styles.labelCaps}>
                   {exercisesOnly ? 'SESSION NAME' : 'PLAN NAME'}
                 </Text>
-                <Text style={styles.requiredText}>Required</Text>
+                <View style={styles.requiredBadge}>
+                    <Text style={styles.requiredText}>Required</Text>
+                </View>
               </View>
               <PlanNameField value={name} onChangeText={setName} />
             </View>
@@ -555,21 +610,21 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
             <View style={styles.fieldLoose}>
               <View style={styles.labelRow}>
                 <Text style={styles.labelCaps}>TARGET MUSCLE GROUP</Text>
-                <View style={styles.autoBalancedRow}>
-                  <SlidersHorizontal size={13} color={colors.secondary} />
-                  <Text style={styles.autoBalancedText}>Auto-balanced</Text>
-                </View>
               </View>
 
               <Pressable style={styles.selectorField}>
                 <View style={styles.selectorLeft}>
                   <View style={styles.selectorSwatch} />
                   <Text style={styles.selectorValue} numberOfLines={1}>
-                    {muscles.length > 0 ? muscles.join(' & ') : 'Select muscles'}
+                    Target Muscles
                   </Text>
-                  <View style={styles.selectorBadge}>
-                    <Text style={styles.selectorBadgeText}>Selected</Text>
-                  </View>
+                  {muscles.length > 0 ? (
+                    <View style={styles.selectorBadge}>
+                      <Text style={styles.selectorBadgeText}>
+                        {muscles.length} Selected
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <ChevronDown size={18} color={colors.onSurfaceVariant} />
               </Pressable>
@@ -594,8 +649,12 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                           ]}
                         >
                           {m}
-                          {selected ? '  ✓' : ''}
                         </Text>
+                        {selected ? (
+                          <X size={11} color={colors.textMuted} strokeWidth={2.6} />
+                        ) : (
+                          <Plus size={11} color={colors.primary} strokeWidth={2.8} />
+                        )}
                       </Pressable>
                     </Animated.View>
                   );
@@ -611,9 +670,14 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
               }}
             >
               <View style={styles.labelRow}>
-                <Text style={styles.labelCaps}>
-                  SELECT EXERCISES ({exerciseIds.length} Selected)
-                </Text>
+                <View style={styles.labelWithBadge}>
+                  <Text style={styles.labelCaps}>SELECT EXERCISES</Text>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>
+                      {exerciseIds.length} SELECTED
+                    </Text>
+                  </View>
+                </View>
                 <Pressable hitSlop={6} onPress={() => setExerciseIds([])}>
                   <Text style={styles.clearAllText}>Clear all</Text>
                 </Pressable>
@@ -635,7 +699,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                     placeholderTextColor={colors.textMuted}
                     style={styles.searchInput}
                   />
-                  {exerciseSearch.length > 0 && (
+                  {exerciseSearch.length > 0 ? (
                     <Pressable
                       accessibilityLabel="Clear search"
                       hitSlop={8}
@@ -643,6 +707,8 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                     >
                       <X size={14} color={colors.onSurfaceVariant} />
                     </Pressable>
+                  ) : (
+                    <ListFilter size={14} color={colors.textMuted} strokeWidth={2.2} />
                   )}
                 </View>
               )}
@@ -705,9 +771,23 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                               >
                                 {ex.name}
                               </Text>
-                              <Text style={styles.exerciseMeta} numberOfLines={1}>
-                                {meta || 'General'}
-                              </Text>
+                              <View style={styles.exerciseMetaRow}>
+                                {ex.primaryMuscles[0] ? (
+                                  <View style={styles.exerciseMuscleTag}>
+                                    <Text style={styles.exerciseMuscleTagText}>
+                                      {ex.primaryMuscles[0]}
+                                    </Text>
+                                  </View>
+                                ) : null}
+                                {ex.equipment ? (
+                                  <>
+                                    <Text style={styles.exerciseMetaDot}>•</Text>
+                                    <Text style={styles.exerciseMeta} numberOfLines={1}>
+                                      {ex.equipment}
+                                    </Text>
+                                  </>
+                                ) : null}
+                              </View>
                             </View>
                           </View>
                           <View style={styles.exerciseRight}>
@@ -715,16 +795,20 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                               accessibilityLabel={`More info about ${ex.name}`}
                               hitSlop={8}
                               onPress={() => setInfoExercise(ex)}
-                              style={styles.infoBtn}
+                              style={[styles.infoBtn, !checked && styles.infoBtnIdle]}
                             >
-                              <Info size={16} color={colors.secondary} />
+                              <Info
+                                size={15}
+                                color={checked ? colors.secondary : colors.textSecondary}
+                                strokeWidth={2.6}
+                              />
                             </Pressable>
                             {checked ? (
                               <View style={styles.exerciseTag}>
                                 <Text style={styles.exerciseTagText}>{ex.level}</Text>
                               </View>
                             ) : (
-                              <Plus size={18} color={colors.textMuted} />
+                              <Plus size={18} color={colors.textSecondary} strokeWidth={2.6} />
                             )}
                           </View>
                         </Pressable>
@@ -791,11 +875,14 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                 })}
               </View>
 
-              <Text style={styles.recurrenceNote}>
-                {activeDays.length > 0
-                  ? `${activeDays.length} days selected: ${activeDays.join(', ')}`
-                  : 'No training days selected'}
-              </Text>
+              <View style={styles.noteRow}>
+                <CalendarCheck size={13} color={colors.primary} strokeWidth={2.4} />
+                <Text style={styles.recurrenceNote}>
+                  {activeDays.length > 0
+                    ? `${activeDays.length} selected: ${activeDays.join(', ')} · ${activeDays.length}x / week`
+                    : 'No training days selected'}
+                </Text>
+              </View>
             </View>
 
             {/* SECTION 4b: SESSION TIME — applies to every selected day above */}
@@ -818,7 +905,9 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                   >
                     <ChevronUp size={16} color={colors.onSurfaceVariant} />
                   </Pressable>
-                  <Text style={styles.timeValue}>{timeHour}</Text>
+                  <Text style={styles.timeValue}>
+                    {String(timeHour).padStart(2, '0')}
+                  </Text>
                   <Pressable
                     accessibilityLabel="Decrease hour"
                     hitSlop={8}
@@ -829,7 +918,10 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                   </Pressable>
                 </View>
 
-                <Text style={styles.timeColon}>:</Text>
+                <View style={styles.timeColonDots}>
+                  <View style={styles.timeColonDot} />
+                  <View style={styles.timeColonDot} />
+                </View>
 
                 <View style={styles.timeStepper}>
                   <Pressable
@@ -852,40 +944,49 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                 </View>
 
                 <View style={styles.periodWrap}>
-                  {(['AM', 'PM'] as const).map((period) => {
-                    const selected = timePeriod === period;
-                    return (
-                      <Pressable
-                        key={period}
-                        onPress={() => setTimePeriod(period)}
-                        style={[styles.periodBtn, selected ? styles.periodActive : styles.periodIdle]}
+                  <Animated.View style={[styles.periodThumb, periodThumbStyle]} />
+                  {(['AM', 'PM'] as const).map((period) => (
+                    <Pressable
+                      key={period}
+                      onPress={() => setTimePeriod(period)}
+                      style={styles.periodBtn}
+                    >
+                      <Animated.Text
+                        style={[
+                          styles.periodText,
+                          period === 'AM' ? amTextStyle : pmTextStyle,
+                        ]}
                       >
-                        <Text
-                          style={[
-                            styles.periodText,
-                            selected ? styles.chipTextActive : styles.chipTextIdle,
-                          ]}
-                        >
-                          {period}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                        {period}
+                      </Animated.Text>
+                    </Pressable>
+                  ))}
                 </View>
               </View>
 
-              <Text style={styles.recurrenceNote}>
-                {activeDays.length > 0
-                  ? `Scheduled ${formattedTime} on ${activeDays.join(', ')}`
-                  : 'Pick training days above to see the full schedule'}
-              </Text>
+              <View style={styles.noteRow}>
+                <View style={styles.noteDot} />
+                <Text style={styles.recurrenceNote}>
+                  {activeDays.length > 0
+                    ? `Scheduled ${formattedTime} on ${activeDays.join(', ')}`
+                    : 'Pick training days above to see the full schedule'}
+                </Text>
+              </View>
             </View>
             </>
             )}
           </ScrollView>
 
           {/* SECTION 5: ACTION FOOTER */}
-          <View style={styles.footer}>
+          <View
+            style={[
+              styles.footer,
+              // Lifts the buttons clear of the gesture bar. Never below
+              // the design padding, so a device with no inset is
+              // unchanged.
+              { paddingBottom: Math.max(insets.bottom, 20) },
+            ]}
+          >
             {formError && <Text style={styles.formErrorText}>{formError}</Text>}
 
             <View style={styles.ctaGlow}>
@@ -907,6 +1008,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
               </View>
             </View>
 
+            {/* iOS-style home indicator, matching the reference sheet. */}
             {onSaveDraft ? (
               <View style={styles.draftBtnClip}>
                 <Pressable
@@ -1141,13 +1243,21 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     textTransform: 'uppercase',
   },
-  requiredText: { fontSize: 12, fontWeight: '500', color: colors.primary },
+  requiredBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.DEFAULT,
+    backgroundColor: withOpacity(colors.primary, 0.1),
+  },
+  requiredText: { fontSize: 11, fontWeight: '700', color: colors.primary },
 
   inputWrap: { position: 'relative', justifyContent: 'center' },
   input: {
     width: '100%',
-    height: 44,
-    paddingHorizontal: 16,
+    height: 48,
+    // Left padding clears the leading barbell icon; right clears the
+    // clear button.
+    paddingLeft: 40,
     paddingRight: 40,
     fontSize: 14,
     borderRadius: radius.md,
@@ -1171,16 +1281,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerHigh,
   },
 
-  autoBalancedRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  autoBalancedText: { fontSize: 12, fontWeight: '500', color: colors.secondary },
+  // A bordered pill rather than loose text, so it reads as a status
+  // rather than as another label.
+  autoBalancedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    backgroundColor: withOpacity(colors.secondary, 0.1),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.secondary, 0.22),
+  },
+  autoBalancedText: { fontSize: 11.5, fontWeight: '700', color: colors.secondary },
 
   selectorField: {
-    height: 46,
+    height: 50,
     paddingHorizontal: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceLow,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderRadius: 16,
+    backgroundColor: withOpacity(colors.primary, 0.05),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.primary, 0.18),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1199,18 +1321,72 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   selectorBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  selectorBadgeText: { fontSize: 11, color: colors.onPrimary },
+
+  chipRow: { flexDirection: 'row', gap: 6, paddingBottom: 2, paddingRight: 4 },
+  labelWithBadge: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  countBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: withOpacity(colors.primary, 0.12),
   },
-  selectorBadgeText: { fontSize: 11, color: colors.onSurfaceVariant },
-
-  chipRow: { flexDirection: 'row', gap: 6, paddingBottom: 2, paddingRight: 4 },
+  countBadgeText: { fontSize: 10, fontWeight: '800', color: colors.primary },
+  inputLeadingIcon: {
+    position: 'absolute',
+    left: 14,
+    zIndex: 1,
+  },
+  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  noteDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+  },
+  exerciseMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  exerciseMuscleTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    // Darker than surfaceContainer, which sat only a few points off the
+    // white card behind it.
+    backgroundColor: withOpacity(colors.textMuted, 0.2),
+  },
+  exerciseMuscleTagText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: colors.textPrimary,
+  },
+  exerciseMetaDot: { fontSize: 10, color: colors.textSecondary },
+  timeColonDots: { gap: 6, paddingBottom: 2 },
+  timeColonDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    // Squircle rather than a full pill, matching the exercise cards
+    // below so the two lists read as the same family.
+    borderRadius: 12,
+  },
+  chipIdle: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   chipActive: {
     backgroundColor: colors.primary,
@@ -1219,12 +1395,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  chipIdle: { backgroundColor: colors.surfaceContainer },
   chipText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+    textTransform: 'capitalize',
   },
   chipTextActive: { color: colors.onPrimary },
   chipTextIdle: { color: colors.onSurfaceVariant },
@@ -1290,12 +1464,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   exerciseRowChecked: {
-    backgroundColor: colors.surfaceContainer,
-    borderColor: withOpacity(colors.primary, 0.4),
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: withOpacity(colors.primary, 0.8),
   },
   exerciseRowIdle: {
-    backgroundColor: colors.canvasDeep,
-    borderColor: withOpacity(colors.border, 0.6),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    // A solid divider tone rather than the 6%-alpha border token, which
+    // all but vanished against a white card.
+    borderColor: withOpacity(colors.textMuted, 0.35),
   },
   exerciseLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
   checkbox: {
@@ -1313,18 +1491,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   checkboxIdle: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: withOpacity(colors.textMuted, 0.55),
   },
   exerciseTextWrap: { flexShrink: 1 },
   exerciseName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.onSurface,
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
-  exerciseNameIdle: { fontWeight: '400', color: colors.onSurfaceVariant },
-  exerciseMeta: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
+  exerciseNameIdle: { fontWeight: '700', color: colors.textPrimary },
+  exerciseMeta: { fontSize: 11.5, fontWeight: '600', color: colors.textSecondary },
   exerciseTag: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1345,14 +1523,24 @@ const styles = StyleSheet.create({
   dayPillActive: {
     backgroundColor: colors.primary,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowRadius: 10,
+    // Without elevation the glow renders on iOS only — Android ignores
+    // shadow* entirely and draws from this instead.
+    elevation: 6,
   },
   dayPillIdle: {
-    backgroundColor: colors.canvasDeep,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
+    borderColor: withOpacity(colors.textMuted, 0.28),
+    // A soft lift so the unselected days read as raised tiles rather
+    // than as holes in the sheet.
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 5,
+    elevation: 2,
   },
   dayPillText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4, lineHeight: 12 },
   dayPillTextActive: { color: colors.onPrimary },
@@ -1372,13 +1560,13 @@ const styles = StyleSheet.create({
   timeDial: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 10,
-    borderRadius: radius.md,
-    backgroundColor: colors.canvasDeep,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: withOpacity(colors.border, 0.6),
-    paddingVertical: 12,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
   timeStepper: { alignItems: 'center', gap: 2 },
   timeStepBtn: {
@@ -1388,24 +1576,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   timeValue: {
-    minWidth: 36,
+    minWidth: 42,
     textAlign: 'center',
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
+    letterSpacing: -0.8,
+    // Explicit, with font padding off — Android otherwise seats large
+    // numerals high between the two carets.
+    lineHeight: 34,
+    includeFontPadding: false,
     color: colors.onSurface,
   },
-  timeColon: { fontSize: 24, fontWeight: '800', color: colors.primary },
-  periodWrap: { gap: 4, marginLeft: 8 },
+  // Stacked AM over PM in a recessed tray, as in the reference sheet.
+  periodWrap: {
+    gap: PERIOD_GAP,
+    marginLeft: 'auto',
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLow,
+  },
+  // Sits under both buttons and slides between them.
+  periodThumb: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: 46,
+    height: PERIOD_BTN_HEIGHT,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
   periodBtn: {
-    height: 26,
-    paddingHorizontal: 12,
-    borderRadius: radius.sm,
+    width: 46,
+    height: PERIOD_BTN_HEIGHT,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  periodActive: { backgroundColor: colors.primary },
-  periodIdle: { backgroundColor: colors.surfaceContainerHigh },
-  periodText: { fontSize: 11, fontWeight: '700' },
+  periodText: { fontSize: 11.5, fontWeight: '800' },
 
   footer: {
     paddingHorizontal: 20,
@@ -1449,14 +1656,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  ctaBtnPressed: { backgroundColor: colors.primaryDark, transform: [{ scale: 0.98 }] },
   ctaText: { fontSize: 16, fontWeight: '800', color: colors.onPrimary },
   draftBtnClip: {
     width: '100%',
     height: 48,
     borderRadius: radius.md,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceLow,
+    backgroundColor: withOpacity(colors.secondary, 0.1),
   },
   draftBtn: {
     flex: 1,
@@ -1469,13 +1675,14 @@ const styles = StyleSheet.create({
 
   exerciseRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   infoBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: withOpacity(colors.secondary, 0.12),
   },
+  infoBtnIdle: { backgroundColor: withOpacity(colors.textMuted, 0.18) },
 
   // Exercise info popup
   infoOverlay: {

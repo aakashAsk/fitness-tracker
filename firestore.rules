@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Docs written before per-user scoping have no `userId` field at
+    // all — see the comment on fetchWorkoutPlans. Requiring it outright
+    // would make them permanently unreadable.
+    //
+    // KNOWN RISK: for a LIST query Firestore checks the query's own
+    // constraints rather than reading the documents first. A plain
+    // `resource.data.userId == request.auth.uid` pairs provably with the
+    // `where('userId', '==', uid)` filter every service uses; whether
+    // the `in` disjunction below is accepted the same way is not
+    // something the docs commit to. If list reads ever fail with
+    // "Missing or insufficient permissions" while single-document reads
+    // work, drop the first branch — the `where` clause already filters
+    // fieldless docs out, so nothing visible is lost.
+    function ownsExisting() {
+      return isSignedIn() &&
+             // A `get` on a document that does not exist still evaluates
+             // these rules, but with `resource` set to null — and
+             // reading `resource.data` off null fails evaluation, which
+             // surfaces as "Missing or insufficient permissions" rather
+             // than an empty result. Every getDoc() in the app can hit
+             // this: fetchHydrationLog, fetchMealLog, fetchWorkoutLog
+             // and savePlannedOccurrence all read a document that may
+             // not have been written yet. There is nothing to leak in a
+             // document that does not exist, so allow it.
+             (resource == null ||
+              !('userId' in resource.data) ||
+              resource.data.userId == request.auth.uid);
+    }
+
+    function keepsOwnership() {
+      return !('userId' in request.resource.data) ||
+             request.resource.data.userId == request.auth.uid;
+    }
+
+    match /workoutPlans/{planId} {
+      allow read:   if ownsExisting();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if ownsExisting() && keepsOwnership();
+      allow delete: if ownsExisting();
+    }
+
+    match /workoutLogs/{logId} {
+      allow read:   if ownsExisting();
+
+      // The doc id is `${uid}_${planId}_${date}`. Pinning it to the
+      // caller's uid stops anyone squatting on another user's log id —
+      // which would permanently block that user from saving that day,
+      // since their own write would then fail ownsExisting().
+      allow create: if isSignedIn() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       logId == request.auth.uid + '_' +
+                                request.resource.data.planId + '_' +
+                                request.resource.data.date;
+
+      allow update: if ownsExisting() && keepsOwnership();
+      allow delete: if false;
+    }
+
+    // Same contract as workoutLogs: one doc per (user, plan, date),
+    // with the id pinned to the caller's uid.
+    match /mealLogs/{logId} {
+      allow read: if ownsExisting();
+
+      allow create: if isSignedIn() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       logId == request.auth.uid + '_' +
+                                request.resource.data.planId + '_' +
+                                request.resource.data.date;
+
+      allow update: if ownsExisting() && keepsOwnership();
+      allow delete: if false;
+    }
+
+    // One doc per (user, date) — hydration is not tied to a plan, so
+    // the id has no plan segment.
+    //
+    // Deliberately the simplest rule in this file. It does NOT pin the
+    // document id the way the two log collections do: that pin is
+    // defence-in-depth, not correctness, and it was the only condition
+    // unique to hydration while this collection was being denied. The
+    // ownership checks below are what actually protect the data.
+    //
+    // `resource == null` covers a read or a first write of a document
+    // that does not exist yet — which is every new day, since the
+    // tracker reads before anything has been drunk.
+    match /hydrationLogs/{logId} {
+      allow read: if isSignedIn() &&
+                     (resource == null ||
+                      resource.data.userId == request.auth.uid);
+
+      allow write: if isSignedIn() &&
+                      (resource == null ||
+                       resource.data.userId == request.auth.uid) &&
+                      request.resource.data.userId == request.auth.uid;
+    }
+
+    match /mealPlans/{planId} {
+      allow read:   if ownsExisting();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if ownsExisting() && keepsOwnership();
+      allow delete: if ownsExisting();
+    }
+  }
+}

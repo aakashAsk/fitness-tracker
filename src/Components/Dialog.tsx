@@ -1,7 +1,14 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
-import { colors } from '../Theme/colors';
+import {
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, withOpacity } from '../Theme/colors';
 import { radius, spacing } from '../Theme/spacing';
 
 // In-app replacement for React Native's Alert.alert.
@@ -54,6 +61,13 @@ export function useDialog(): DialogContextValue {
 export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [options, setOptions] = useState<DialogOptions | null>(null);
 
+    // Sized from the window rather than from flex:1 against the Modal
+    // root. statusBarTranslucent makes that root a full-screen window
+    // whose box does not always match what the layout assumes, which
+    // left the card off-centre and clipped at an edge.
+    const { width, height } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
+
     const hide = useCallback(() => setOptions(null), []);
     const show = useCallback((next: DialogOptions) => setOptions(next), []);
 
@@ -79,20 +93,37 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             <Modal
                 transparent
                 visible={!!options}
-                animationType="none"
+                // The Modal's own fade, rather than reanimated entering
+                // animations on the views inside it — see below.
+                animationType="fade"
                 onRequestClose={hide}
                 statusBarTranslucent
             >
-                <Animated.View
-                    entering={FadeIn.duration(140)}
-                    exiting={FadeOut.duration(120)}
-                    style={styles.overlay}
+                {/* Plain Views, not Animated ones. reanimated's
+                    entering/exiting animations are unreliable inside a
+                    Modal — the view can be left sitting at the
+                    animation's initial frame (scale 0 / opacity 0) and
+                    never play, which reads as the card rendering
+                    unstyled or not at all. The Modal's own animationType
+                    gives the same fade with none of that risk. */}
+                <View
+                    style={[
+                        styles.overlay,
+                        {
+                            width,
+                            height,
+                            // Keeps the card off the status and gesture
+                            // bars on a full-screen modal window.
+                            paddingTop: spacing.xl + insets.top,
+                            paddingBottom: spacing.xl + insets.bottom,
+                        },
+                    ]}
                 >
                     {/* Tapping outside dismisses, matching the modal
                         sheets elsewhere in the app. */}
                     <Pressable style={StyleSheet.absoluteFill} onPress={hide} />
 
-                    <Animated.View entering={ZoomIn.duration(160)} style={styles.card}>
+                    <View style={styles.card}>
                         <Text style={styles.title}>{options?.title}</Text>
 
                         {options?.message ? (
@@ -135,8 +166,8 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                                 );
                             })}
                         </View>
-                    </Animated.View>
-                </Animated.View>
+                    </View>
+                </View>
             </Modal>
         </DialogContext.Provider>
     );
@@ -144,10 +175,9 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
 const styles = StyleSheet.create({
     overlay: {
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: spacing.xl,
+        paddingHorizontal: spacing.xl,
         backgroundColor: 'rgba(17, 24, 39, 0.45)',
     },
     card: {
@@ -157,11 +187,11 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         borderRadius: radius.xl,
         backgroundColor: colors.surface,
-        shadowColor: colors.primary,
+        shadowColor: colors.black,
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.16,
-        shadowRadius: 24,
-        elevation: 8,
+        shadowOpacity: 0.2,
+        shadowRadius: 28,
+        elevation: 14,
     },
     title: {
         fontSize: 16,
@@ -196,7 +226,11 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     buttonNeutral: {
-        backgroundColor: colors.surfaceContainer,
+        // surfaceContainer (#ECEEFB) on the card's white is a handful of
+        // points apart — a Cancel button in it looked like plain text.
+        backgroundColor: withOpacity(colors.textMuted, 0.16),
+        borderWidth: 1,
+        borderColor: withOpacity(colors.textMuted, 0.28),
     },
     buttonPrimary: {
         backgroundColor: colors.primary,

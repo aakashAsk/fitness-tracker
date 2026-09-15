@@ -10,12 +10,9 @@ import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanim
 import {
     CalendarDays,
     ChevronDown,
-    Dumbbell,
     Flame,
     Minus,
     Plus,
-    PersonStanding,
-    Rows3,
     RotateCcw,
     SlidersHorizontal,
     Trash2,
@@ -26,6 +23,7 @@ import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
+import EquipmentIcon, { equipmentAccent } from '../../Components/EquipmentIcon';
 import WorkoutProgressCard from './WorkoutProgressCard';
 import {
     createWorkoutPlan,
@@ -151,9 +149,9 @@ interface PlanExerciseRow {
     // Whether this exercise's sets take a kg figure — false for
     // bodyweight work, where a weight field would only ever collect 0.
     isWeighted: boolean;
-    Icon: typeof PersonStanding;
-    iconColor: string;
-    iconBg: string;
+    // Drives both the icon and its colour — see EquipmentIcon. Null
+    // while the exercise API has yet to resolve this id.
+    equipment: string | null;
 }
 
 interface PlanCard {
@@ -166,15 +164,6 @@ interface PlanCard {
     title: string;
     exercises: PlanExerciseRow[];
 }
-
-// Cosmetic-only icon/color cycled across a plan's exercises — there is
-// no real per-exercise weight/reps in the data model (see note above),
-// so each row just shows an empty weight/reps input with a placeholder.
-const EXERCISE_ICON_STYLES: { Icon: typeof PersonStanding; iconColor: string }[] = [
-    { Icon: Dumbbell, iconColor: colors.primary },
-    { Icon: PersonStanding, iconColor: colors.fats },
-    { Icon: Rows3, iconColor: colors.secondary },
-];
 
 // Placeholder rows shown while a newly selected day resolves its
 // exercise names and logged numbers — a pulsing outline reads as
@@ -366,18 +355,15 @@ export const WorkoutSession: React.FC = () => {
     }, [todaysExerciseIds, exerciseCache]);
 
     // One card per scheduled plan (event) for the selected day, each
-    // listing its real exercises — icon/color just cycles cosmetically,
-    // since there's nothing in the data model to derive it from.
+    // listing its real exercises, each with the icon for the equipment
+    // it is done with.
     const planCards: PlanCard[] = useMemo(() => {
-        let index = 0;
         return dayEvents.map((event) => ({
             id: event.id,
             planDocId: event.sourceId,
             title: event.title,
             exercises: event.exerciseIds.map((id) => {
                 const details = exerciseCache[id];
-                const style = EXERCISE_ICON_STYLES[index % EXERCISE_ICON_STYLES.length];
-                index += 1;
                 const meta = details
                     ? [details.primaryMuscles[0], details.equipment].filter(Boolean).join(' • ')
                     : '';
@@ -387,9 +373,7 @@ export const WorkoutSession: React.FC = () => {
                     name: details?.name ?? humanizeExerciseId(id),
                     meta,
                     isWeighted: isWeightedEquipment(details?.equipment),
-                    Icon: style.Icon,
-                    iconColor: style.iconColor,
-                    iconBg: withOpacity(style.iconColor, 0.16),
+                    equipment: details?.equipment ?? null,
                 };
             }),
         }));
@@ -993,8 +977,22 @@ export const WorkoutSession: React.FC = () => {
                                             <Text style={styles.planExerciseIndex}>
                                                 {String(index + 1).padStart(2, '0')}
                                             </Text>
-                                            <View style={[styles.planExerciseIcon, { backgroundColor: exercise.iconBg }]}>
-                                                <exercise.Icon size={18} color={exercise.iconColor} strokeWidth={2.2} />
+                                            <View
+                                                style={[
+                                                    styles.planExerciseIcon,
+                                                    {
+                                                        backgroundColor: withOpacity(
+                                                            equipmentAccent(exercise.equipment),
+                                                            0.16,
+                                                        ),
+                                                    },
+                                                ]}
+                                            >
+                                                <EquipmentIcon
+                                                    equipment={exercise.equipment}
+                                                    size={18}
+                                                    strokeWidth={2.2}
+                                                />
                                             </View>
                                             <View style={styles.planExerciseTextBlock}>
                                                 <Text style={styles.planExerciseName} numberOfLines={1}>
