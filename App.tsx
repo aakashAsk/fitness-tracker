@@ -38,19 +38,30 @@ import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 import { useMealPlansSync } from './src/Store/mealPlansSlice';
 import { auth } from './src/Firebase/firebaseConfig';
 import { DialogProvider } from './src/Components/Dialog';
-import { useReminderSync } from './src/Store/useReminderSync';
-import * as Notifications from 'expo-notifications';
-
-// Without a handler, a reminder that arrives while the app is open is
-// delivered silently — the user sees nothing until they background it.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// ── Reminders: temporarily disabled ──────────────────────────────────
+// expo-notifications cannot run in Expo Go on Android, so the whole
+// feature is commented out rather than half-working while the app is
+// developed there. Nothing else references these, so the module is not
+// bundled at all while this is off.
+//
+// To re-enable: uncomment this block and the useReminderSync() call
+// below, then run a dev build (npm run build:dev) — Expo Go will not
+// deliver notifications however this is configured.
+//
+// import { useReminderSync } from './src/Store/useReminderSync';
+// import * as Notifications from 'expo-notifications';
+//
+// // Without a handler, a reminder that arrives while the app is open is
+// // delivered silently — the user sees nothing until they background it.
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowBanner: true,
+//     shouldShowList: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: false,
+//   }),
+// });
+// ─────────────────────────────────────────────────────────────────────
 
 function AppContent() {
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
@@ -66,7 +77,8 @@ function AppContent() {
   useMealPlansSync(firebaseUser?.uid);
 
   // Reschedules the device's reminders whenever a plan changes.
-  useReminderSync(hasSession);
+  // Disabled with the import above — see the note at the top of the file.
+  // useReminderSync(hasSession);
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 

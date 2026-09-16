@@ -17,6 +17,8 @@ export interface EmailAuthScreenProps {
     onSubmit?: (email: string, password: string) => void;
     loading?: boolean;
     errorMessage?: string | null;
+    /** Opens the reset flow, carrying whatever has been typed so far. */
+    onForgotPassword?: (email: string) => void;
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,6 +27,7 @@ export const EmailAuthScreen: React.FC<EmailAuthScreenProps> = ({
     onSubmit,
     loading = false,
     errorMessage = null,
+    onForgotPassword,
 }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -164,12 +167,27 @@ export const EmailAuthScreen: React.FC<EmailAuthScreenProps> = ({
                         {loading ? 'Please wait…' : 'Continue'}
                     </Text>
                 </TouchableOpacity>
+
+                {/* Passes the typed address along so the reset screen
+                    does not ask for it a second time. */}
+                {onForgotPassword ? (
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        disabled={loading}
+                        onPress={() => onForgotPassword(email.trim())}
+                        style={styles.forgotButton}
+                    >
+                        <Text style={styles.forgotText}>Forgot password?</Text>
+                    </TouchableOpacity>
+                ) : null}
             </ScrollView>
         </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
+    forgotButton: { alignSelf: 'center', paddingVertical: 16 },
+    forgotText: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
     flex: {
         flex: 1,
         backgroundColor: colors.background,

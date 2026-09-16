@@ -64,6 +64,33 @@ export const MEAL_TYPE_LABEL: Record<MealType, string> = MEAL_TYPES.reduce(
   {} as Record<MealType, string>,
 );
 
+/**
+ * Nutrition for ONE food item, as eaten at its stated quantity.
+ *
+ * Held per item rather than per meal so it survives the meal changing:
+ * remove an item and the remaining figures are still right, swap one
+ * and only that one needs re-estimating. Meal and day totals are summed
+ * from these — see sumItemNutrition — never stored, so a total can
+ * never disagree with the items it is supposedly the sum of.
+ */
+export interface MealItemNutrition {
+  /** kcal */
+  calories: number;
+  /** grams */
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  /** milligrams */
+  sodium: number;
+  /** The model's confidence in THIS item, 0–1. Per item because one
+   * vague entry should not discredit the precise ones beside it. */
+  confidence: number;
+  /** ISO timestamp, so a figure can be spotted as stale. */
+  estimatedAt?: string;
+}
+
 /** One food in a meal — "Oats", "80", "g". */
 export interface MealItem {
   name: string;
@@ -71,6 +98,77 @@ export interface MealItem {
   quantity: string;
   /** g, ml, scoop, piece… */
   unit: string;
+  /** Filled in asynchronously by the AI estimate; absent until then. */
+  nutrition?: MealItemNutrition;
+}
+
+/** Running totals across a set of items. */
+export interface NutritionTotals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+  /** Lowest confidence among the items counted — a total is only as
+   * trustworthy as its weakest part. */
+  confidence: number;
+  /** How many of the items had an estimate at all. */
+  estimated: number;
+  /** How many items were counted in total. */
+  total: number;
+}
+
+/**
+ * Sums whatever estimates the items carry.
+ *
+ * Returns null when none of them have one, so a caller can tell "no
+ * data yet" from "genuinely zero calories" — a distinction a bare 0
+ * throws away.
+ */
+export function sumItemNutrition(items: MealItem[]): NutritionTotals | null {
+  const withData = items.filter((item) => item.nutrition);
+  if (withData.length === 0) return null;
+
+  const totals = withData.reduce(
+    (acc, item) => {
+      const n = item.nutrition!;
+      return {
+        calories: acc.calories + n.calories,
+        protein: acc.protein + n.protein,
+        carbs: acc.carbs + n.carbs,
+        fat: acc.fat + n.fat,
+        fiber: acc.fiber + n.fiber,
+        sugar: acc.sugar + n.sugar,
+        sodium: acc.sodium + n.sodium,
+        confidence: Math.min(acc.confidence, n.confidence),
+      };
+    },
+    {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
+      confidence: 1,
+    },
+  );
+
+  return {
+    ...totals,
+    calories: Math.round(totals.calories),
+    protein: Math.round(totals.protein),
+    carbs: Math.round(totals.carbs),
+    fat: Math.round(totals.fat),
+    fiber: Math.round(totals.fiber),
+    sugar: Math.round(totals.sugar),
+    sodium: Math.round(totals.sodium),
+    estimated: withData.length,
+    total: items.length,
+  };
 }
 
 export type MealPlanStatus = 'live' | 'draft' | 'paused';
@@ -104,6 +202,10 @@ function toMealItem(raw: unknown): MealItem {
     name: (entry.name as string) ?? '',
     quantity: entry.quantity == null ? '' : String(entry.quantity),
     unit: (entry.unit as string) ?? '',
+    // Spread rather than assigned: an explicit `nutrition: undefined`
+    // key is rejected by Firestore ("Unsupported field value") the next
+    // time these items are written back, which the edit path does.
+    ...(entry.nutrition ? { nutrition: entry.nutrition as MealItemNutrition } : {}),
   };
 }
 

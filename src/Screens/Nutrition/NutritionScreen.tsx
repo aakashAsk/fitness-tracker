@@ -22,11 +22,14 @@ import { spacing } from '../../Theme/spacing';
 import WorkoutDateStrip from '../Workout/WorkoutDateStrip';
 import { useDialog } from '../../Components/Dialog';
 import NewMealPlanModal, { type MealPlanPayload } from './NewMealPlanModal';
+import { estimateItemNutrition } from '../../Services/nutritionAiService';
 import {
     createMealPlan,
+    updateMealPlan,
     describeItems,
     getMealPlansForDate,
     MEAL_TYPE_LABEL,
+    sumItemNutrition,
     MealPlanServiceError,
     type MealPlan,
 } from '../../Services/mealPlanService';
@@ -376,11 +379,47 @@ export const NutritionScreen: React.FC = () => {
     const [showMealModal, setShowMealModal] = useState(false);
     const [isSavingMeal, setIsSavingMeal] = useState(false);
 
+    // Plans whose nutrition is still being estimated, so the card can
+    // say so rather than showing nothing where the macros will appear.
+    const [estimatingIds, setEstimatingIds] = useState<string[]>([]);
+
+    /**
+     * Asks the model what the meal contains and writes the answer onto
+     * the plan.
+     *
+     * Deliberately after the save and deliberately not awaited by it:
+     * the estimate is a nice-to-have that costs a network round trip,
+     * and a plan that saved successfully must not appear to fail
+     * because an AI call did.
+     */
+    const estimateNutritionFor = async (planId: string, payload: MealPlanPayload) => {
+        setEstimatingIds((prev) => [...prev, planId]);
+        try {
+            // Writes the items back with a nutrition block on each, so
+            // the figures travel with the food they describe.
+            const items = await estimateItemNutrition(payload.items);
+            if (items.some((item) => item.nutrition)) {
+                await updateMealPlan(planId, { items });
+                console.log('[nutrition] written to mealPlans/' + planId);
+            } else {
+                console.warn('[nutrition] nothing to write — no item got an estimate.');
+            }
+        } catch (error) {
+            // Still not shown to the user: they asked to save a meal,
+            // not to run an estimate. But swallowing it entirely made a
+            // missing key indistinguishable from a working feature.
+            console.warn('[nutrition] estimate failed:', error);
+        } finally {
+            setEstimatingIds((prev) => prev.filter((id) => id !== planId));
+        }
+    };
+
     const handleCreateMealPlan = async (payload: MealPlanPayload) => {
         setIsSavingMeal(true);
         try {
-            await createMealPlan({ ...payload, status: 'live' });
+            const planId = await createMealPlan({ ...payload, status: 'live' });
             setShowMealModal(false);
+            void estimateNutritionFor(planId, payload);
             dialog.show({
                 title: 'Meal plan saved',
                 message: `"${payload.name}" will show up on ${payload.days.join(', ')} at ${payload.time}.`,
@@ -784,6 +823,11 @@ export const NutritionScreen: React.FC = () => {
                     ) : (
                         dayCards.map((card) => {
                             const { isLogged, items: shownItems, time: shownTime } = card;
+                            // Summed from the items rather than stored,
+                            // so it always matches what is listed above
+                            // it — including after a per-day edit.
+                            const nutrition = sumItemNutrition(shownItems);
+                            const isEstimating = estimatingIds.includes(card.planId);
                             return (
                             <View key={card.planId} style={styles.mealCard}>
                                 <View style={styles.mealTopRow}>
@@ -832,6 +876,42 @@ export const NutritionScreen: React.FC = () => {
                                         </Text>
                                     </View>
                                 </View>
+
+                                {isEstimating ? (
+                                    <Text style={styles.macroPending}>Estimating nutrition…</Text>
+                                ) : nutrition ? (
+                                    <View style={styles.mealMacroRow}>
+                                        <View style={styles.macroKcal}>
+                                            <Text style={styles.macroKcalValue}>
+                                                {nutrition.calories}
+                                            </Text>
+                                            <Text style={styles.macroKcalUnit}>kcal</Text>
+                                        </View>
+                                        {(
+                                            [
+                                                ['P', nutrition.protein, colors.protein],
+                                                ['C', nutrition.carbs, colors.carbs],
+                                                ['F', nutrition.fat, colors.fats],
+                                            ] as const
+                                        ).map(([label, grams, tone]) => (
+                                            <View key={label} style={styles.macroChip}>
+                                                <Text style={[styles.macroChipLabel, { color: tone }]}>
+                                                    {label}
+                                                </Text>
+                                                <Text style={styles.macroChipValue}>{grams}g</Text>
+                                            </View>
+                                        ))}
+                                        {/* A rough estimate should not look
+                                            like a measured figure. */}
+                                        {nutrition.estimated < nutrition.total ? (
+                                            <Text style={styles.macroRough}>
+                                                {nutrition.estimated}/{nutrition.total} items
+                                            </Text>
+                                        ) : nutrition.confidence < 0.6 ? (
+                                            <Text style={styles.macroRough}>approx</Text>
+                                        ) : null}
+                                    </View>
+                                ) : null}
 
                                 <View style={styles.mealActionRow}>
                                     {isLogged ? (
@@ -1293,6 +1373,51 @@ const styles = StyleSheet.create({
         backgroundColor: withOpacity(colors.success, 0.14),
     },
     mealLoggedText: { fontSize: 10, fontWeight: '800', color: colors.success },
+    macroPending: {
+        marginTop: 12,
+        fontSize: 11.5,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    mealMacroRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    macroKcal: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 3,
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 10,
+        backgroundColor: withOpacity(colors.secondary, 0.14),
+    },
+    macroKcalValue: { fontSize: 13, fontWeight: '800', color: colors.secondary },
+    macroKcalUnit: { fontSize: 9.5, fontWeight: '700', color: colors.secondary },
+    macroChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 9,
+        paddingVertical: 5,
+        borderRadius: 10,
+        backgroundColor: colors.surfaceLow,
+    },
+    macroChipLabel: { fontSize: 10, fontWeight: '800' },
+    macroChipValue: { fontSize: 11.5, fontWeight: '700', color: colors.textPrimary },
+    macroRough: {
+        fontSize: 9.5,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        color: colors.textMuted,
+    },
     mealActionRow: {
         flexDirection: 'row',
         alignItems: 'center',
