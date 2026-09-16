@@ -7,10 +7,10 @@ import {
     Clock,
     Droplet,
     Flame,
-    User,
     Weight,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
+import UserAvatar from '../../Components/UserAvatar';
 
 export interface DashboardOverviewProps {
     userName?: string;
@@ -102,9 +102,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     >
                         <Bell size={20} color={colors.textSecondary} strokeWidth={2.2} />
                     </TouchableOpacity>
-                    <View style={styles.avatarBadge}>
-                        <User size={16} color={colors.white} strokeWidth={2.4} />
-                    </View>
+                    <UserAvatar size={32} />
                 </View>
             </View>
 
@@ -112,7 +110,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <View style={styles.greetingRow}>
                 <View style={styles.greetingLeft}>
                     <View style={styles.greetingAvatar}>
-                        <User size={22} color={colors.textSecondary} strokeWidth={2} />
+                        <UserAvatar
+                            size={48}
+                            background={colors.surfaceContainer}
+                            iconColor={colors.textSecondary}
+                            iconSize={22}
+                        />
                         <View style={styles.greetingAvatarDot} />
                     </View>
                     <View>

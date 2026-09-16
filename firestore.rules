@@ -102,6 +102,19 @@ service cloud.firestore {
                       request.resource.data.userId == request.auth.uid;
     }
 
+    // Onboarding profile — the document id IS the uid (see
+    // userProfileService), so ownership is checked against the id
+    // rather than a field. That also covers the read of a document
+    // that does not exist yet, which every first registration performs
+    // before writing anything.
+    match /userProfiles/{profileId} {
+      allow read: if isSignedIn() && profileId == request.auth.uid;
+
+      allow write: if isSignedIn() &&
+                      profileId == request.auth.uid &&
+                      request.resource.data.userId == request.auth.uid;
+    }
+
     match /mealPlans/{planId} {
       allow read:   if ownsExisting();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;

@@ -4,3 +4,4 @@
 4. add ai for creating plans and meal diet according to the indian bujet
 5. push notifications
 6. splash screen
+9. loginscreen icon change, change the color of continue button to white

@@ -13,7 +13,17 @@ interface StartWorkoutModalProps {
 
 export const StartWorkoutModal: React.FC<StartWorkoutModalProps> = ({ exercises, onClose, onBeginTracking }) => {
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={onClose}>
+    <Modal
+      transparent
+      visible
+      animationType="fade"
+      onRequestClose={onClose}
+      // Without these the modal is its own window that stops at the
+      // system bars, so the dim overlay leaves the status bar and the
+      // navigation bar uncovered instead of dimming the whole screen.
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.header}>

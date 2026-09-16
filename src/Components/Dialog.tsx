@@ -4,7 +4,7 @@ import {
     Pressable,
     StyleSheet,
     Text,
-    useWindowDimensions,
+    TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,11 +61,6 @@ export function useDialog(): DialogContextValue {
 export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [options, setOptions] = useState<DialogOptions | null>(null);
 
-    // Sized from the window rather than from flex:1 against the Modal
-    // root. statusBarTranslucent makes that root a full-screen window
-    // whose box does not always match what the layout assumes, which
-    // left the card off-centre and clipped at an edge.
-    const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
 
     const hide = useCallback(() => setOptions(null), []);
@@ -98,6 +93,7 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 animationType="fade"
                 onRequestClose={hide}
                 statusBarTranslucent
+                navigationBarTranslucent
             >
                 {/* Plain Views, not Animated ones. reanimated's
                     entering/exiting animations are unreliable inside a
@@ -110,8 +106,6 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     style={[
                         styles.overlay,
                         {
-                            width,
-                            height,
                             // Keeps the card off the status and gesture
                             // bars on a full-screen modal window.
                             paddingTop: spacing.xl + insets.top,
@@ -132,37 +126,69 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
                         <View style={[styles.actionRow, isStacked && styles.actionColumn]}>
                             {actions.map((action, index) => {
+                                const isDestructive = action.style === 'destructive';
                                 const isPrimary =
                                     action.style === 'primary' ||
-                                    action.style === 'destructive' ||
+                                    isDestructive ||
                                     // With no explicit styles, the last
                                     // action reads as the confirming one.
                                     (!action.style && !isStacked && index === actions.length - 1);
-                                const isDestructive = action.style === 'destructive';
+
+                                // Resolved to concrete values and applied
+                                // inline rather than as conditional
+                                // entries in a style array: a confirming
+                                // action that loses its fill renders as
+                                // white text on the white card, i.e. an
+                                // invisible button, and the user is left
+                                // with only Cancel and no way to confirm.
+                                const backgroundColor = isDestructive
+                                    ? colors.error
+                                    : isPrimary
+                                      ? colors.primary
+                                      : colors.surfaceContainer;
 
                                 return (
-                                    <Pressable
+                                    <TouchableOpacity
                                         key={action.label}
+                                        activeOpacity={0.75}
                                         onPress={() => runAction(action)}
-                                        style={({ pressed }) => [
+                                        // A plain array, never the ({ pressed }) => [...]
+                                        // callback form. This project compiles JSX through
+                                        // NativeWind's runtime, whose interop passes array
+                                        // styles through but drops a function style — which
+                                        // left these buttons with no fill, no padding and no
+                                        // radius while the card around them styled fine.
+                                        // TouchableOpacity gives the press feedback that the
+                                        // callback's `pressed` flag used to.
+                                        style={[
                                             styles.button,
                                             isStacked ? styles.buttonStacked : styles.buttonInline,
-                                            isPrimary ? styles.buttonPrimary : styles.buttonNeutral,
-                                            isDestructive && styles.buttonDestructive,
-                                            pressed && styles.buttonPressed,
+                                            !isPrimary && styles.buttonNeutralBorder,
+                                            { backgroundColor },
+                                            // Spacing between actions is a margin on every
+                                            // item but the first, rather than `gap` on the
+                                            // row: the buttons were rendering flush against
+                                            // each other, and a margin cannot be dropped the
+                                            // way a gap can.
+                                            index > 0 &&
+                                                (isStacked
+                                                    ? styles.buttonSpacedStacked
+                                                    : styles.buttonSpacedInline),
                                         ]}
                                     >
                                         <Text
                                             style={[
                                                 styles.buttonText,
-                                                isPrimary
-                                                    ? styles.buttonTextPrimary
-                                                    : styles.buttonTextNeutral,
+                                                {
+                                                    color: isPrimary
+                                                        ? colors.white
+                                                        : colors.textPrimary,
+                                                },
                                             ]}
                                         >
                                             {action.label}
                                         </Text>
-                                    </Pressable>
+                                    </TouchableOpacity>
                                 );
                             })}
                         </View>
@@ -175,15 +201,23 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
 const styles = StyleSheet.create({
     overlay: {
+        // flex, not a measured width/height. The modal window is
+        // full-screen (statusBarTranslucent + navigationBarTranslucent),
+        // and useWindowDimensions reports the app window, which excludes
+        // the system bars — sizing from it left the dim layer short of
+        // the screen edges. Filling the modal's own root is correct
+        // whatever that root turns out to measure.
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: spacing.xl,
-        backgroundColor: 'rgba(17, 24, 39, 0.45)',
+        backgroundColor: 'rgba(17, 24, 39, 0.55)',
     },
     card: {
         width: '100%',
         maxWidth: 360,
-        gap: spacing.sm,
+        // Children carry their own top margins instead of the card
+        // carrying a gap — see the note on buttonSpacedInline.
         padding: spacing.lg,
         borderRadius: radius.xl,
         backgroundColor: colors.surface,
@@ -200,18 +234,22 @@ const styles = StyleSheet.create({
         color: colors.textPrimary,
     },
     message: {
+        marginTop: spacing.xs,
         fontSize: 13.5,
         lineHeight: 20,
         color: colors.textSecondary,
     },
     actionRow: {
         flexDirection: 'row',
-        gap: spacing.xs,
-        paddingTop: spacing['2xs'],
+        marginTop: spacing.md,
     },
     actionColumn: {
         flexDirection: 'column-reverse',
     },
+    buttonSpacedInline: { marginLeft: spacing.xs },
+    // column-reverse: later actions render ABOVE earlier ones, so the
+    // gap belongs under them.
+    buttonSpacedStacked: { marginBottom: spacing.xs },
     button: {
         alignItems: 'center',
         justifyContent: 'center',
@@ -225,18 +263,12 @@ const styles = StyleSheet.create({
     buttonStacked: {
         width: '100%',
     },
-    buttonNeutral: {
-        // surfaceContainer (#ECEEFB) on the card's white is a handful of
-        // points apart — a Cancel button in it looked like plain text.
-        backgroundColor: withOpacity(colors.textMuted, 0.16),
+    // Fills live inline on the Pressable (see above); only the neutral
+    // action's border is left here, since it has no coloured fill to
+    // separate it from the card.
+    buttonNeutralBorder: {
         borderWidth: 1,
         borderColor: withOpacity(colors.textMuted, 0.28),
-    },
-    buttonPrimary: {
-        backgroundColor: colors.primary,
-    },
-    buttonDestructive: {
-        backgroundColor: colors.error,
     },
     buttonPressed: {
         opacity: 0.75,
@@ -244,12 +276,6 @@ const styles = StyleSheet.create({
     buttonText: {
         fontSize: 13.5,
         fontWeight: '800',
-    },
-    buttonTextNeutral: {
-        color: colors.textPrimary,
-    },
-    buttonTextPrimary: {
-        color: colors.white,
     },
 });
 

@@ -24,7 +24,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PulseFit uses your photos so you can set a profile picture.",
+          "cameraPermission": "PulseFit uses your camera so you can take a profile picture."
+        }
+      ]
     ],
     "extra": {
       "eas": {

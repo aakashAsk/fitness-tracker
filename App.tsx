@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import {
@@ -17,6 +17,15 @@ import DashboardOverview from './src/Screens/Dashboard/LiveTelementry';
 import TodaysWorkoutCard from './src/Screens/Dashboard/TodaysWorkout';
 import UpcomingMealCard from './src/Screens/Dashboard/UpcomingMealCard';
 import AuthNavigator from './src/Screens/Auth/AuthNavigator';
+import OnboardingNavigator from './src/Screens/Onboarding/OnboardingNavigator';
+import ProfileScreen from './src/Screens/Profile/ProfileScreen';
+import {
+  selectUserProfile,
+  selectUserProfileStatus,
+  userProfileReceived,
+  useUserProfileSync,
+} from './src/Store/userProfileSlice';
+import { useAppDispatch, useAppSelector } from './src/Store/hooks';
 
 import { colors } from './src/Theme/colors';
 import BottomNavBar, { NavTab } from './src/Components/Navigation';
@@ -68,6 +77,25 @@ function AppContent() {
   const hasSession = !!firebaseUser;
 
   useEffect(() => onAuthStateChanged(auth, setFirebaseUser), []);
+
+  // The profile is loaded here, once, and every screen reads it from
+  // the store — the dashboard's avatar and greeting, the Profile tab,
+  // and the onboarding gate below.
+  useUserProfileSync(firebaseUser?.uid);
+
+  const dispatch = useAppDispatch();
+  const profile = useAppSelector(selectUserProfile);
+  const profileStatus = useAppSelector(selectUserProfileStatus);
+
+  // Still loading is what keeps a returning user from seeing step 1
+  // flash before the read comes back.
+  const profileLoading = profileStatus === 'idle' || profileStatus === 'loading';
+
+  // A failed read must not lock the user out of the app, and it must not
+  // re-run onboarding for someone who already did it — that would
+  // overwrite their real answers with defaults. So only a read that
+  // actually succeeded and found nothing sends them to onboarding.
+  const needsOnboarding = profileStatus === 'ready' && !profile?.onboardingCompleted;
 
   // One Firestore listener per collection for the whole app — every
   // screen reads the result from the Redux store instead of subscribing
@@ -121,8 +149,8 @@ function AppContent() {
 
       case 'profile':
         return (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>Profile</Text>
+          <View style={styles.tabContent}>
+            <ProfileScreen />
           </View>
         );
 
@@ -136,6 +164,31 @@ function AppContent() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
         <AuthNavigator />
+      </SafeAreaView>
+    );
+  }
+
+  // Signed in, but we do not yet know whether this account has a
+  // profile. Rendering the dashboard here would show a user their
+  // targets and then yank them into onboarding a moment later.
+  if (profileLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.centered]}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  // First registration only — once the profile is written this branch
+  // is never taken again, and later edits happen from the Profile tab.
+  if (needsOnboarding) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        {/* The saved profile goes straight into the store, so the
+            dashboard behind this already has it when we fall through. */}
+        <OnboardingNavigator onComplete={saved => dispatch(userProfileReceived(saved))} />
       </SafeAreaView>
     );
   }
@@ -180,6 +233,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   tabContent: {
     flex: 1,
     paddingHorizontal: 0,
@@ -189,19 +247,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 100,
+    // The nav bar is a sibling in normal flow, not a floating overlay,
+    // so it already occupies its own height — this only needs an
+    // ordinary gap above it.
+    paddingBottom: 24,
     gap: 24,
-  },
-
-  placeholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  placeholderText: {
-    color: colors.textPrimary,
-    fontSize: 24,
-    fontWeight: '700',
   },
 });

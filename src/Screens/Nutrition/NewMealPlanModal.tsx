@@ -16,7 +16,6 @@ import {
     ArrowRight,
     Check,
     ChevronDown,
-    ChevronUp,
     Clock,
     Plus,
     Trash2,
@@ -24,13 +23,8 @@ import {
     X,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-    interpolateColor,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
-} from 'react-native-reanimated';
 import { colors, withOpacity } from '../../Theme/colors';
+import TimeDial from '../../Components/TimeDial';
 import { radius, spacing } from '../../Theme/spacing';
 import { DAY_ORDER, todayDayKey } from '../Workout/Data';
 import type { DayKey } from '../Workout/Types';
@@ -67,8 +61,6 @@ interface NewMealPlanModalProps {
 }
 
 // Thumb travel = button width + gap, so the three must agree.
-const PERIOD_BTN_WIDTH = 46;
-const PERIOD_GAP = 4;
 
 const EMPTY_ITEM: MealItem = { name: '', quantity: '', unit: 'g' };
 /** Units a food item can be measured in. Kept short for now — more can
@@ -224,50 +216,8 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
 
     const formattedTime = `${hour}:${String(minute).padStart(2, '0')} ${period}`;
 
-    // See the workout sheet — same sliding thumb, laid out as a row here.
-    const periodShift = useSharedValue(period === 'AM' ? 0 : 1);
-    useEffect(() => {
-        periodShift.value = withTiming(period === 'AM' ? 0 : 1, { duration: 200 });
-    }, [period, periodShift]);
-
-    const periodThumbStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: periodShift.value * (PERIOD_BTN_WIDTH + PERIOD_GAP) }],
-    }));
-    const amTextStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(
-            periodShift.value,
-            [0, 1],
-            [colors.white, colors.textSecondary],
-        ),
-    }));
-    const pmTextStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(
-            periodShift.value,
-            [0, 1],
-            [colors.textSecondary, colors.white],
-        ),
-    }));
     const activeDays = useMemo(() => DAY_ORDER.filter((day) => days[day]) as DayKey[], [days]);
 
-    const cycleHour = (delta: 1 | -1) => {
-        timeTouched.current = true;
-        setHour((prev) => {
-            const next = prev + delta;
-            if (next > 12) return 1;
-            if (next < 1) return 12;
-            return next;
-        });
-    };
-
-    const cycleMinute = (delta: 1 | -1) => {
-        timeTouched.current = true;
-        setMinute((prev) => {
-            const next = prev + delta * 5;
-            if (next >= 60) return 0;
-            if (next < 0) return 55;
-            return next;
-        });
-    };
 
     const updateItem = (index: number, patch: Partial<MealItem>) =>
         setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -340,6 +290,7 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
       // below and the keyboard height reported by Keyboard events are
       // in the same coordinate space.
       statusBarTranslucent
+      navigationBarTranslucent
     >
             <View
                 style={styles.overlay}
@@ -382,7 +333,7 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                             accessibilityLabel="Close"
                             hitSlop={8}
                             onPress={onClose}
-                            style={({ pressed }) => [styles.closeBtn, pressed && styles.pressedDim]}
+                            style={styles.closeBtn}
                         >
                             <X size={18} color={colors.textSecondary} />
                         </Pressable>
@@ -595,76 +546,15 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                                 </View>
                             </View>
 
-                            <View style={styles.timeDial}>
-                                <View style={styles.timeClockGroup}>
-                                <View style={styles.timeStepper}>
-                                    <Pressable
-                                        accessibilityLabel="Increase hour"
-                                        hitSlop={8}
-                                        onPress={() => cycleHour(1)}
-                                    >
-                                        <ChevronUp size={16} color={colors.textSecondary} />
-                                    </Pressable>
-                                    <Text style={styles.timeValue}>
-                                        {String(hour).padStart(2, '0')}
-                                    </Text>
-                                    <Pressable
-                                        accessibilityLabel="Decrease hour"
-                                        hitSlop={8}
-                                        onPress={() => cycleHour(-1)}
-                                    >
-                                        <ChevronDown size={16} color={colors.textSecondary} />
-                                    </Pressable>
-                                </View>
-
-                                <Text style={styles.timeColon}>:</Text>
-
-                                <View style={styles.timeStepper}>
-                                    <Pressable
-                                        accessibilityLabel="Increase minutes"
-                                        hitSlop={8}
-                                        onPress={() => cycleMinute(1)}
-                                    >
-                                        <ChevronUp size={16} color={colors.textSecondary} />
-                                    </Pressable>
-                                    <Text style={styles.timeValue}>
-                                        {String(minute).padStart(2, '0')}
-                                    </Text>
-                                    <Pressable
-                                        accessibilityLabel="Decrease minutes"
-                                        hitSlop={8}
-                                        onPress={() => cycleMinute(-1)}
-                                    >
-                                        <ChevronDown size={16} color={colors.textSecondary} />
-                                    </Pressable>
-                                </View>
-                                </View>
-
-                                <View style={styles.periodWrap}>
-                                    <Animated.View
-                                        style={[styles.periodThumb, periodThumbStyle]}
-                                    />
-                                    {(['AM', 'PM'] as const).map((value) => (
-                                        <Pressable
-                                            key={value}
-                                            onPress={() => {
-                                                timeTouched.current = true;
-                                                setPeriod(value);
-                                            }}
-                                            style={styles.periodBtn}
-                                        >
-                                            <Animated.Text
-                                                style={[
-                                                    styles.periodText,
-                                                    value === 'AM' ? amTextStyle : pmTextStyle,
-                                                ]}
-                                            >
-                                                {value}
-                                            </Animated.Text>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            </View>
+                            <TimeDial
+                                value={{ hour, minute, period }}
+                                onChange={(next) => {
+                                    timeTouched.current = true;
+                                    setHour(next.hour);
+                                    setMinute(next.minute);
+                                    setPeriod(next.period);
+                                }}
+                            />
 
                             <Text style={styles.scheduleNote}>
                                 {logMode
@@ -737,10 +627,9 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                                                 updateItem(unitPickerFor, { unit });
                                                 setUnitPickerFor(null);
                                             }}
-                                            style={({ pressed }) => [
+                                            style={[
                                                 styles.pickerRow,
                                                 selected && styles.pickerRowSelected,
-                                                pressed && styles.pickerRowPressed,
                                             ]}
                                         >
                                             <Text
@@ -775,6 +664,17 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
 export default NewMealPlanModal;
 
 const styles = StyleSheet.create({
+    scheduleNote: { fontSize: 11.5, color: colors.textMuted },
+
+    footer: {
+        paddingHorizontal: spacing.lg,
+        paddingTop: 14,
+        paddingBottom: 20,
+        gap: 10,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.surface,
+    },
     overlay: { flex: 1, justifyContent: 'flex-end' },
     backdrop: {
         position: 'absolute',
@@ -1049,80 +949,9 @@ const styles = StyleSheet.create({
 
     sameTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     sameTimeText: { fontSize: 11, fontWeight: '600', color: colors.secondary },
-    timeDial: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        borderRadius: radius.md,
-        backgroundColor: colors.surfaceLow,
-    },
     // Takes the space left over by the AM/PM block and centres the
     // digits inside it, so the clock reads as the middle of the dial.
-    timeClockGroup: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-    },
-    timeStepper: { alignItems: 'center', gap: 2 },
-    timeValue: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        letterSpacing: -0.5,
-        // Explicit lineHeight + includeFontPadding:false — Android adds
-        // asymmetric padding above the glyph otherwise, which makes the
-        // digits sit high between the two chevrons.
-        lineHeight: 26,
-        includeFontPadding: false,
-        textAlign: 'center',
-        minWidth: 32,
-    },
-    timeColon: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: colors.textMuted,
-        lineHeight: 26,
-        includeFontPadding: false,
-    },
-    periodWrap: {
-        flexDirection: 'row',
-        gap: PERIOD_GAP,
-        marginLeft: 'auto',
-        padding: 4,
-        borderRadius: 16,
-        backgroundColor: colors.surface,
-    },
     // Sits under both buttons and slides between them.
-    periodThumb: {
-        position: 'absolute',
-        top: 4,
-        left: 4,
-        width: PERIOD_BTN_WIDTH,
-        height: 32,
-        borderRadius: 12,
-        backgroundColor: colors.secondary,
-    },
-    periodBtn: {
-        width: PERIOD_BTN_WIDTH,
-        height: 32,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    periodText: { fontSize: 12, fontWeight: '800' },
-    scheduleNote: { fontSize: 11.5, color: colors.textMuted },
-
-    footer: {
-        paddingHorizontal: spacing.lg,
-        paddingTop: 14,
-        paddingBottom: 20,
-        gap: 10,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        backgroundColor: colors.surface,
-    },
     formErrorText: { fontSize: 12.5, fontWeight: '600', color: colors.error },
     cta: {
         flexDirection: 'row',
