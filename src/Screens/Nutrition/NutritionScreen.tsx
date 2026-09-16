@@ -22,7 +22,19 @@ import { spacing } from '../../Theme/spacing';
 import WorkoutDateStrip from '../Workout/WorkoutDateStrip';
 import { useDialog } from '../../Components/Dialog';
 import NewMealPlanModal, { type MealPlanPayload } from './NewMealPlanModal';
-import { estimateItemNutrition } from '../../Services/nutritionAiService';
+// ── Gemini nutrition estimates: temporarily disabled ─────────────────
+// The API key lives in EXPO_PUBLIC_*, which ships inside the app
+// bundle, so shipping it would publish the key. The feature is off
+// until the call goes through a proxy that holds the key server-side
+// (EXPO_PUBLIC_GEMINI_PROXY_URL in .env.example).
+//
+// Commented rather than deleted, and the only import of the service —
+// with it off, neither nutritionAiService nor geminiService is reached
+// by the bundler at all. To re-enable: uncomment this line and the body
+// of estimateNutritionFor() below.
+//
+// import { estimateItemNutrition } from '../../Services/nutritionAiService';
+// ─────────────────────────────────────────────────────────────────────
 import {
     createMealPlan,
     updateMealPlan,
@@ -392,26 +404,32 @@ export const NutritionScreen: React.FC = () => {
      * and a plan that saved successfully must not appear to fail
      * because an AI call did.
      */
-    const estimateNutritionFor = async (planId: string, payload: MealPlanPayload) => {
-        setEstimatingIds((prev) => [...prev, planId]);
-        try {
-            // Writes the items back with a nutrition block on each, so
-            // the figures travel with the food they describe.
-            const items = await estimateItemNutrition(payload.items);
-            if (items.some((item) => item.nutrition)) {
-                await updateMealPlan(planId, { items });
-                console.log('[nutrition] written to mealPlans/' + planId);
-            } else {
-                console.warn('[nutrition] nothing to write — no item got an estimate.');
-            }
-        } catch (error) {
-            // Still not shown to the user: they asked to save a meal,
-            // not to run an estimate. But swallowing it entirely made a
-            // missing key indistinguishable from a working feature.
-            console.warn('[nutrition] estimate failed:', error);
-        } finally {
-            setEstimatingIds((prev) => prev.filter((id) => id !== planId));
-        }
+    const estimateNutritionFor = async (_planId: string, _payload: MealPlanPayload) => {
+        // Disabled with the import at the top of this file. The meal
+        // still saves — it simply keeps whatever nutrition figures the
+        // user typed, instead of having them filled in by the model.
+        //
+        // To re-enable, uncomment the import above and this body:
+        //
+        // setEstimatingIds((prev) => [...prev, planId]);
+        // try {
+        //     // Writes the items back with a nutrition block on each, so
+        //     // the figures travel with the food they describe.
+        //     const items = await estimateItemNutrition(payload.items);
+        //     if (items.some((item) => item.nutrition)) {
+        //         await updateMealPlan(planId, { items });
+        //         console.log('[nutrition] written to mealPlans/' + planId);
+        //     } else {
+        //         console.warn('[nutrition] nothing to write — no item got an estimate.');
+        //     }
+        // } catch (error) {
+        //     // Still not shown to the user: they asked to save a meal,
+        //     // not to run an estimate. But swallowing it entirely made a
+        //     // missing key indistinguishable from a working feature.
+        //     console.warn('[nutrition] estimate failed:', error);
+        // } finally {
+        //     setEstimatingIds((prev) => prev.filter((id) => id !== planId));
+        // }
     };
 
     const handleCreateMealPlan = async (payload: MealPlanPayload) => {
