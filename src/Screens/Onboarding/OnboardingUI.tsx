@@ -21,7 +21,7 @@ import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import { themedStyles } from '../../Theme/ThemeContext';
 
-export const TOTAL_STEPS = 3;
+export const TOTAL_STEPS = 4;
 
 /** "Step 2 of 3" plus the fill bar above every step's content. */
 export const StepHeader: React.FC<{ step: number; onBack?: () => void }> = ({

@@ -14,7 +14,9 @@ const MONTHS_BACK = 2;
 const MONTHS_FORWARD = 2;
 const DAYS_PER_MONTH = 30; // approximate — fine for a scroll-range bound
 const VISIBLE_TILES = 7;
-const TILE_GAP = 8;
+const TILE_GAP = 7;
+const TILE_HEIGHT = 64;
+const STRIP_VERTICAL_PADDING = 2;
 
 function addDays(date: Date, days: number) {
     const d = new Date(date);
@@ -146,6 +148,13 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
             renderItem={renderItem}
             horizontal
             showsHorizontalScrollIndicator={false}
+            // A horizontal FlatList is a ScrollView, and a bare ScrollView
+            // dropped straight into a flex parent — e.g. the Schedule tab's
+            // vertical ScrollView content container — stretches to fill the
+            // screen. Pinning flexGrow to 0 and the height to the tile makes
+            // the strip exactly as tall as its tiles wherever it is used,
+            // with no wrapper View required.
+            style={styles.list}
             // initialScrollIndex puts the item at the LEFT edge, so it
             // is offset by half a screenful of tiles to land centred on
             // the very first paint rather than sliding into place after.
@@ -167,7 +176,7 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
             onLayout={() => scrollToDate(selectedDate, false)}
             contentContainerStyle={{
                 gap: TILE_GAP,
-                paddingVertical: 2,
+                paddingVertical: STRIP_VERTICAL_PADDING,
                 paddingHorizontal: screenHorizontalPadding,
             }}
             windowSize={7}
@@ -179,8 +188,13 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
 };
 
 const styles = themedStyles(() => ({
+    list: {
+        flexGrow: 0,
+        flexShrink: 0,
+        height: TILE_HEIGHT + STRIP_VERTICAL_PADDING * 2,
+    },
     dateTile: {
-        height: 64,
+        height: TILE_HEIGHT,
         borderRadius: 16,
         backgroundColor: colors.surface,
         alignItems: 'center',

@@ -140,7 +140,7 @@ export const ActivityStep: React.FC<ActivityStepProps> = ({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <StepHeader step={3} onBack={onBack} />
+      <StepHeader step={4} onBack={onBack} />
 
       <StepTitle
         title="Activity, health & targets"

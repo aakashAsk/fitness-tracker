@@ -42,10 +42,10 @@ export function useReminderSync(enabled: boolean) {
       if (cancelled || !permission.current) return;
 
       const targets: ReminderTarget[] = [
-        ...workoutPlans.map(workoutReminder),
-        ...mealPlans.map(mealReminder),
-        // Drafts, paused plans and ones with no time yield null.
-      ].filter((target): target is ReminderTarget => target !== null);
+        ...workoutPlans.flatMap(workoutReminder),
+        ...mealPlans.flatMap(mealReminder),
+        // Drafts, paused plans and ones with no time yield empty arrays.
+      ];
 
       await syncReminders(targets);
     };

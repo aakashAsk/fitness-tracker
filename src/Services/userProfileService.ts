@@ -26,6 +26,17 @@ export type WeeklyPace = 0.25 | 0.5 | 0.75;
 
 /** The answers the user actually gave, before anything is derived. */
 export interface ProfileAnswers {
+  /**
+   * What the user asked to be called. Collected as the first onboarding
+   * step, because the dashboard greets by name and the email local-part
+   * is a poor stand-in for one.
+   */
+  displayName: string;
+  /**
+   * Digits as typed, or '' when skipped. Stored unverified — there is no
+   * OTP check on it yet, so nothing may treat it as a proven contact.
+   */
+  phoneNumber: string;
   gender: Gender;
   /** Years. */
   age: number;
@@ -201,6 +212,10 @@ function toUserProfile(userId: string, data: Record<string, unknown>): UserProfi
 
   return {
     userId: (data.userId as string) ?? userId,
+    // Empty on every profile written before the name step shipped —
+    // callers fall back rather than showing a blank greeting.
+    displayName: ((data.displayName as string) ?? '').trim(),
+    phoneNumber: ((data.phoneNumber as string) ?? '').trim(),
     gender: (data.gender as Gender) ?? 'other',
     age: Number(data.age) || 0,
     heightCm: Number(data.heightCm) || 0,
@@ -258,6 +273,10 @@ export async function saveUserProfile(
   const payload = {
     ...answers,
     ...derived,
+    // Trimmed here rather than trusted from the form, so a stray space
+    // can never reach the greeting as part of the name.
+    displayName: answers.displayName.trim(),
+    phoneNumber: answers.phoneNumber.trim(),
     userId: uid,
     onboardingCompleted: true,
     updatedAt: serverTimestamp(),
@@ -281,6 +300,8 @@ export async function saveUserProfile(
   return {
     ...answers,
     ...derived,
+    displayName: payload.displayName,
+    phoneNumber: payload.phoneNumber,
     userId: uid,
     // Onboarding never sets a picture; it is added later from the
     // Profile tab via saveUserPhotoUrl.

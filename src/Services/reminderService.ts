@@ -16,6 +16,7 @@ import { MEAL_TYPE_LABEL, type MealPlan } from './mealPlanService';
 
 /** How far ahead of the session the reminder fires. */
 export const REMINDER_LEAD_MINUTES = 15;
+export const REMINDER_LEAD_MINUTES_EARLY = 1;
 
 /**
  * expo-notifications counts weekdays 1–7 starting on SUNDAY, while
@@ -43,6 +44,8 @@ export interface ReminderTarget {
   days: DayKey[];
   /** e.g. "6:30 PM" */
   time: string;
+  /** How many minutes before the session this fires. */
+  leadMinutes: number;
 }
 
 /**
@@ -84,8 +87,9 @@ export async function configureAndroidChannel(): Promise<void> {
 function applyLead(
   day: DayKey,
   timeMinutes: number,
+  leadMinutes: number = REMINDER_LEAD_MINUTES,
 ): { weekday: number; hour: number; minute: number } {
-  const shifted = timeMinutes - REMINDER_LEAD_MINUTES;
+  const shifted = timeMinutes - leadMinutes;
   const wrapped = (shifted + MINUTES_PER_DAY) % MINUTES_PER_DAY;
 
   // Wrapped past midnight? The reminder belongs to the previous weekday.
@@ -100,11 +104,10 @@ function applyLead(
 }
 
 /** Turns a workout plan into its reminder, or null if it can't have one. */
-export function workoutReminder(plan: WorkoutPlan): ReminderTarget | null {
-  if (plan.status !== 'live' || plan.days.length === 0 || !plan.time) return null;
-  return {
+export function workoutReminder(plan: WorkoutPlan): ReminderTarget[] {
+  if (plan.status !== 'live' || plan.days.length === 0 || !plan.time) return [];
+  const baseTarget = {
     planId: plan.id,
-    title: `${plan.name} in ${REMINDER_LEAD_MINUTES} min`,
     body:
       plan.muscles.length > 0
         ? `Targeting ${plan.muscles.slice(0, 3).join(', ')} · ${plan.time}`
@@ -112,18 +115,29 @@ export function workoutReminder(plan: WorkoutPlan): ReminderTarget | null {
     days: plan.days,
     time: plan.time,
   };
+  return [
+    {
+      ...baseTarget,
+      title: `${plan.name} in ${REMINDER_LEAD_MINUTES} min`,
+      leadMinutes: REMINDER_LEAD_MINUTES,
+    },
+    {
+      ...baseTarget,
+      title: `${plan.name} in ${REMINDER_LEAD_MINUTES_EARLY} min`,
+      leadMinutes: REMINDER_LEAD_MINUTES_EARLY,
+    },
+  ];
 }
 
 /** Turns a meal plan into its reminder, or null if it can't have one. */
-export function mealReminder(plan: MealPlan): ReminderTarget | null {
-  if (plan.status !== 'live' || plan.days.length === 0 || !plan.time) return null;
+export function mealReminder(plan: MealPlan): ReminderTarget[] {
+  if (plan.status !== 'live' || plan.days.length === 0 || !plan.time) return [];
   const items = plan.items
     .map((item) => item.name.trim())
     .filter(Boolean)
     .slice(0, 3);
-  return {
+  const baseTarget = {
     planId: plan.id,
-    title: `${plan.name} in ${REMINDER_LEAD_MINUTES} min`,
     body:
       items.length > 0
         ? `${MEAL_TYPE_LABEL[plan.mealType]} · ${items.join(', ')}`
@@ -131,6 +145,18 @@ export function mealReminder(plan: MealPlan): ReminderTarget | null {
     days: plan.days,
     time: plan.time,
   };
+  return [
+    {
+      ...baseTarget,
+      title: `${plan.name} in ${REMINDER_LEAD_MINUTES} min`,
+      leadMinutes: REMINDER_LEAD_MINUTES,
+    },
+    {
+      ...baseTarget,
+      title: `${plan.name} in ${REMINDER_LEAD_MINUTES_EARLY} min`,
+      leadMinutes: REMINDER_LEAD_MINUTES_EARLY,
+    },
+  ];
 }
 
 /**
@@ -154,7 +180,7 @@ export async function syncReminders(targets: ReminderTarget[]): Promise<number> 
     const timeMinutes = parseTimeToMinutes(target.time);
 
     for (const day of target.days) {
-      const { weekday, hour, minute } = applyLead(day, timeMinutes);
+      const { weekday, hour, minute } = applyLead(day, timeMinutes, target.leadMinutes);
 
       await Notifications.scheduleNotificationAsync({
         content: {

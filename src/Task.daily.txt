@@ -1,7 +1,11 @@
-1. improve popup modal
-2. add step counter
-3. improve graph of workout logs
-4. add ai for creating plans and meal diet according to the indian bujet
-5. push notifications
-6. splash screen
-9. loginscreen icon change, change the color of continue button to white
+1. push notifications
+2. make working nutrition stasts
+3. style something consume meal 
+4. ai workout and meal plan template
+
+small bugs - 
+remove bottom extra space
+add exercise padding align with other components
+
+
+notification bug - throwing 2 notification message

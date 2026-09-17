@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.health.READ_STEPS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +34,21 @@
         {
           "photosPermission": "PulseFit uses your photos so you can set a profile picture.",
           "cameraPermission": "PulseFit uses your camera so you can take a profile picture."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "PulseFit reads your motion activity to count your daily steps."
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
         }
       ]
     ],

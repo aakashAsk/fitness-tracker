@@ -1,4 +1,4 @@
-// Owns the answers for all three steps and does the single write at the
+// Owns the answers for all four steps and does the single write at the
 // end. Nothing is persisted until "Complete setup": a half-finished
 // profile would satisfy the onboardingCompleted check on the next cold
 // start and strand the user with targets derived from defaults.
@@ -10,6 +10,7 @@ import {
   saveUserProfile,
   UserProfile,
 } from '../../Services/userProfileService';
+import AboutYouStep from './AboutYouStep';
 import GoalStep from './GoalStep';
 import BodyMetricsStep from './BodyMetricsStep';
 import ActivityStep from './ActivityStep';
@@ -18,6 +19,10 @@ import { themedStyles } from '../../Theme/ThemeContext';
 // Population medians, so the previews show a plausible number before
 // the user has touched anything rather than zeros.
 const DEFAULT_ANSWERS: ProfileAnswers = {
+  // No sensible default exists for either — step 1 asks, and the name is
+  // required before it will let the user past.
+  displayName: '',
+  phoneNumber: '',
   gender: 'male',
   age: 26,
   heightCm: 175,
@@ -35,7 +40,7 @@ export interface OnboardingNavigatorProps {
 }
 
 export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComplete }) => {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [answers, setAnswers] = useState<ProfileAnswers>(DEFAULT_ANSWERS);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,7 +54,7 @@ export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComp
     try {
       onComplete(await saveUserProfile(answers));
     } catch (error) {
-      // Stay on step 3 with everything still filled in — the failure is
+      // Stay on the last step with everything still filled in — the failure is
       // almost always transient (offline, rules), and re-asking nine
       // questions to retry a network call would be punitive.
       setErrorMessage((error as Error).message);
@@ -65,14 +70,26 @@ export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComp
     >
       <View style={styles.flex}>
         {step === 1 ? (
-          <GoalStep
-            value={answers.goal}
-            onChange={goal => patch({ goal })}
+          <AboutYouStep
+            value={{
+              displayName: answers.displayName,
+              phoneNumber: answers.phoneNumber,
+            }}
+            onChange={patch}
             onContinue={() => setStep(2)}
           />
         ) : null}
 
         {step === 2 ? (
+          <GoalStep
+            value={answers.goal}
+            onChange={goal => patch({ goal })}
+            onContinue={() => setStep(3)}
+            onBack={() => setStep(1)}
+          />
+        ) : null}
+
+        {step === 3 ? (
           <BodyMetricsStep
             value={{
               gender: answers.gender,
@@ -81,12 +98,12 @@ export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComp
               weightKg: answers.weightKg,
             }}
             onChange={patch}
-            onContinue={() => setStep(3)}
-            onBack={() => setStep(1)}
+            onContinue={() => setStep(4)}
+            onBack={() => setStep(2)}
           />
         ) : null}
 
-        {step === 3 ? (
+        {step === 4 ? (
           <ActivityStep
             value={{
               activityLevel: answers.activityLevel,
@@ -98,7 +115,7 @@ export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComp
             goal={answers.goal}
             onChange={patch}
             onSubmit={handleSubmit}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
             saving={saving}
             errorMessage={errorMessage}
           />

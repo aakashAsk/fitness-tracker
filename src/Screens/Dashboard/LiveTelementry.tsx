@@ -7,23 +7,30 @@ import {
     Clock,
     Droplet,
     Flame,
+    Footprints,
     Weight,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import UserAvatar from '../../Components/UserAvatar';
 import { themedStyles } from '../../Theme/ThemeContext';
+import { useDailySteps } from '../../Hooks/useDailySteps';
+import { DAILY_BURN_GOAL, DAILY_STEP_GOAL } from '../../Services/stepService';
+import { useDailyHydration } from '../../Hooks/useDailyHydration';
+import { useGreeting } from '../../Hooks/useGreeting';
+import { useAppSelector } from '../../Store/hooks';
+import { selectUserProfile } from '../../Store/userProfileSlice';
 
 export interface DashboardOverviewProps {
-    userName?: string;
-    dateLabel?: string;
-    streakDays?: number;
-    caloriesBurned?: number;
-    caloriesTrendPercent?: number;
-    waterIntakeMl?: number;
-    waterGoalPercent?: number;
+    // The greeting's wording and date come from the clock, and the name
+    // from the signed-in user — see useGreeting — so neither is passed in.
+    /** Opens the Profile tab — the top-bar avatar is the entry point. */
+    onProfilePress?: () => void;
+    // Calories burned is derived from the pedometer, and its trend pill
+    // now shows progress against DAILY_BURN_GOAL — neither is passed in.
+    // Water intake is read from Firestore by the card itself — see
+    // useDailyHydration — so there is nothing to pass in.
     bodyWeightKg?: number;
     bodyWeightDeltaKg?: number;
-    activeMinutes?: number;
     weeklyAvgKcal?: number;
     monthlyGoalPercent?: number;
     calorieBudgetTotal?: number;
@@ -53,18 +60,65 @@ const CALORIE_RING_SIZE = 112;
 const CALORIE_RING_STROKE = 10;
 const GAUGE_SIZE = 40;
 const GAUGE_STROKE = 3;
+const METRIC_RING_SIZE = 78;
+const METRIC_RING_STROKE = 8;
+const METRIC_RING_RADIUS = (METRIC_RING_SIZE - METRIC_RING_STROKE) / 2;
+const METRIC_RING_CIRCUMFERENCE = 2 * Math.PI * METRIC_RING_RADIUS;
+
+/**
+ * The progress dial inside a metric tile — water drunk, calories burned.
+ *
+ * `progress` is expected clamped to 0–1 by the caller, which is where
+ * the goal lives; this only draws what it is given.
+ */
+const MetricRing: React.FC<{
+    progress: number;
+    accent: string;
+    /** Big number in the middle, already formatted. */
+    value: string;
+    /** Small line under it, e.g. "/ 2,000 ml". */
+    caption: string;
+}> = ({ progress, accent, value, caption }) => (
+    <View style={styles.metricRingWrapper}>
+        <Svg width={METRIC_RING_SIZE} height={METRIC_RING_SIZE}>
+            <Circle
+                cx={METRIC_RING_SIZE / 2}
+                cy={METRIC_RING_SIZE / 2}
+                r={METRIC_RING_RADIUS}
+                stroke={colors.surfaceContainer}
+                strokeWidth={METRIC_RING_STROKE}
+                fill="none"
+            />
+            {/* Drawn only once there is something to show — a zero-length
+                arc still paints a dot at the 12 o'clock cap. */}
+            {progress > 0 ? (
+                <Circle
+                    cx={METRIC_RING_SIZE / 2}
+                    cy={METRIC_RING_SIZE / 2}
+                    r={METRIC_RING_RADIUS}
+                    stroke={accent}
+                    strokeWidth={METRIC_RING_STROKE}
+                    strokeDasharray={METRIC_RING_CIRCUMFERENCE}
+                    strokeDashoffset={METRIC_RING_CIRCUMFERENCE * (1 - progress)}
+                    strokeLinecap="round"
+                    fill="none"
+                    rotation={-90}
+                    originX={METRIC_RING_SIZE / 2}
+                    originY={METRIC_RING_SIZE / 2}
+                />
+            ) : null}
+        </Svg>
+        <View style={styles.metricRingCenter}>
+            <Text style={styles.metricRingValue}>{value}</Text>
+            <Text style={styles.metricRingCaption}>{caption}</Text>
+        </View>
+    </View>
+);
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
-    userName = 'Alex',
-    dateLabel = 'Wednesday, 18 Oct',
-    streakDays = 6,
-    caloriesBurned = 567,
-    caloriesTrendPercent = 12,
-    waterIntakeMl = 1750,
-    waterGoalPercent = 70,
+    onProfilePress,
     bodyWeightKg = 68.4,
     bodyWeightDeltaKg = -0.4,
-    activeMinutes = 52,
     weeklyAvgKcal = 485,
     monthlyGoalPercent = 89,
     calorieBudgetTotal = 2100,
@@ -72,6 +126,43 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     macros = DEFAULT_MACROS,
     onNotificationsPress,
 }) => {
+    // "Good morning" is the clock's business, not a caller's, and the
+    // name is whatever the user gave at onboarding. A profile written
+    // before the name step shipped has none, in which case the greeting
+    // simply stands alone rather than addressing nobody.
+    const { greeting, dateLabel } = useGreeting();
+    const profile = useAppSelector(selectUserProfile);
+    const userName = profile?.displayName?.trim() ?? '';
+
+    // Steps come from the device rather than props — the pedometer is
+    // the source of truth, and nothing upstream has a better number.
+    const stepData = useDailySteps();
+    const stepsUnknown = stepData.loading || stepData.source === 'unavailable';
+    const stepGoalPercent = Math.round(stepData.goalProgress * 100);
+    // A bare "no sensor" gave no way to tell an emulator from a refused
+    // permission, so the card names the actual blocker instead.
+    const stepUnitLabel =
+        stepData.unavailableReason === 'no-hardware'
+            ? 'no sensor'
+            : stepData.unavailableReason === 'permission'
+                ? 'allow motion'
+                : stepData.unavailableReason === 'platform'
+                    ? 'phone only'
+                    : `of ${DAILY_STEP_GOAL.toLocaleString()}`;
+
+    // Water, like steps, comes from storage rather than props: the
+    // Nutrition tab's hydration tracker is the only thing that writes it,
+    // and Firestore is the shared source of truth between the two.
+    const hydration = useDailyHydration();
+    const waterUnknown = hydration.loading || hydration.error !== null;
+
+    // Calories burned are the step count's other face — the pedometer
+    // reading converted at a fixed kcal-per-step — so the ring fills
+    // against the burn equivalent of the step goal.
+    const caloriesBurned = stepData.caloriesBurned;
+    const burnProgress = Math.min(caloriesBurned / DAILY_BURN_GOAL, 1);
+    const burnGoalPercent = Math.round((caloriesBurned / DAILY_BURN_GOAL) * 100);
+
     const kcalLeft = Math.max(calorieBudgetTotal - calorieBudgetConsumed, 0);
     const calorieRingRadius = (CALORIE_RING_SIZE - CALORIE_RING_STROKE) / 2;
     const calorieCircumference = 2 * Math.PI * calorieRingRadius;
@@ -103,37 +194,31 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     >
                         <Bell size={20} color={colors.textSecondary} strokeWidth={2.2} />
                     </TouchableOpacity>
-                    <UserAvatar size={32} />
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={onProfilePress}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open your profile"
+                    >
+                        <UserAvatar size={32} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
-            {/* Greeting row */}
+            {/* Greeting row — the avatar lives in the top bar and the
+                streak moved out, so the name has the full width and no
+                longer needs to truncate. */}
             <View style={styles.greetingRow}>
-                <View style={styles.greetingLeft}>
-                    <View style={styles.greetingAvatar}>
-                        <UserAvatar
-                            size={48}
-                            background={colors.surfaceContainer}
-                            iconColor={colors.textSecondary}
-                            iconSize={22}
-                        />
-                        <View style={styles.greetingAvatarDot} />
-                    </View>
-                    <View>
-                        <View style={styles.greetingTitleRow}>
-                            <Text style={styles.greetingTitle}>Good morning, {userName}</Text>
-                            <Text style={styles.greetingEmoji}>✨</Text>
-                        </View>
-                        <View style={styles.dateRow}>
-                            <Clock size={12} color={colors.secondary} strokeWidth={2.4} />
-                            <Text style={styles.dateText}>{dateLabel}</Text>
-                        </View>
-                    </View>
+                <View style={styles.greetingTitleRow}>
+                    <Text style={styles.greetingTitle}>
+                        {greeting}
+                        {userName ? `, ${userName}` : ''}
+                    </Text>
+                    <Text style={styles.greetingEmoji}>✨</Text>
                 </View>
-
-                <View style={styles.streakPill}>
-                    <Flame size={16} color={colors.secondary} strokeWidth={2.4} />
-                    <Text style={styles.streakText}>{streakDays} Days</Text>
+                <View style={styles.dateRow}>
+                    <Clock size={12} color={colors.secondary} strokeWidth={2.4} />
+                    <Text style={styles.dateText}>{dateLabel}</Text>
                 </View>
             </View>
 
@@ -156,15 +241,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                             ]}
                         >
                             <Text style={[styles.metricTrendText, { color: colors.secondary }]}>
-                                +{caloriesTrendPercent}%
+                                {stepsUnknown ? '—' : `${burnGoalPercent}% Goal`}
                             </Text>
                         </View>
                     </View>
                     <Text style={styles.metricLabel}>Calories Burned</Text>
-                    <View style={styles.metricValueRow}>
-                        <Text style={styles.metricValue}>{caloriesBurned}</Text>
-                        <Text style={styles.metricUnit}>kcal</Text>
-                    </View>
+                    <MetricRing
+                        progress={stepsUnknown ? 0 : burnProgress}
+                        accent={colors.secondary}
+                        value={stepsUnknown ? '—' : caloriesBurned.toLocaleString()}
+                        caption={`/ ${DAILY_BURN_GOAL.toLocaleString()} kcal`}
+                    />
                 </View>
 
                 <View style={styles.metricCard}>
@@ -184,15 +271,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                             ]}
                         >
                             <Text style={[styles.metricTrendText, { color: colors.primary }]}>
-                                {waterGoalPercent}% Goal
+                                {waterUnknown ? '—' : `${hydration.goalPercent}% Goal`}
                             </Text>
                         </View>
                     </View>
                     <Text style={styles.metricLabel}>Water Intake</Text>
-                    <View style={styles.metricValueRow}>
-                        <Text style={styles.metricValue}>{waterIntakeMl.toLocaleString()}</Text>
-                        <Text style={styles.metricUnit}>ml</Text>
-                    </View>
+                    <MetricRing
+                        progress={hydration.progress}
+                        accent={colors.primary}
+                        value={waterUnknown ? '—' : hydration.ml.toLocaleString()}
+                        caption={`/ ${hydration.goalMl.toLocaleString()} ml`}
+                    />
                 </View>
 
                 <View style={styles.metricCard}>
@@ -224,21 +313,48 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         <View
                             style={[
                                 styles.metricIconCircle,
-                                { backgroundColor: withOpacity(colors.fats, 0.16) },
+                                { backgroundColor: withOpacity(colors.recovery, 0.16) },
                             ]}
                         >
-                            <Clock size={18} color={colors.fats} strokeWidth={2.2} />
+                            <Footprints size={18} color={colors.recovery} strokeWidth={2.2} />
                         </View>
-                        <View style={[styles.metricTrendPill, { backgroundColor: colors.surfaceContainer }]}>
-                            <Text style={[styles.metricTrendText, { color: colors.textSecondary }]}>
-                                Today
+                        <View
+                            style={[
+                                styles.metricTrendPill,
+                                {
+                                    backgroundColor: stepsUnknown
+                                        ? colors.surfaceContainer
+                                        : withOpacity(colors.recovery, 0.14),
+                                },
+                            ]}
+                        >
+                            <Text
+                                style={[
+                                    styles.metricTrendText,
+                                    { color: stepsUnknown ? colors.textSecondary : colors.recovery },
+                                ]}
+                            >
+                                {stepsUnknown ? 'Today' : `${stepGoalPercent}% Goal`}
                             </Text>
                         </View>
                     </View>
-                    <Text style={styles.metricLabel}>Active Minutes</Text>
+                    <Text style={styles.metricLabel}>Steps</Text>
                     <View style={styles.metricValueRow}>
-                        <Text style={styles.metricValue}>{activeMinutes}</Text>
-                        <Text style={styles.metricUnit}>mins</Text>
+                        <Text style={styles.metricValue}>
+                            {stepsUnknown ? '—' : stepData.steps.toLocaleString()}
+                        </Text>
+                        <Text style={styles.metricUnit}>{stepUnitLabel}</Text>
+                    </View>
+                    <View style={styles.stepTrack}>
+                        <View
+                            style={[
+                                styles.stepFill,
+                                {
+                                    width: `${stepsUnknown ? 0 : Math.max(stepGoalPercent, 2)}%`,
+                                    backgroundColor: colors.recovery,
+                                },
+                            ]}
+                        />
                     </View>
                 </View>
             </View>
@@ -468,39 +584,18 @@ const styles = themedStyles(() => ({
         justifyContent: 'center',
     },
     greetingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    greetingLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        flexShrink: 1,
-    },
-    greetingAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: colors.surfaceContainer,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    greetingAvatarDot: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        width: 13,
-        height: 13,
-        borderRadius: 7,
-        backgroundColor: colors.primary,
-        borderWidth: 2,
-        borderColor: colors.surface,
+        // A plain block now, not a row: with the avatar and streak pill
+        // gone there is nothing to sit beside, and the name can use the
+        // whole width.
+        alignItems: 'flex-start',
     },
     greetingTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
+        // Wraps rather than truncates — a name that does not fit on one
+        // line should still be readable in full.
+        flexWrap: 'wrap',
     },
     greetingTitle: {
         fontSize: 17,
@@ -510,6 +605,9 @@ const styles = themedStyles(() => ({
     },
     greetingEmoji: {
         fontSize: 15,
+        // Never the thing that gets squeezed — it is 15px wide and the
+        // name beside it has hundreds to give.
+        flexShrink: 0,
     },
     dateRow: {
         flexDirection: 'row',
@@ -521,20 +619,6 @@ const styles = themedStyles(() => ({
         fontSize: 12,
         fontWeight: '600',
         color: colors.textSecondary,
-    },
-    streakPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-        backgroundColor: withOpacity(colors.secondary, 0.14),
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-        borderRadius: 20,
-    },
-    streakText: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: colors.secondary,
     },
     metricGrid: {
         flexDirection: 'row',
@@ -596,6 +680,43 @@ const styles = themedStyles(() => ({
         fontSize: 12,
         fontWeight: '600',
         color: colors.textSecondary,
+    },
+    metricRingWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 6,
+    },
+    metricRingCenter: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    metricRingValue: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: colors.textPrimary,
+        letterSpacing: -0.3,
+    },
+    metricRingCaption: {
+        fontSize: 9,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginTop: 1,
+    },
+    stepTrack: {
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: colors.surfaceContainer,
+        overflow: 'hidden',
+        marginTop: 9,
+    },
+    stepFill: {
+        height: '100%',
+        borderRadius: 3,
     },
     card: {
         backgroundColor: colors.surface,

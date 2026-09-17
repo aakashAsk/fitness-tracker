@@ -70,9 +70,26 @@ export interface ExerciseFilters {
   category?: ExerciseCategory | string;
   equipment?: string;
   level?: ExerciseLevel | string;
+  /** NonNullable: `null` is a value the field can hold, not one you can
+   *  filter by — the API has no "no mechanic" query. */
+  mechanic?: NonNullable<ExerciseMechanic> | string;
   search?: string;
   /** Caps how many results come back, e.g. `{ limit: 5 }`. */
   limit?: number;
+  /**
+   * How many results to skip — `limit` + `offset` is how the exercise
+   * library pages. Verified against the live API: offsets compose with
+   * every filter above and pages do not overlap.
+   *
+   * There is no total-count header and no count endpoint, so the only
+   * end-of-list signal is a page coming back shorter than `limit` (an
+   * offset past the end returns `[]`). Callers cannot know the total
+   * until they have paged to the end.
+   *
+   * `skip`, `page` and `_start` are silently ignored by the API — use
+   * this one.
+   */
+  offset?: number;
 }
 
 export class ExerciseApiError extends Error {

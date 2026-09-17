@@ -1226,7 +1226,9 @@ const styles = themedStyles(() => ({
         color: colors.textSecondary,
     },
     dateStripWrapper: {
-        paddingHorizontal: spacing.screenHorizontalPadding,
+        // No horizontal padding here — WorkoutDateStrip applies
+        // screenHorizontalPadding itself via its contentContainerStyle, and
+        // sizes its tiles assuming that is the only inset.
     },
     card: {
         marginHorizontal: spacing.screenHorizontalPadding,

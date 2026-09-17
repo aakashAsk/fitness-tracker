@@ -93,7 +93,7 @@ export const BodyMetricsStep: React.FC<BodyMetricsStepProps> = ({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <StepHeader step={2} onBack={onBack} />
+      <StepHeader step={3} onBack={onBack} />
 
       <StepTitle
         title="Tell us about yourself"

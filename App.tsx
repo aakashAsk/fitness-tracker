@@ -58,19 +58,19 @@ import { themedStyles, ThemeProvider, useTheme, useThemeState } from './src/Them
 // below, then run a dev build (npm run build:dev) — Expo Go will not
 // deliver notifications however this is configured.
 //
-// import { useReminderSync } from './src/Store/useReminderSync';
-// import * as Notifications from 'expo-notifications';
+import { useReminderSync } from './src/Store/useReminderSync';
+import * as Notifications from 'expo-notifications';
 //
-// // Without a handler, a reminder that arrives while the app is open is
-// // delivered silently — the user sees nothing until they background it.
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowBanner: true,
-//     shouldShowList: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: false,
-//   }),
-// });
+// Without a handler, a reminder that arrives while the app is open is
+// delivered silently — the user sees nothing until they background it.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 // ─────────────────────────────────────────────────────────────────────
 
 function AppContent() {
@@ -157,7 +157,7 @@ function AppContent() {
 
   // Reschedules the device's reminders whenever a plan changes.
   // Disabled with the import above — see the note at the top of the file.
-  // useReminderSync(hasSession);
+  useReminderSync(hasSession);
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
@@ -169,7 +169,7 @@ function AppContent() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <DashboardOverview />
+            <DashboardOverview onProfilePress={() => setActiveTab('profile')} />
             <TodaysWorkoutCard />
             <UpcomingMealCard />
           </ScrollView>

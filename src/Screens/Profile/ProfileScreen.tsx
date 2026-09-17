@@ -31,6 +31,7 @@ import { auth } from '../../Firebase/firebaseConfig';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import { clearCachedThemeMode } from '../../Theme/themeStorage';
+import { clearStepLedger } from '../../Services/stepService';
 import { useDialog } from '../../Components/Dialog';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import {
@@ -183,6 +184,9 @@ export const ProfileScreen: React.FC = () => {
             // open in this one's theme. The preference itself survives
             // in their profile document.
             void clearCachedThemeMode();
+            // Likewise the device-local step tally — it belongs to
+            // whoever was walking, not to the next person to sign in.
+            void clearStepLedger();
             signOut(auth).catch(error =>
               dialog.show({ title: 'Could not log out', message: (error as Error).message }),
             );

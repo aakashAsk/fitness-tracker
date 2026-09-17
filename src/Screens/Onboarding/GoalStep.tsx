@@ -61,14 +61,15 @@ export interface GoalStepProps {
   value: FitnessGoal;
   onChange: (goal: FitnessGoal) => void;
   onContinue: () => void;
+  onBack: () => void;
 }
 
-export const GoalStep: React.FC<GoalStepProps> = ({ value, onChange, onContinue }) => (
+export const GoalStep: React.FC<GoalStepProps> = ({ value, onChange, onContinue, onBack }) => (
   <ScrollView
     contentContainerStyle={styles.content}
     showsVerticalScrollIndicator={false}
   >
-    <StepHeader step={1} />
+    <StepHeader step={2} onBack={onBack} />
 
     <StepTitle
       title="What is your primary fitness goal?"

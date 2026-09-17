@@ -13,11 +13,12 @@ import {
     Minus,
     Plus,
     RotateCcw,
+    ChevronRight,
     SlidersHorizontal,
     Trash2,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
-import { spacing } from '../../Theme/spacing';
+import { radius, spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
@@ -52,12 +53,15 @@ import {
 } from '../../Services/planValidation';
 import {
     Exercise,
+    fetchExercises,
     fetchExercisesBulk,
     isWeightedEquipment,
 } from '../../Services/exerciseService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import { useDialog } from '../../Components/Dialog';
 import { themedStyles } from '../../Theme/ThemeContext';
+import ExerciseLibrary from './ExerciseLibrary';
+import ExerciseDetail from './ExerciseDetail';
 
 // Live version of the Workout tab: the exercise list below the date
 // strip is now the real workout plan(s) scheduled on whichever weekday
@@ -381,6 +385,74 @@ export const WorkoutSession: React.FC = () => {
 
     const totalExerciseCount = planCards.reduce((sum, plan) => sum + plan.exercises.length, 0);
     const hasWorkoutToday = planCards.length > 0;
+
+    // ── Exercise browser ───────────────────────────────────────────────
+    // Sub-screens of this tab rather than routes: the app has no router,
+    // and the Profile tab already swaps to Settings the same way.
+    const [browsing, setBrowsing] = useState(false);
+    const [detailExercise, setDetailExercise] = useState<Exercise | null>(null);
+
+    // The strip above "View All". Preference is the day's own planned
+    // exercises — the ones the user is about to do. With nothing
+    // scheduled there is nothing personal to show, so it falls back to
+    // the first few from the library just to give the row content.
+    const plannedExerciseIds = useMemo(
+        () => planCards.flatMap((plan) => plan.exercises.map((item) => item.exerciseId)),
+        [planCards],
+    );
+
+    const [fallbackExercises, setFallbackExercises] = useState<Exercise[]>([]);
+
+    useEffect(() => {
+        // Only fetched when the day is genuinely empty, so a user with a
+        // plan never pays for this request.
+        if (plannedExerciseIds.length > 0 || fallbackExercises.length > 0) return;
+
+        let active = true;
+        fetchExercises({ limit: 5 })
+            .then((list) => {
+                if (active) setFallbackExercises(list.slice(0, 5));
+            })
+            // The row simply stays empty — it is a shortcut, not content
+            // the screen depends on.
+            .catch(() => undefined);
+
+        return () => {
+            active = false;
+        };
+    }, [plannedExerciseIds.length, fallbackExercises.length]);
+
+    // `exercise` is the full record where it has resolved. The planned
+    // path reads it from the cache the plan cards already populate; the
+    // fallback path already holds it. Null means the name is a humanised
+    // slug and there is nothing to open yet.
+    const featuredExercises: {
+        id: string;
+        name: string;
+        equipment: string | null;
+        exercise: Exercise | null;
+    }[] = useMemo(() => {
+        if (plannedExerciseIds.length > 0) {
+            // A plan can list the same exercise twice; the row is a
+            // shortcut, so show each one once.
+            const unique = Array.from(new Set(plannedExerciseIds)).slice(0, 5);
+            return unique.map((id) => {
+                const details = exerciseCache[id] ?? null;
+                return {
+                    id,
+                    name: details?.name ?? humanizeExerciseId(id),
+                    equipment: details?.equipment ?? null,
+                    exercise: details,
+                };
+            });
+        }
+        return fallbackExercises.map((item) => ({
+            id: item.id,
+            name: item.name,
+            equipment: item.equipment,
+            exercise: item,
+        }));
+    }, [plannedExerciseIds, exerciseCache, fallbackExercises]);
 
     // Switching days swaps the plans instantly (they come from the live
     // store) but their exercise names and logged numbers are both network
@@ -829,6 +901,26 @@ export const WorkoutSession: React.FC = () => {
         }
     };
 
+    // Detail sits above the library so backing out of it returns to the
+    // list the user came from, with its search and filters intact.
+    if (detailExercise) {
+        return (
+            <ExerciseDetail
+                exercise={detailExercise}
+                onBack={() => setDetailExercise(null)}
+            />
+        );
+    }
+
+    if (browsing) {
+        return (
+            <ExerciseLibrary
+                onBack={() => setBrowsing(false)}
+                onSelectExercise={setDetailExercise}
+            />
+        );
+    }
+
     return (
         <View style={styles.root}>
         <ScrollView
@@ -1107,6 +1199,59 @@ export const WorkoutSession: React.FC = () => {
                 is scheduled on the selected day. */}
             <PlanLibrary onEditPlan={openPlanEditorFromLibrary} />
 
+            {/* Shortcut into the exercise library. Shows the day's own
+                planned exercises where there are any — see
+                featuredExercises above for the fallback. */}
+            {featuredExercises.length > 0 ? (
+                <View style={styles.browseSection}>
+                    <View style={styles.browseHeader}>
+                        <Text style={styles.browseTitle}>
+                            {plannedExerciseIds.length > 0 ? "Today's Exercises" : 'Exercises'}
+                        </Text>
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => setBrowsing(true)}
+                            accessibilityRole="button"
+                            accessibilityLabel="View all exercises"
+                            style={styles.browseAllButton}
+                        >
+                            <Text style={styles.browseAllText}>View All</Text>
+                            <ChevronRight size={13} color={colors.primary} strokeWidth={2.6} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.browseList}>
+                        {featuredExercises.map((item) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                activeOpacity={0.85}
+                                onPress={() => setDetailExercise(item.exercise)}
+                                // A planned exercise whose record has not
+                                // resolved yet has nothing to show on the
+                                // detail screen, so it stays inert rather
+                                // than opening a blank one.
+                                disabled={!item.exercise}
+                                accessibilityRole="button"
+                                accessibilityLabel={item.name}
+                                style={styles.browseRow}
+                            >
+                                <View style={styles.browseIcon}>
+                                    <EquipmentIcon equipment={item.equipment} size={17} />
+                                </View>
+                                <Text style={styles.browseRowText} numberOfLines={1}>
+                                    {item.name}
+                                </Text>
+                                <ChevronRight
+                                    size={15}
+                                    color={colors.textMuted}
+                                    strokeWidth={2.4}
+                                />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            ) : null}
+
             <View style={styles.fabSpacer} />
         </ScrollView>
 
@@ -1212,7 +1357,9 @@ const styles = themedStyles(() => ({
         color: colors.textPrimary,
     },
     dateStripWrapper: {
-         paddingHorizontal: spacing.screenHorizontalPadding,
+        // No horizontal padding here — WorkoutDateStrip applies
+        // screenHorizontalPadding itself via its contentContainerStyle, and
+        // sizes its tiles assuming that is the only inset.
     },
     filterRow: {
         gap: 8,
@@ -1818,6 +1965,40 @@ const styles = themedStyles(() => ({
         fontWeight: '800',
         color: colors.primary,
     },
+    browseSection: { gap: spacing.xs, margin: spacing.screenHorizontalPadding, },
+    browseHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing['2xs'],
+    },
+    browseTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
+    browseAllButton: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    browseAllText: { fontSize: 12.5, fontWeight: '800', color: colors.primary },
+    browseList: {
+        borderRadius: radius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden',
+    },
+    browseRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 11,
+    },
+    browseIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: radius.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surfaceLow,
+    },
+    browseRowText: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+
     fabSpacer: {
         height: 56,
     },
