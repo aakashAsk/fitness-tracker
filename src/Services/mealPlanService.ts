@@ -73,6 +73,11 @@ export const MEAL_TYPE_LABEL: Record<MealType, string> = MEAL_TYPES.reduce(
  * from these — see sumItemNutrition — never stored, so a total can
  * never disagree with the items it is supposedly the sum of.
  */
+/**
+ * The figures the app tracks per food — referred to as "micros"
+ * throughout. Sodium was dropped deliberately: it cost tokens on every
+ * estimate and nothing displayed it.
+ */
 export interface MealItemNutrition {
   /** kcal */
   calories: number;
@@ -82,8 +87,6 @@ export interface MealItemNutrition {
   fat: number;
   fiber: number;
   sugar: number;
-  /** milligrams */
-  sodium: number;
   /** The model's confidence in THIS item, 0–1. Per item because one
    * vague entry should not discredit the precise ones beside it. */
   confidence: number;
@@ -110,7 +113,6 @@ export interface NutritionTotals {
   fat: number;
   fiber: number;
   sugar: number;
-  sodium: number;
   /** Lowest confidence among the items counted — a total is only as
    * trustworthy as its weakest part. */
   confidence: number;
@@ -141,7 +143,6 @@ export function sumItemNutrition(items: MealItem[]): NutritionTotals | null {
         fat: acc.fat + n.fat,
         fiber: acc.fiber + n.fiber,
         sugar: acc.sugar + n.sugar,
-        sodium: acc.sodium + n.sodium,
         confidence: Math.min(acc.confidence, n.confidence),
       };
     },
@@ -152,20 +153,23 @@ export function sumItemNutrition(items: MealItem[]): NutritionTotals | null {
       fat: 0,
       fiber: 0,
       sugar: 0,
-      sodium: 0,
       confidence: 1,
     },
   );
 
+  // Summed at full precision, rounded once at the end. Rounding each
+  // item first and adding those made a six-item meal drift by up to
+  // 3 g — the error compounded instead of cancelling.
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+
   return {
     ...totals,
     calories: Math.round(totals.calories),
-    protein: Math.round(totals.protein),
-    carbs: Math.round(totals.carbs),
-    fat: Math.round(totals.fat),
-    fiber: Math.round(totals.fiber),
-    sugar: Math.round(totals.sugar),
-    sodium: Math.round(totals.sodium),
+    protein: round1(totals.protein),
+    carbs: round1(totals.carbs),
+    fat: round1(totals.fat),
+    fiber: round1(totals.fiber),
+    sugar: round1(totals.sugar),
     estimated: withData.length,
     total: items.length,
   };

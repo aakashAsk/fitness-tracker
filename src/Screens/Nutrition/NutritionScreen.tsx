@@ -22,19 +22,11 @@ import { spacing } from '../../Theme/spacing';
 import WorkoutDateStrip from '../Workout/WorkoutDateStrip';
 import { useDialog } from '../../Components/Dialog';
 import NewMealPlanModal, { type MealPlanPayload } from './NewMealPlanModal';
-// ── Gemini nutrition estimates: temporarily disabled ─────────────────
-// The API key lives in EXPO_PUBLIC_*, which ships inside the app
-// bundle, so shipping it would publish the key. The feature is off
-// until the call goes through a proxy that holds the key server-side
-// (EXPO_PUBLIC_GEMINI_PROXY_URL in .env.example).
-//
-// Commented rather than deleted, and the only import of the service —
-// with it off, neither nutritionAiService nor geminiService is reached
-// by the bundler at all. To re-enable: uncomment this line and the body
-// of estimateNutritionFor() below.
-//
-// import { estimateItemNutrition } from '../../Services/nutritionAiService';
-// ─────────────────────────────────────────────────────────────────────
+// Nutrition estimates run through OpenRouter (see openRouterService).
+// The key still lives in EXPO_PUBLIC_*, so it ships inside the bundle —
+// fine for development, but set EXPO_PUBLIC_OPENROUTER_PROXY_URL before
+// any public build so the key stays server-side.
+import { estimateItemNutrition } from '../../Services/nutritionAiService';
 import {
     createMealPlan,
     updateMealPlan,
@@ -137,6 +129,17 @@ const MealSkeleton: React.FC<{ rows: number }> = ({ rows }) => (
         ))}
     </>
 );
+
+/**
+ * Grams for a small chip. Estimates are stored to one decimal so totals
+ * stay honest, but '54.8g' is noise at this size — while '0.4g' is the
+ * whole value and must not be shown as '0g'. So: whole numbers from
+ * 10g up, one decimal below that, and no trailing '.0'.
+ */
+const formatGrams = (value: number): string => {
+    if (value >= 10) return String(Math.round(value));
+    return String(Math.round(value * 10) / 10);
+};
 
 // Fixed width, with the summary list taking whatever is left of the row.
 // Kept modest for that reason: every dp here comes straight out of the
@@ -405,32 +408,25 @@ export const NutritionScreen: React.FC = () => {
      * and a plan that saved successfully must not appear to fail
      * because an AI call did.
      */
-    const estimateNutritionFor = async (_planId: string, _payload: MealPlanPayload) => {
-        // Disabled with the import at the top of this file. The meal
-        // still saves — it simply keeps whatever nutrition figures the
-        // user typed, instead of having them filled in by the model.
-        //
-        // To re-enable, uncomment the import above and this body:
-        //
-        // setEstimatingIds((prev) => [...prev, planId]);
-        // try {
-        //     // Writes the items back with a nutrition block on each, so
-        //     // the figures travel with the food they describe.
-        //     const items = await estimateItemNutrition(payload.items);
-        //     if (items.some((item) => item.nutrition)) {
-        //         await updateMealPlan(planId, { items });
-        //         console.log('[nutrition] written to mealPlans/' + planId);
-        //     } else {
-        //         console.warn('[nutrition] nothing to write — no item got an estimate.');
-        //     }
-        // } catch (error) {
-        //     // Still not shown to the user: they asked to save a meal,
-        //     // not to run an estimate. But swallowing it entirely made a
-        //     // missing key indistinguishable from a working feature.
-        //     console.warn('[nutrition] estimate failed:', error);
-        // } finally {
-        //     setEstimatingIds((prev) => prev.filter((id) => id !== planId));
-        // }
+    const estimateNutritionFor = async (planId: string, payload: MealPlanPayload) => {
+        setEstimatingIds((prev) => [...prev, planId]);
+        try {
+            // Writes the items back with a nutrition block on each, so
+            // the figures travel with the food they describe.
+            const items = await estimateItemNutrition(payload.items);
+            if (items.some((item) => item.nutrition)) {
+                await updateMealPlan(planId, { items });
+            } else {
+                console.warn('[nutrition] nothing to write — no item got an estimate.');
+            }
+        } catch (error) {
+            // Not shown to the user: they asked to save a meal, not to
+            // run an estimate. But swallowing it entirely made a missing
+            // key indistinguishable from a working feature.
+            console.warn('[nutrition] estimate failed:', error);
+        } finally {
+            setEstimatingIds((prev) => prev.filter((id) => id !== planId));
+        }
     };
 
     const handleCreateMealPlan = async (payload: MealPlanPayload) => {
@@ -911,13 +907,15 @@ export const NutritionScreen: React.FC = () => {
                                                 ['P', nutrition.protein, colors.protein],
                                                 ['C', nutrition.carbs, colors.carbs],
                                                 ['F', nutrition.fat, colors.fats],
+                                                ['Fib', nutrition.fiber, colors.success],
+                                                ['Sug', nutrition.sugar, colors.cardio],
                                             ] as const
                                         ).map(([label, grams, tone]) => (
                                             <View key={label} style={styles.macroChip}>
                                                 <Text style={[styles.macroChipLabel, { color: tone }]}>
                                                     {label}
                                                 </Text>
-                                                <Text style={styles.macroChipValue}>{grams}g</Text>
+                                                <Text style={styles.macroChipValue}>{formatGrams(grams)}g</Text>
                                             </View>
                                         ))}
                                         {/* A rough estimate should not look
