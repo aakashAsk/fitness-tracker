@@ -6,7 +6,6 @@ import {
     Platform,
     Pressable,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     useWindowDimensions,
@@ -34,6 +33,7 @@ import {
     type MealItem,
     type MealType,
 } from '../../Services/mealPlanService';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface MealPlanPayload {
     name: string;
@@ -663,7 +663,7 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
 
 export default NewMealPlanModal;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     scheduleNote: { fontSize: 11.5, color: colors.textMuted },
 
     footer: {
@@ -964,4 +964,4 @@ const styles = StyleSheet.create({
     },
     ctaDisabled: { opacity: 0.6 },
     ctaText: { fontSize: 15, fontWeight: '800', color: colors.white },
-});
+}));

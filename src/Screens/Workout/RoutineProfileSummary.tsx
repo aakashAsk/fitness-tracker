@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { textStyle } from '../../Theme/typography';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 const SELECTED_MUSCLES = ['Chest', 'Shoulders', 'Triceps'];
 const UNSELECTED_MUSCLES = ['Back', 'Biceps', 'Legs'];
@@ -47,7 +48,7 @@ export const RoutineProfileSummary: React.FC<RoutineProfileSummaryProps> = ({ on
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     gap: 8,
     borderRadius: radius.md,
@@ -85,6 +86,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerHigh,
   },
   pillMutedText: { color: colors.textSecondary, fontSize: 11, fontWeight: '500' },
-});
+}));
 
 export default RoutineProfileSummary;

@@ -3,7 +3,7 @@
 // profile would satisfy the onboardingCompleted check on the next cold
 // start and strand the user with targets derived from defaults.
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { colors } from '../../Theme/colors';
 import {
   ProfileAnswers,
@@ -13,6 +13,7 @@ import {
 import GoalStep from './GoalStep';
 import BodyMetricsStep from './BodyMetricsStep';
 import ActivityStep from './ActivityStep';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Population medians, so the previews show a plausible number before
 // the user has touched anything rather than zeros.
@@ -109,6 +110,6 @@ export const OnboardingNavigator: React.FC<OnboardingNavigatorProps> = ({ onComp
 
 export default OnboardingNavigator;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   flex: { flex: 1, backgroundColor: colors.background },
-});
+}));

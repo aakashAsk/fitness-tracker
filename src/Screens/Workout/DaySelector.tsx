@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { TrainingDays } from './Types';
 import { DAY_ORDER } from './Data';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface DaySelectorProps {
   trainingDays: TrainingDays;
@@ -59,7 +60,7 @@ export const DaySelector: React.FC<DaySelectorProps> = ({ trainingDays, onToggle
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { gap: 12, paddingTop: 4 },
   title: { fontSize: 14, fontWeight: '700', color: colors.white },
   subtitle: { fontSize: 12, color: colors.textSecondary },
@@ -93,6 +94,6 @@ const styles = StyleSheet.create({
   },
   cadenceLabel: { fontSize: 12, color: colors.textSecondary },
   cadenceValue: { fontSize: 12, fontWeight: '700', color: colors.primary, flexShrink: 1, textAlign: 'right' },
-});
+}));
 
 export default DaySelector;

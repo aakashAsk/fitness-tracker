@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 import { colors } from '../../Theme/colors';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Presentational line/area chart. Takes plain numbers and draws them —
 // it knows nothing about workouts, so both the volume card and any
@@ -146,8 +147,8 @@ export const TrendGraph: React.FC<TrendGraphProps> = ({
 
 export default TrendGraph;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     wrap: {
         marginTop: 10,
     },
-});
+}));

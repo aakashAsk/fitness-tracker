@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { CheckCircle2, Flame, Play, LucideIcon } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing, radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export type BadgeVariant = 'done' | 'recovery' | 'focus';
 
@@ -31,15 +32,18 @@ export interface TimelineCardData {
   onStartPress?: () => void;
 }
 
-const badgeStyles: Record<BadgeVariant, { bg: string; text: string }> = {
-  done: { bg: withOpacity(colors.primary, 0.15), text: colors.primaryContainer },
-  recovery: { bg: withOpacity(colors.aiRecovery, 0.15), text: colors.secondary },
-  focus: { bg: colors.primaryContainer, text: colors.onPrimaryFixed },
-};
+// Built per render, not once at module load, so the badge colors follow
+// a theme switch along with the rest of the card.
+const badgeStylesFor = (variant: BadgeVariant): { bg: string; text: string } =>
+  ({
+    done: { bg: withOpacity(colors.primary, 0.15), text: colors.primaryContainer },
+    recovery: { bg: withOpacity(colors.aiRecovery, 0.15), text: colors.secondary },
+    focus: { bg: colors.primaryContainer, text: colors.onPrimaryFixed },
+  })[variant];
 
 export default function TimelineCard({ data }: { data: TimelineCardData }) {
   const Icon = data.icon;
-  const badge = data.badge ? badgeStyles[data.badge.variant] : null;
+  const badge = data.badge ? badgeStylesFor(data.badge.variant) : null;
 
   return (
     <View style={[styles.card, data.emphasized && styles.cardEmphasized]}>
@@ -116,7 +120,7 @@ export default function TimelineCard({ data }: { data: TimelineCardData }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     backgroundColor: colors.surfaceContainerLow,
     borderRadius: radius.lg,
@@ -269,4 +273,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.onPrimaryFixed,
   },
-});
+}));

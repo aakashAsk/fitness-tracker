@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Dumbbell, Clock, Play, SlidersHorizontal, PauseCircle, Flame } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing, radius } from '../../Theme/spacing';
 import { textStyle } from '../../Theme/typography';
 import { PlanItem } from './Types';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface ActivePlanCardProps {
   plan: PlanItem;
@@ -117,7 +118,7 @@ export const ActivePlanCard: React.FC<ActivePlanCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     borderRadius: radius.lg,
     backgroundColor: colors.surfaceContainer,
@@ -221,6 +222,6 @@ const styles = StyleSheet.create({
     borderColor: withOpacity(colors.warning, 0.4),
   },
   pressed: { opacity: 0.85 },
-});
+}));
 
 export default ActivePlanCard;

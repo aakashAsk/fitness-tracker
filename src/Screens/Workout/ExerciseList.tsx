@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { ChevronUp, ChevronDown, Pencil, Search, X } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { ExerciseItem } from './Types';
 import { EXERCISE_CATEGORY_FILTERS } from './Data';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface ExerciseListProps {
   exercises: ExerciseItem[];
@@ -128,7 +129,7 @@ export const ExerciseList: React.FC<ExerciseListProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { gap: 10 },
   headerRow: {
     flexDirection: 'row',
@@ -199,6 +200,6 @@ const styles = StyleSheet.create({
   chipIdle: { backgroundColor: colors.cardBackgroud },
   chipText: { fontSize: 12, fontWeight: '600' },
   chipTextActive: { fontWeight: '700' },
-});
+}));
 
 export default ExerciseList;

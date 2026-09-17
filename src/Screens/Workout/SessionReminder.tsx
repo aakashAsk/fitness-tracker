@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { BellRing, Repeat } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { REMINDER_OFFSET_OPTIONS } from './Data';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface SessionReminderProps {
   enabled: boolean;
@@ -72,7 +73,7 @@ export const SessionReminder: React.FC<SessionReminderProps> = ({ enabled, onTog
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     gap: 12,
     borderRadius: radius.md,
@@ -119,6 +120,6 @@ const styles = StyleSheet.create({
   offsetText: { fontSize: 10, fontWeight: '700' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   infoText: { fontSize: 12, color: colors.textSecondary },
-});
+}));
 
 export default SessionReminder;

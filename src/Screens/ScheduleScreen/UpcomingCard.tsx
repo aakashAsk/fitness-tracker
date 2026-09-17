@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -10,6 +10,7 @@ import { LucideIcon } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing, radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface UpcomingItem {
   id: string;
@@ -83,7 +84,7 @@ export default function UpcomingCard({ item, compact }: UpcomingCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     width: 200,
     backgroundColor: colors.surfaceContainerLow,
@@ -125,4 +126,4 @@ const styles = StyleSheet.create({
     color: colors.primaryContainer,
     marginTop: 4,
   },
-});
+}));

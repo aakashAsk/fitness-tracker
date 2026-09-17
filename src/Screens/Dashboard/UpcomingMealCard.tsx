@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Check, Plus, UtensilsCrossed } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface UpcomingMealCardProps {
     mealTimeLabel?: string;
@@ -65,7 +66,7 @@ export const UpcomingMealCard: React.FC<UpcomingMealCardProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     wrapper: {
         gap: 10,
     },
@@ -147,6 +148,6 @@ const styles = StyleSheet.create({
     logButtonActive: {
         backgroundColor: colors.primary,
     },
-});
+}));
 
 export default UpcomingMealCard;

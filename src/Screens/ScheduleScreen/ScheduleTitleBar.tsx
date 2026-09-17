@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { SlidersHorizontal, Plus } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing, radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface ScheduleTitleBarProps {
   onFilterPress: () => void;
@@ -37,7 +38,7 @@ export default function ScheduleTitleBar({ onFilterPress, onAddPress }: Schedule
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -81,4 +82,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.onPrimaryFixed,
   },
-});
+}));

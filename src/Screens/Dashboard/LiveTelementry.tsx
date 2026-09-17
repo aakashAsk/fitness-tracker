@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import {
     ArrowRight,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import UserAvatar from '../../Components/UserAvatar';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface DashboardOverviewProps {
     userName?: string;
@@ -410,7 +411,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     wrapper: {
         gap: 20,
     },
@@ -813,6 +814,6 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 4,
     },
-});
+}));
 
 export default DashboardOverview;

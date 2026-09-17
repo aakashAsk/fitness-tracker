@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   ScrollView,
-  StyleSheet,
   StatusBar,
   Alert,
   NativeScrollEvent,
@@ -26,6 +25,7 @@ import { parseTimeToMinutes } from '../../Services/workoutPlanService';
 import { Exercise, fetchExercisesBulk } from '../../Services/exerciseService';
 import { getEventsForDate, useEventsForDate } from '../../Services/calendarEventService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // exerciseIds are the Free Exercise DB slug ids (e.g. "3_4_Sit-Up"). Used as
 // a placeholder label for an id the bulk fetch below hasn't resolved yet.
@@ -304,7 +304,7 @@ export default function ScheduleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -333,4 +333,4 @@ const styles = StyleSheet.create({
   timeline: {
     paddingHorizontal: spacing.gutterMobile,
   },
-});
+}));

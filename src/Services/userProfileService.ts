@@ -11,6 +11,7 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import { getCurrentUserId } from './userService';
+import type { ThemeMode } from '../Theme/colors';
 
 const PROFILE_COLLECTION = 'userProfiles';
 
@@ -65,6 +66,12 @@ export interface UserProfile extends ProfileAnswers, DerivedTargets {
    * set from the Profile tab, never asked for during onboarding.
    */
   photoURL: string | null;
+  /**
+   * Chosen display theme. Absent on every profile written before the
+   * dark-mode switch shipped, which is why it reads as 'light' below —
+   * an existing user is not silently flipped into dark.
+   */
+  themeMode: ThemeMode;
   /** True once step 3 has been saved. */
   onboardingCompleted: boolean;
   createdAt: Date | null;
@@ -212,6 +219,7 @@ function toUserProfile(userId: string, data: Record<string, unknown>): UserProfi
       fatsG: Number(macros.fatsG) || 0,
     },
     photoURL: (data.photoURL as string) || null,
+    themeMode: data.themeMode === 'dark' ? 'dark' : 'light',
     onboardingCompleted: data.onboardingCompleted === true,
     createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.() ?? null,
     updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.() ?? null,
@@ -277,12 +285,38 @@ export async function saveUserProfile(
     // Onboarding never sets a picture; it is added later from the
     // Profile tab via saveUserPhotoUrl.
     photoURL: null,
+    // Same story for the theme — onboarding does not ask, so a new
+    // profile starts on light and Settings changes it from there.
+    themeMode: 'light',
     onboardingCompleted: true,
     // serverTimestamp() resolves on the server, so these are sentinels
     // rather than dates until the document is read back.
     createdAt: null,
     updatedAt: null,
   };
+}
+
+/**
+ * Persists the display theme the user picked in Settings.
+ *
+ * A targeted merge, for the same reason as saveUserPhotoUrl below: the
+ * onboarding answers are not in hand here, and rewriting them from a
+ * stale copy would quietly revert an edit made elsewhere.
+ */
+export async function saveUserThemeMode(mode: ThemeMode, userId?: string): Promise<void> {
+  const uid = userId ?? getCurrentUserId();
+
+  try {
+    await setDoc(
+      doc(db, PROFILE_COLLECTION, uid),
+      { themeMode: mode, userId: uid, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  } catch (error) {
+    throw new UserProfileServiceError(
+      `Could not save your theme: ${(error as Error).message}`,
+    );
+  }
 }
 
 /**

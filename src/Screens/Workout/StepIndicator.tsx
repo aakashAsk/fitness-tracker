@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export const StepIndicator: React.FC = () => {
   return (
@@ -28,7 +29,7 @@ export const StepIndicator: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { gap: 6 },
   bars: { flexDirection: 'row', gap: 8 },
   bar: { flex: 1, height: 6, borderRadius: 3 },
@@ -40,6 +41,6 @@ const styles = StyleSheet.create({
   labelItem: { flexDirection: 'row', alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
   labelActive: { fontWeight: '800', color: colors.white },
-});
+}));
 
 export default StepIndicator;

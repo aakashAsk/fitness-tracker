@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { FlatList, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // A horizontally-scrolling date strip spanning 2 months back / 2 months
 // forward from today, sized so exactly 7 day-tiles fit on screen at
@@ -177,7 +178,7 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     dateTile: {
         height: 64,
         borderRadius: 16,
@@ -222,6 +223,6 @@ const styles = StyleSheet.create({
         backgroundColor: withOpacity(colors.white, 0.65),
         marginTop: 1,
     },
-});
+}));
 
 export default WorkoutDateStrip;

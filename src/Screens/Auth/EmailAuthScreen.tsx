@@ -4,7 +4,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { Dumbbell, Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface EmailAuthScreenProps {
     onSubmit?: (email: string, password: string) => void;
@@ -73,7 +73,7 @@ export const EmailAuthScreen: React.FC<EmailAuthScreenProps> = ({
                     <View style={styles.brandIconWrapper}>
                         <Dumbbell size={26} color={colors.black} strokeWidth={2.6} />
                     </View>
-                    <Text style={styles.brandTitle}>FitTrack</Text>
+                    <Text style={styles.brandTitle}>PulseFit</Text>
                 </View>
 
                 <View style={styles.headerBlock}>
@@ -185,7 +185,7 @@ export const EmailAuthScreen: React.FC<EmailAuthScreenProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     forgotButton: { alignSelf: 'center', paddingVertical: 16 },
     forgotText: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
     flex: {
@@ -317,6 +317,6 @@ const styles = StyleSheet.create({
         color: colors.black,
         letterSpacing: 0.2,
     },
-});
+}));
 
 export default EmailAuthScreen;

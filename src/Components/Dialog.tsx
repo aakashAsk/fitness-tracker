@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, withOpacity } from '../Theme/colors';
 import { radius, spacing } from '../Theme/spacing';
+import { themedStyles } from '../Theme/ThemeContext';
 
 // In-app replacement for React Native's Alert.alert.
 //
@@ -199,7 +200,7 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     overlay: {
         // flex, not a measured width/height. The modal window is
         // full-screen (statusBarTranslucent + navigationBarTranslucent),
@@ -277,6 +278,6 @@ const styles = StyleSheet.create({
         fontSize: 13.5,
         fontWeight: '800',
     },
-});
+}));
 
 export default DialogProvider;

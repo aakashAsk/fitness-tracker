@@ -4,8 +4,7 @@ import {
     View,
     Text,
     TouchableOpacity,
-    StyleSheet,
-} from 'react-native';
+    } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import {
     CalendarDays,
@@ -58,6 +57,7 @@ import {
 } from '../../Services/exerciseService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import { useDialog } from '../../Components/Dialog';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Live version of the Workout tab: the exercise list below the date
 // strip is now the real workout plan(s) scheduled on whichever weekday
@@ -1141,7 +1141,7 @@ export const WorkoutSession: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     root: {
         flex: 1,
     },
@@ -1833,6 +1833,6 @@ const styles = StyleSheet.create({
         marginTop: 6,
         lineHeight: 18,
     },
-});
+}));
 
 export default WorkoutSession;

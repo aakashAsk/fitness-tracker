@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { CalendarDays, LayoutGrid } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing, radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export type ScheduleView = 'day' | 'week';
 
@@ -51,7 +52,7 @@ export default function ViewToggle({ activeView, onChange, eventsPlannedCount }:
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -88,4 +89,4 @@ const styles = StyleSheet.create({
     ...typography.labelCaps,
     color: colors.onSurfaceVariant,
   },
-});
+}));

@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Sparkles } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { textStyle } from '../../Theme/typography';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface AIOptimizationBannerProps {
   sessionDuration: string;
@@ -34,7 +35,7 @@ export const AIOptimizationBanner: React.FC<AIOptimizationBannerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -47,6 +48,6 @@ const styles = StyleSheet.create({
   },
   textWrap: { flex: 1, gap: 2 },
   body: { fontSize: 12, lineHeight: 18, color: colors.textSecondary },
-});
+}));
 
 export default AIOptimizationBanner;

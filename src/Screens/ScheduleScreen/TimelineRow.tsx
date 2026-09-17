@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing } from '../../Theme/spacing';
 import TimelineCard, { TimelineCardData } from './TimelineCard';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export type TimelineRowData =
   | { id: string; time: string; kind: 'note'; text: string }
@@ -38,7 +39,7 @@ export default function TimelineRow({ row }: { row: TimelineRowData }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     flexDirection: 'row',
     minHeight: 56,
@@ -85,4 +86,4 @@ const styles = StyleSheet.create({
   cardsStack: {
     gap: spacing.xs,
   },
-});
+}));

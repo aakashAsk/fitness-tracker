@@ -1,19 +1,38 @@
 // Single source of truth for color tokens — PulseFit.
 //
 // Sourced from the PulseFit Design Tokens spec (brand / domain /
-// feedback / themes.light / themes.dark). `colors` below is flattened
-// to the dark theme, since the app is dark-only today; `lightColors`
-// and `darkColors` are kept as full theme objects for when light-mode
-// support is added.
+// feedback / themes.light / themes.dark), with the dark surfaces taken
+// from the "Kinetic Glow Dark" direction in DESIGN.md.
+//
+// The exported `colors` is a LIVE view of whichever theme is active —
+// reading `colors.background` today and after a theme switch gives
+// different values from the same import. That is what lets every screen
+// keep its plain `import { colors }` and still repaint when the user
+// flips the dark-mode switch in Settings. See ./ThemeContext.tsx for
+// how a switch is applied, and why StyleSheet bodies must be wrapped in
+// `themedStyles` rather than `StyleSheet.create`.
 //
 // There is intentionally only ONE `colors` export and ONE file. Add
 // new shades here — do not re-introduce `color.ts`.
 
-const brand = {
+// ── Theme-invariant tokens ───────────────────────────────────────────
+// Domain and feedback hues carry meaning (calories are always coral,
+// water is always blue), so they do not change between themes. The two
+// brand anchors ARE re-tuned: at their light-theme saturation they sit
+// too close to the dark canvas to read as "lit".
+
+const brandLight = {
     primary: '#4F6BF6',
     primaryGlow: 'rgba(79, 107, 246, 0.35)',
     secondary: '#FF6433',
     secondaryGlow: 'rgba(255, 100, 51, 0.35)',
+} as const;
+
+const brandDark = {
+    primary: '#6C88FF',
+    primaryGlow: 'rgba(108, 136, 255, 0.35)',
+    secondary: '#FF7A59',
+    secondaryGlow: 'rgba(255, 122, 89, 0.35)',
 } as const;
 
 const domain = {
@@ -40,6 +59,13 @@ const feedback = {
     info: '#3B82F6',
 } as const;
 
+const absolutes = {
+    black: '#000000',
+    white: '#FFFFFF',
+} as const;
+
+// ── Per-theme surfaces ───────────────────────────────────────────────
+
 const surfacesLight = {
     background: '#FAF8FF',
     surface: '#FFFFFF',
@@ -53,70 +79,120 @@ const surfacesLight = {
 } as const;
 
 const surfacesDark = {
-    background: '#10131A',
-    surface: '#191B23',
-    surfaceLow: '#0B0E15',
+    // The canvas is darker than the cards sitting on it, so elevation
+    // reads as light rather than as a cast shadow — shadows are
+    // effectively invisible against #0A0D14.
+    background: '#0A0D14',
+    surface: '#161C2C',
+    surfaceLow: '#121622',
     surfaceContainer: '#1F273D',
-    textPrimary: '#F9FAFB',
+    textPrimary: '#F8FAFC',
     textSecondary: '#94A3B8',
     textMuted: '#64748B',
     border: 'rgba(255, 255, 255, 0.08)',
-    navBackground: 'rgba(16, 19, 26, 0.85)',
+    navBackground: 'rgba(22, 28, 44, 0.9)',
 } as const;
 
-const absolutes = {
-    black: '#000000',
-    white: '#FFFFFF',
-} as const;
+// Keyed off the light theme's shape but with widened values: both
+// palettes have to share one type, and `as const` would otherwise make
+// '#0A0D14' and '#FAF8FF' incompatible literal types.
+type Surfaces = Record<keyof typeof surfacesLight, string>;
+type Brand = Record<keyof typeof brandLight, string>;
+
+/**
+ * Old "Kinetic Obsidian" token names, kept working while screens still
+ * reference them (Workout plan-builder, Schedule) so they don't
+ * hard-crash after the PulseFit palette swap. Derived from the theme's
+ * own surfaces so both themes get correct aliases — remove an entry
+ * here once every file using it has been migrated.
+ */
+const aliasesFor = (surfaces: Surfaces, brand: Brand) =>
+    ({
+        canvasDeep: surfaces.background,
+        cardBackgroud: surfaces.surface,
+        cardBorder: surfaces.border,
+        onPrimary: absolutes.white,
+        onPrimaryFixed: absolutes.white,
+        onSurface: surfaces.textPrimary,
+        onSurfaceVariant: surfaces.textSecondary,
+        pillBackground: brand.primary + '24', // withOpacity(primary, 0.14)
+        pillSuccessBorder: feedback.success + '4d', // withOpacity(success, 0.3)
+        pillText: brand.primary,
+        primaryContainer: brand.primary,
+        primaryDark: brand.primary,
+        surfaceContainerHigh: surfaces.surfaceContainer,
+        surfaceContainerHighest: surfaces.surfaceContainer,
+        surfaceContainerLow: surfaces.surfaceLow,
+        aiRecovery: domain.recovery,
+        gym: feedback.info,
+    }) as const;
 
 export const lightColors = {
-    ...brand,
+    ...brandLight,
     ...domain,
     ...feedback,
     ...surfacesLight,
     ...absolutes,
+    ...aliasesFor(surfacesLight, brandLight),
 } as const;
 
 export const darkColors = {
-    ...brand,
+    ...brandDark,
     ...domain,
     ...feedback,
     ...surfacesDark,
     ...absolutes,
+    ...aliasesFor(surfacesDark, brandDark),
 } as const;
 
-// Compatibility bridge — old "Kinetic Obsidian" (dark theme) token
-// names, kept working while screens still reference them (Workout
-// plan-builder, Schedule) so they don't hard-crash after the PulseFit
-// palette swap. Remove an entry here once every file using it has been
-// migrated to the token names above.
-const legacyAliases = {
-    canvasDeep: lightColors.background,
-    cardBackgroud: lightColors.surface,
-    cardBorder: lightColors.border,
-    onPrimary: lightColors.white,
-    onPrimaryFixed: lightColors.white,
-    onSurface: lightColors.textPrimary,
-    onSurfaceVariant: lightColors.textSecondary,
-    pillBackground: '#4F6BF624', // withOpacity(primary, 0.14)
-    pillSuccessBorder: '#10B9814d', // withOpacity(success, 0.3)
-    pillText: lightColors.primary,
-    primaryContainer: lightColors.primary,
-    primaryDark: lightColors.primary,
-    surfaceContainerHigh: lightColors.surfaceContainer,
-    surfaceContainerHighest: lightColors.surfaceContainer,
-    surfaceContainerLow: lightColors.surfaceLow,
-    aiRecovery: domain.recovery,
-    gym: feedback.info,
-} as const;
+export type ThemeMode = 'light' | 'dark';
+export type AppColors = Record<keyof typeof lightColors, string>;
 
-// App-wide default palette — light theme, matching the current PulseFit
-// UI direction (dashboard redesign onward), plus the legacy aliases
-// above. `darkColors` is kept ready for whenever dark-mode support is
-// added back.
-export const colors = { ...lightColors, ...legacyAliases };
+export const palettes: Record<ThemeMode, AppColors> = {
+    light: lightColors,
+    dark: darkColors,
+};
 
-export type AppColors = typeof colors;
+// ── The live palette ─────────────────────────────────────────────────
+// Light is the initial value: a user who has never touched the switch,
+// and every screen shown before their saved preference has loaded, gets
+// the light theme.
+
+let activeMode: ThemeMode = 'light';
+
+export const getActiveMode = (): ThemeMode => activeMode;
+
+/**
+ * Swaps the palette that `colors` reads through. Callers must also
+ * rebuild the themed StyleSheets and re-render — use `useTheme()`'s
+ * `setMode` from ./ThemeContext rather than calling this directly.
+ */
+export const setActivePalette = (mode: ThemeMode): void => {
+    activeMode = mode;
+};
+
+/**
+ * A live view of the active palette, not a snapshot. Property reads are
+ * forwarded to the current theme, so a component that reads
+ * `colors.textPrimary` during render picks up a theme switch on its
+ * next render with no code change. Values captured OUTSIDE a render —
+ * a module-level `const`, or a `StyleSheet.create` body — are frozen at
+ * import time and will NOT follow the theme; wrap those in
+ * `themedStyles` from ./ThemeContext.
+ */
+export const colors: AppColors = new Proxy({} as AppColors, {
+    get: (_target, key) => (palettes[activeMode] as Record<string | symbol, unknown>)[key],
+    has: (_target, key) => key in lightColors,
+    ownKeys: () => Reflect.ownKeys(lightColors),
+    // Required for spread and Object.keys to see anything: ownKeys is
+    // ignored unless each key also reports as an enumerable,
+    // configurable own property.
+    getOwnPropertyDescriptor: (_target, key) => ({
+        value: (palettes[activeMode] as Record<string | symbol, unknown>)[key],
+        enumerable: true,
+        configurable: true,
+    }),
+});
 
 /**
  * Overrides a color token's alpha, accepting either a 6-digit hex

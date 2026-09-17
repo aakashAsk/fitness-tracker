@@ -5,7 +5,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -20,6 +19,7 @@ import Animated, {
 import { ArrowRight, Check, Minus, Plus } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export const TOTAL_STEPS = 3;
 
@@ -162,10 +162,8 @@ const SWITCH_TIMING = { duration: 220 } as const;
 // one throws "tried to synchronously call a remote function". Worklets
 // may only close over values, never over functions that have not been
 // workletized.
-const SEGMENT_LABEL_OFF = colors.textSecondary;
-const SEGMENT_LABEL_ON = colors.white;
-const SEGMENT_SUBLABEL_OFF = colors.textMuted;
-const SEGMENT_SUBLABEL_ON = withOpacity(colors.white, 0.85);
+// Resolved per render inside Segment (below) rather than once here, so
+// they also follow a theme switch.
 
 interface SegmentLayout {
   x: number;
@@ -281,6 +279,11 @@ const Segment: React.FC<{
   onLayout: (layout: SegmentLayout) => void;
 }> = ({ label, sublabel, selected, compact, onPress, onLayout }) => {
   const progress = useSharedValue(selected ? 1 : 0);
+
+  const SEGMENT_LABEL_OFF = colors.textSecondary;
+  const SEGMENT_LABEL_ON = colors.white;
+  const SEGMENT_SUBLABEL_OFF = colors.textMuted;
+  const SEGMENT_SUBLABEL_ON = withOpacity(colors.white, 0.85);
 
   useEffect(() => {
     // Matched to the pill's timing so the label turns white exactly as
@@ -424,7 +427,7 @@ export const PrimaryButton: React.FC<{
 
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   stepHeader: { gap: spacing.xs },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -634,4 +637,4 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.white,
   },
-});
+}));

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SkeletonBlock, SkeletonCard, SkeletonGroup } from '../../Components/Skeleton';
 import {
@@ -66,6 +66,7 @@ import {
     type MealLog,
 } from '../../Services/mealLogService';
 import { toDateKey, todayDateKey } from '../../Services/workoutLogService';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Presentational nutrition tab — matches the PulseFit "Nutrition
 // Tracker" design (calorie/macro ring, hydration tracker, meal log).
@@ -1037,7 +1038,7 @@ export const NutritionScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     root: {
         flex: 1,
     },
@@ -1580,6 +1581,6 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: colors.white,
     },
-});
+}));
 
 export default NutritionScreen;

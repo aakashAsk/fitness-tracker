@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { Zap, Plus } from 'lucide-react-native';
 
 import { colors } from '../../Theme/colors';
@@ -24,6 +24,7 @@ import {
   WorkoutPlanServiceError,
 } from '../../Services/workoutPlanService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface WorkoutPlannerScreenProps {
   onOpenQuickAdd?: () => void;
@@ -350,7 +351,7 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerScreenProps> = ({ onOpenQuic
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   root: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1 },
   scrollContent: {
@@ -417,6 +418,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-});
+}));
 
 export default WorkoutPlanner;

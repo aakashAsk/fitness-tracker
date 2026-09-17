@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image } from 'react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface AppHeaderProps {
   sectionLabel: string;
@@ -27,7 +28,7 @@ export default function AppHeader({ sectionLabel, avatarUrl }: AppHeaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   header: {
     height: 56,
     paddingHorizontal: spacing.gutterMobile,
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
   },
-});
+}));
 
 function radiusSm() {
   return 8;

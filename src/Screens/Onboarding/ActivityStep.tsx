@@ -1,7 +1,7 @@
 // Step 3 — activity level, weekly pace, injuries and diet, plus a live
 // preview of the numbers that are about to be saved.
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import {
   Activity,
   Armchair,
@@ -30,6 +30,7 @@ import {
   StepHeader,
   StepTitle,
 } from './OnboardingUI';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 const ICON_SIZE = 20;
 
@@ -314,7 +315,7 @@ const MacroPill: React.FC<{ label: string; grams: number; color: string }> = ({
 
 export default ActivityStep;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
@@ -372,4 +373,4 @@ const styles = StyleSheet.create({
     backgroundColor: withOpacity(colors.error, 0.12),
   },
   errorText: { fontSize: 12.5, fontWeight: '600', color: colors.error },
-});
+}));

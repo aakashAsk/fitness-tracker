@@ -3,12 +3,13 @@
 // (deficit / surplus / maintenance) and the macro split in
 // userProfileService.
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Dumbbell, Flame, Heart, Sprout } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import { FitnessGoal } from '../../Services/userProfileService';
 import { PrimaryButton, SelectCard, StepHeader, StepTitle } from './OnboardingUI';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 const ICON_SIZE = 21;
 
@@ -105,7 +106,7 @@ export const GoalStep: React.FC<GoalStepProps> = ({ value, onChange, onContinue 
 
 export default GoalStep;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
@@ -119,4 +120,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLow,
   },
   noteText: { fontSize: 12, lineHeight: 17, color: colors.textSecondary },
-});
+}));

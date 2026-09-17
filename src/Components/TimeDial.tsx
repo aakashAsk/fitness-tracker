@@ -7,7 +7,7 @@
 // stacked in the other, and two different accent colours. Same job,
 // two answers, and a user moving between the tabs saw both.
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -17,6 +17,7 @@ import Animated, {
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors } from '../Theme/colors';
 import { radius, spacing } from '../Theme/spacing';
+import { themedStyles } from '../Theme/ThemeContext';
 
 export type Period = 'AM' | 'PM';
 
@@ -40,11 +41,6 @@ const PERIOD_BTN_HEIGHT = 32;
 const PERIOD_GAP = 4;
 const TIMING = { duration: 200 } as const;
 
-// Resolved outside the worklets below — calling a JS helper from inside
-// a useAnimatedStyle callback throws "tried to synchronously call a
-// remote function".
-const PERIOD_TEXT_ON = colors.white;
-const PERIOD_TEXT_OFF = colors.textSecondary;
 
 /** Wraps rather than clamps: 12 -> 1 going up, 1 -> 12 going down. */
 function cycleHour(hour: number, delta: 1 | -1): number {
@@ -63,6 +59,15 @@ function cycleMinute(minute: number, delta: 1 | -1, step: number): number {
 
 export const TimeDial: React.FC<TimeDialProps> = ({ value, onChange, minuteStep = 5 }) => {
   const periodShift = useSharedValue(value.period === 'AM' ? 0 : 1);
+
+  // Resolved here, during render, for two reasons. A useAnimatedStyle
+  // callback is a worklet on the UI thread, so it may only close over
+  // values — calling a JS helper from inside one throws "tried to
+  // synchronously call a remote function". And reading the palette per
+  // render rather than once at module load is what lets these follow a
+  // theme switch.
+  const PERIOD_TEXT_ON = colors.white;
+  const PERIOD_TEXT_OFF = colors.textSecondary;
 
   useEffect(() => {
     periodShift.value = withTiming(value.period === 'AM' ? 0 : 1, TIMING);
@@ -160,7 +165,7 @@ const Column: React.FC<{
 
 export default TimeDial;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   dial: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,4 +245,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   periodText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
-});
+}));

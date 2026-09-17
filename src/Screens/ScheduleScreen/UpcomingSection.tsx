@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Text, View, ScrollView, StyleSheet } from 'react-native';
+import { Text, View, ScrollView } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -10,6 +10,7 @@ import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing } from '../../Theme/spacing';
 import UpcomingCard, { UpcomingItem } from './UpcomingCard';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface UpcomingSectionProps {
   items: UpcomingItem[];
@@ -55,7 +56,7 @@ export default function UpcomingSection({ items, compact }: UpcomingSectionProps
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {},
   headerRow: {
     flexDirection: 'row',
@@ -76,4 +77,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.gutterMobile,
     gap: spacing.xs,
   },
-});
+}));

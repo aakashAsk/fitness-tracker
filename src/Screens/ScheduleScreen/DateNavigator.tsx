@@ -6,10 +6,11 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // --- Date helpers -----------------------------------------------------
 
@@ -219,7 +220,7 @@ const InfiniteDateStrip = forwardRef<DateStripHandle, InfiniteDateStripProps>(
 
 export default InfiniteDateStrip;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   listContent: {
     paddingHorizontal: spacing.gutterMobile,
     gap: ITEM_GAP,
@@ -271,4 +272,4 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-});
+}));

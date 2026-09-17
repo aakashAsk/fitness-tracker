@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { ArrowRight, Dumbbell, Timer } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface TodaysWorkoutCardProps {
     categoryLabel?: string;
@@ -102,7 +103,7 @@ export const TodaysWorkoutCard: React.FC<TodaysWorkoutCardProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     wrapper: {
         gap: 10,
     },
@@ -262,6 +263,6 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: colors.white,
     },
-});
+}));
 
 export default TodaysWorkoutCard;

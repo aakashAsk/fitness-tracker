@@ -3,7 +3,7 @@
 // same helper the saved profile uses, so what the user sees here is
 // exactly what gets written.
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Cake, Ruler, Weight, Zap } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
@@ -16,6 +16,7 @@ import {
   StepTitle,
   Stepper,
 } from './OnboardingUI';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Ranges wide enough to cover any real user while keeping the steppers
 // from producing a BMR that is arithmetically valid but meaningless.
@@ -212,7 +213,7 @@ export const BodyMetricsStep: React.FC<BodyMetricsStepProps> = ({
 
 export default BodyMetricsStep;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
@@ -239,4 +240,4 @@ const styles = StyleSheet.create({
   },
   previewText: { flex: 1, fontSize: 12, lineHeight: 17, color: colors.textSecondary },
   previewValue: { fontWeight: '800', color: colors.textPrimary },
-});
+}));

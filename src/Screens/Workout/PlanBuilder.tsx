@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { colors } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { textStyle } from '../../Theme/typography';
@@ -12,6 +12,7 @@ import { DaySelector } from './DaySelector';
 import { ScheduleTimeSelector } from './ScheduleTimeSelector';
 import { SessionReminder } from './SessionReminder';
 import { AIOptimizationBanner } from './AIOptimizationBanner';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface PlanBuilderProps {
   onEditRoutineProfile: () => void;
@@ -99,7 +100,7 @@ export const PlanBuilder: React.FC<PlanBuilderProps> = (props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     gap: 20,
     borderRadius: radius.lg,
@@ -125,6 +126,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     overflow: 'hidden',
   },
-});
+}));
 
 export default PlanBuilder;

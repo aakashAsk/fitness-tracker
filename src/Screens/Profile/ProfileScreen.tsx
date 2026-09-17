@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -31,6 +30,7 @@ import {
 import { auth } from '../../Firebase/firebaseConfig';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
+import { clearCachedThemeMode } from '../../Theme/themeStorage';
 import { useDialog } from '../../Components/Dialog';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import {
@@ -56,6 +56,7 @@ import {
   uploadAvatar,
 } from '../../Services/avatarService';
 import SettingsScreen from './SettingsScreen';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 const GENDER_LABEL: Record<Gender, string> = {
   male: 'Male',
@@ -178,6 +179,10 @@ export const ProfileScreen: React.FC = () => {
           label: 'Log out',
           style: 'destructive',
           onPress: () => {
+            // Dropped before the sign-out so the next account does not
+            // open in this one's theme. The preference itself survives
+            // in their profile document.
+            void clearCachedThemeMode();
             signOut(auth).catch(error =>
               dialog.show({ title: 'Could not log out', message: (error as Error).message }),
             );
@@ -516,7 +521,7 @@ const ProfileSkeleton: React.FC = () => (
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
@@ -757,4 +762,4 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   emptyText: { fontSize: 12, lineHeight: 17, color: colors.textSecondary },
-});
+}));

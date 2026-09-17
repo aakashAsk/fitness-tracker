@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Sparkles } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing, radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface AICoachBannerProps {
   message: string;
@@ -33,7 +34,7 @@ export default function AICoachBanner({ message, planLabel, restLabel }: AICoach
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     backgroundColor: colors.surfaceContainerLow,
     borderRadius: radius.lg,
@@ -78,4 +79,4 @@ const styles = StyleSheet.create({
   footerDivider: {
     color: colors.onSurfaceVariant,
   },
-});
+}));

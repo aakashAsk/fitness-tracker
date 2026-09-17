@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Clock } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { DURATION_OPTIONS } from './Data';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface ScheduleTimeSelectorProps {
   targetHour: string;
@@ -99,7 +100,7 @@ export const ScheduleTimeSelector: React.FC<ScheduleTimeSelectorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { gap: 16, paddingTop: 4 },
   headerRow: {
     flexDirection: 'row',
@@ -159,6 +160,6 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
   },
   durationText: { fontSize: 12, fontWeight: '600' },
-});
+}));
 
 export default ScheduleTimeSelector;

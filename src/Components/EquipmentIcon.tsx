@@ -169,19 +169,25 @@ function fromLucide(Icon: typeof Dumbbell): Renderer {
   );
 }
 
-const BY_EQUIPMENT: Record<string, { render: Renderer; accent: string }> = {
-  barbell: { render: BarbellGlyph, accent: colors.primary },
-  'e-z curl bar': { render: EzBarGlyph, accent: colors.primary },
-  dumbbell: { render: fromLucide(Dumbbell), accent: colors.primary },
-  kettlebells: { render: KettlebellGlyph, accent: colors.hypertrophy },
-  cable: { render: fromLucide(Cable), accent: colors.secondary },
-  machine: { render: MachineGlyph, accent: colors.secondary },
-  bands: { render: BandGlyph, accent: colors.fats },
-  'medicine ball': { render: BallGlyph, accent: colors.fats },
-  'exercise ball': { render: BallGlyph, accent: colors.fats },
-  'foam roll': { render: fromLucide(Cylinder), accent: colors.recovery },
-  'body only': { render: fromLucide(PersonStanding), accent: colors.success },
-  other: { render: fromLucide(Dumbbell), accent: colors.textSecondary },
+// Accents are stored as token NAMES, not resolved colors: this map is
+// built once at import, and resolving here would freeze it to whichever
+// theme happened to be active then. equipmentAccent() reads the live
+// palette instead.
+type AccentToken = keyof typeof colors;
+
+const BY_EQUIPMENT: Record<string, { render: Renderer; accent: AccentToken }> = {
+  barbell: { render: BarbellGlyph, accent: 'primary' },
+  'e-z curl bar': { render: EzBarGlyph, accent: 'primary' },
+  dumbbell: { render: fromLucide(Dumbbell), accent: 'primary' },
+  kettlebells: { render: KettlebellGlyph, accent: 'hypertrophy' },
+  cable: { render: fromLucide(Cable), accent: 'secondary' },
+  machine: { render: MachineGlyph, accent: 'secondary' },
+  bands: { render: BandGlyph, accent: 'fats' },
+  'medicine ball': { render: BallGlyph, accent: 'fats' },
+  'exercise ball': { render: BallGlyph, accent: 'fats' },
+  'foam roll': { render: fromLucide(Cylinder), accent: 'recovery' },
+  'body only': { render: fromLucide(PersonStanding), accent: 'success' },
+  other: { render: fromLucide(Dumbbell), accent: 'textSecondary' },
 };
 
 function lookup(equipment?: string | null) {
@@ -192,7 +198,7 @@ function lookup(equipment?: string | null) {
 /** The colour this equipment is drawn in — also used for the icon's
  * tinted background, so the two always agree. */
 export function equipmentAccent(equipment?: string | null): string {
-  return lookup(equipment).accent;
+  return colors[lookup(equipment).accent];
 }
 
 export const EquipmentIcon: React.FC<EquipmentIconProps> = ({
@@ -203,7 +209,7 @@ export const EquipmentIcon: React.FC<EquipmentIconProps> = ({
 }) => {
   const entry = lookup(equipment);
   const Render = entry.render;
-  return <Render size={size} color={color ?? entry.accent} strokeWidth={strokeWidth} />;
+  return <Render size={size} color={color ?? colors[entry.accent]} strokeWidth={strokeWidth} />;
 };
 
 export default EquipmentIcon;

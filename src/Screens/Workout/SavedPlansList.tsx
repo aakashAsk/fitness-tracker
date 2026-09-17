@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Calendar, Dumbbell } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { spacing, radius } from '../../Theme/spacing';
 import { textStyle } from '../../Theme/typography';
 import { PlanItem } from './Types';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface SavedPlansListProps {
   plans: PlanItem[];
@@ -52,7 +53,7 @@ export const SavedPlansList: React.FC<SavedPlansListProps> = ({ plans, onActivat
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { gap: 8, paddingTop: 4 },
   heading: { color: colors.textSecondary, paddingHorizontal: 4 },
   row: {
@@ -85,6 +86,6 @@ const styles = StyleSheet.create({
   },
   activateText: { fontSize: 12, fontWeight: '600', color: colors.white },
   pressed: { opacity: 0.7 },
-});
+}));
 
 export default SavedPlansList;

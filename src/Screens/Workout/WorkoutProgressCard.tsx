@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { Activity, TrendingUp } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
@@ -12,6 +12,7 @@ import {
 } from '../../Services/progressService';
 import TrendGraph from './TrendGraph';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Progress across every logged session — not scoped to the selected
 // date or to one exercise, so it has something to draw whenever the
@@ -227,7 +228,7 @@ export const WorkoutProgressCard: React.FC<WorkoutProgressCardProps> = ({ refres
 
 export default WorkoutProgressCard;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     loadingBlock: { marginTop: 12, gap: 14 },
     loadingTiles: { flexDirection: 'row', gap: 8 },
     loadingTile: { flex: 1 },
@@ -356,4 +357,4 @@ const styles = StyleSheet.create({
         lineHeight: 18,
         color: colors.textSecondary,
     },
-});
+}));

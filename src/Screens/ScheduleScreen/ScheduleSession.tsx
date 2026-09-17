@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import {
     Calendar,
@@ -36,6 +36,7 @@ import {
 } from '../../Services/mealPlanService';
 import { useMealPlans, useMealPlansLoading } from '../../Store/mealPlansSlice';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Day timeline for the Schedule tab, driven by the user's real plans.
 //
@@ -548,7 +549,7 @@ export const ScheduleSession: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     root: {
         flex: 1,
     },
@@ -970,6 +971,6 @@ const styles = StyleSheet.create({
     fabSpacer: {
         height: 56,
     },
-});
+}));
 
 export default ScheduleSession;

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { colors } from '../../Theme/colors';
 import { typography } from '../../Theme/typography';
 import { spacing } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface WeekDay {
   label: string; // MON, TUE...
@@ -50,7 +51,7 @@ export default function WeekStrip({ days, onSelectDay }: WeekStripProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -107,4 +108,4 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: colors.primaryContainer,
   },
-});
+}));

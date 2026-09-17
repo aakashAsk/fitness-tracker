@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   ScrollView,
   StatusBar,
-  StyleSheet,
   View,
 } from 'react-native';
 import {
@@ -19,6 +18,7 @@ import UpcomingMealCard from './src/Screens/Dashboard/UpcomingMealCard';
 import AuthNavigator from './src/Screens/Auth/AuthNavigator';
 import OnboardingNavigator from './src/Screens/Onboarding/OnboardingNavigator';
 import ProfileScreen from './src/Screens/Profile/ProfileScreen';
+import SplashScreen from './src/Screens/Splash/SplashScreen';
 import {
   selectUserProfile,
   selectUserProfileStatus,
@@ -47,6 +47,7 @@ import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 import { useMealPlansSync } from './src/Store/mealPlansSlice';
 import { auth } from './src/Firebase/firebaseConfig';
 import { DialogProvider } from './src/Components/Dialog';
+import { themedStyles, ThemeProvider, useTheme, useThemeState } from './src/Theme/ThemeContext';
 // ── Reminders: temporarily disabled ──────────────────────────────────
 // expo-notifications cannot run in Expo Go on Android, so the whole
 // feature is commented out rather than half-working while the app is
@@ -76,7 +77,21 @@ function AppContent() {
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
   const hasSession = !!firebaseUser;
 
-  useEffect(() => onAuthStateChanged(auth, setFirebaseUser), []);
+  // auth.currentUser is null on a cold start even for a user with a
+  // stored session — it is only populated once Firebase has restored it.
+  // Rendering off `hasSession` alone therefore flashes the sign-in
+  // screen before the dashboard. This flag says "Firebase has spoken",
+  // and the splash below stays up until it has.
+  const [authResolved, setAuthResolved] = useState(false);
+
+  useEffect(
+    () =>
+      onAuthStateChanged(auth, user => {
+        setFirebaseUser(user);
+        setAuthResolved(true);
+      }),
+    [],
+  );
 
   // The profile is loaded here, once, and every screen reads it from
   // the store — the dashboard's avatar and greeting, the Profile tab,
@@ -87,6 +102,25 @@ function AppContent() {
   const profile = useAppSelector(selectUserProfile);
   const profileStatus = useAppSelector(selectUserProfileStatus);
 
+  // The device cache has already set the theme by the time anything
+  // renders (see useThemeState). This only corrects it against the
+  // server — for a user who switched theme on another device — and
+  // re-caches the result.
+  //
+  // Deliberately driven off `profile?.themeMode` and not a selector with
+  // a 'light' fallback: while the profile is still loading such a
+  // selector reads as light, which would override the cached dark and
+  // put the light-splash flash straight back.
+  const savedThemeMode = profile?.themeMode ?? null;
+  const { mode: themeMode, isDark, setModePersisted: setThemeMode, hydrated } = useTheme();
+
+  useEffect(() => {
+    if (savedThemeMode && savedThemeMode !== themeMode) setThemeMode(savedThemeMode);
+  }, [savedThemeMode, themeMode, setThemeMode]);
+
+  // Dark surfaces need light status-bar glyphs, and vice versa.
+  const statusBarStyle = isDark ? 'light-content' : 'dark-content';
+
   // Still loading is what keeps a returning user from seeing step 1
   // flash before the read comes back.
   const profileLoading = profileStatus === 'idle' || profileStatus === 'loading';
@@ -96,6 +130,23 @@ function AppContent() {
   // overwrite their real answers with defaults. So only a read that
   // actually succeeded and found nothing sends them to onboarding.
   const needsOnboarding = profileStatus === 'ready' && !profile?.onboardingCompleted;
+
+  // ── Boot gate ──────────────────────────────────────────────────────
+  // The splash comes down when the animation has finished AND the app
+  // knows which screen it is about to show. A signed-out user has no
+  // profile to wait for, so only a session makes the profile read part
+  // of "ready" — otherwise the splash would never end for them.
+  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
+  const [bootComplete, setBootComplete] = useState(false);
+
+  const appReady = authResolved && (!hasSession || !profileLoading);
+
+  // Latched rather than derived: a later profile refetch flips
+  // profileLoading back on, and without this the splash would reappear
+  // mid-session.
+  useEffect(() => {
+    if (splashAnimationDone && appReady) setBootComplete(true);
+  }, [splashAnimationDone, appReady]);
 
   // One Firestore listener per collection for the whole app — every
   // screen reads the result from the Redux store instead of subscribing
@@ -159,10 +210,27 @@ function AppContent() {
     }
   };
 
+  // Ahead of even the splash. Painting before the cached theme has been
+  // read would show a dark-mode user a light splash for a frame, which
+  // is the exact flash this cache exists to remove. It is one
+  // AsyncStorage read, and the OS splash still covers the gap.
+  if (!hydrated) return null;
+
+  // Until this clears we do not yet know whether the next screen is
+  // sign-in, onboarding or the dashboard.
+  if (!bootComplete) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
+        <SplashScreen onFinish={() => setSplashAnimationDone(true)} />
+      </SafeAreaView>
+    );
+  }
+
   if (!hasSession) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
         <AuthNavigator />
       </SafeAreaView>
     );
@@ -174,7 +242,7 @@ function AppContent() {
   if (profileLoading) {
     return (
       <SafeAreaView style={[styles.safeArea, styles.centered]}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
         <ActivityIndicator size="large" color={colors.primary} />
       </SafeAreaView>
     );
@@ -185,7 +253,7 @@ function AppContent() {
   if (needsOnboarding) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
         {/* The saved profile goes straight into the store, so the
             dashboard behind this already has it when we fall through. */}
         <OnboardingNavigator onComplete={saved => dispatch(userProfileReceived(saved))} />
@@ -195,7 +263,7 @@ function AppContent() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
 
       <View style={styles.content}>{renderScreen()}</View>
 
@@ -205,25 +273,35 @@ function AppContent() {
 }
 
 export default function App() {
+  // The active theme is held HERE, in the root component, and not in a
+  // provider wrapping opaque children. Screens do not subscribe to the
+  // theme — they read module-level `styles` objects that themedStyles
+  // rebuilds behind their backs — so a switch only reaches them if the
+  // whole tree re-renders. A provider re-rendering with a `children`
+  // element it received unchanged would not do that; root state does.
+  const theme = useThemeState();
+
   return (
     <Provider store={store}>
-      {/* SafeAreaProvider is outermost on purpose: DialogProvider and
-          the modal sheets below it call useSafeAreaInsets(), which
-          throws unless a provider is an ancestor. It used to live
-          inside AppContent — i.e. below the dialog host. */}
-      <SafeAreaProvider style={styles.safeArea}>
-        {/* One dialog host for the whole app — screens call useDialog()
-            instead of Alert.alert so confirmations match the app's own
-            surfaces rather than the platform's. */}
-        <DialogProvider>
-          <AppContent />
-        </DialogProvider>
-      </SafeAreaProvider>
+      <ThemeProvider value={theme}>
+        {/* SafeAreaProvider is outermost on purpose: DialogProvider and
+            the modal sheets below it call useSafeAreaInsets(), which
+            throws unless a provider is an ancestor. It used to live
+            inside AppContent — i.e. below the dialog host. */}
+        <SafeAreaProvider style={styles.safeArea}>
+          {/* One dialog host for the whole app — screens call useDialog()
+              instead of Alert.alert so confirmations match the app's own
+              surfaces rather than the platform's. */}
+          <DialogProvider>
+            <AppContent />
+          </DialogProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     </Provider>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -253,4 +331,4 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 24,
   },
-});
+}));

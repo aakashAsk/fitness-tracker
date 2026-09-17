@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image } from 'react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing, radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export const Header: React.FC = () => {
   return (
@@ -31,7 +32,7 @@ export const Header: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     width: '100%',
     flexDirection: 'row',
@@ -74,6 +75,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: withOpacity(colors.white, 0.1),
   },
-});
+}));
 
 export default Header;

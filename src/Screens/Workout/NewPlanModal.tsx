@@ -10,8 +10,7 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  StyleSheet,
-} from 'react-native';
+  } from 'react-native';
 import {
   X,
   Search,
@@ -40,6 +39,7 @@ import {
   fetchExercises,
   getExerciseImageUrl,
 } from '../../Services/exerciseService';
+import { themedStyles, useTheme } from '../../Theme/ThemeContext';
 
 export interface NewPlanPayload {
   name: string;
@@ -103,6 +103,12 @@ interface PlanNameFieldProps {
 // highlight from appearing right when the field was tapped.
 const PlanNameField = React.memo(({ value, onChangeText }: PlanNameFieldProps) => {
   const [focused, setFocused] = useState(false);
+
+  // Subscribes to the theme purely so a switch reaches this component:
+  // React.memo blocks re-renders coming from the parent, but a context
+  // consumer still re-renders when the context value changes. Without
+  // this the field keeps its old palette until the sheet is reopened.
+  useTheme();
   return (
     <View style={styles.inputWrap}>
       <View style={styles.inputLeadingIcon} pointerEvents="none">
@@ -1036,7 +1042,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   footer: {
     paddingHorizontal: 20,
     paddingTop: 14,
@@ -1609,6 +1615,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   infoAddBtnText: { fontSize: 14, fontWeight: '700', color: colors.onPrimary },
-});
+}));
 
 export default NewPlanModal;

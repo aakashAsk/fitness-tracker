@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import {
   Calendar,
   Dumbbell,
@@ -8,6 +8,7 @@ import {
   UserRound,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../Theme/colors';
+import { themedStyles } from '../Theme/ThemeContext';
 
 export type NavTab = 'home' | 'workout' | 'nutrition' | 'schedule' | 'profile';
 
@@ -61,7 +62,7 @@ export default function BottomNavBar({ activeTab, onTabPress }: BottomNavBarProp
 
 const BAR_HEIGHT = 64;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrapper: {
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -102,4 +103,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: -0.1,
   },
-});
+}));

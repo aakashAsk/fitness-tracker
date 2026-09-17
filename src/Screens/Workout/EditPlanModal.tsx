@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface EditPlanModalProps {
   planTitle: string;
@@ -90,7 +91,7 @@ export const EditPlanModal: React.FC<EditPlanModalProps> = ({ planTitle, onClose
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
     alignItems: 'center',
@@ -155,6 +156,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveText: { color: colors.onPrimary, fontSize: 12, fontWeight: '700' },
-});
+}));
 
 export default EditPlanModal;

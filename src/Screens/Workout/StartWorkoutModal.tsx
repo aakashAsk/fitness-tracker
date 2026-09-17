@@ -1,9 +1,10 @@
 import React from 'react';
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView } from 'react-native';
 import { Play, X, Timer } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { ExerciseItem } from './Types';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface StartWorkoutModalProps {
   exercises: ExerciseItem[];
@@ -76,7 +77,7 @@ export const StartWorkoutModal: React.FC<StartWorkoutModalProps> = ({ exercises,
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
     alignItems: 'center',
@@ -170,6 +171,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   beginText: { color: colors.onPrimary, fontWeight: '700', fontSize: 12 },
-});
+}));
 
 export default StartWorkoutModal;

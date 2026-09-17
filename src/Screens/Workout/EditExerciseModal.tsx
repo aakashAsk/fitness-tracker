@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput } from 'react-native';
 import { X } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
 import { ExerciseItem } from './Types';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface EditExerciseModalProps {
   exercise: ExerciseItem;
@@ -104,7 +105,7 @@ export const EditExerciseModal: React.FC<EditExerciseModalProps> = ({ exercise, 
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
     alignItems: 'center',
@@ -157,6 +158,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveText: { color: colors.onPrimary, fontSize: 12, fontWeight: '700' },
-});
+}));
 
 export default EditExerciseModal;

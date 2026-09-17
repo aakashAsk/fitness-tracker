@@ -1,8 +1,9 @@
 import React from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable } from 'react-native';
 import { CheckCircle2 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface SaveSuccessModalProps {
   onClose: () => void;
@@ -50,7 +51,7 @@ export const SaveSuccessModal: React.FC<SaveSuccessModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
     alignItems: 'center',
@@ -92,6 +93,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   doneText: { color: colors.onPrimary, fontSize: 12, fontWeight: '700' },
-});
+}));
 
 export default SaveSuccessModal;

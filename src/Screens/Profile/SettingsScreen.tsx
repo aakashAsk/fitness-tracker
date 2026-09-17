@@ -1,11 +1,12 @@
-// Settings — deliberately static. None of these preferences has a
-// backing store yet, so the screen presents the intended structure
-// without pretending to persist anything: the toggles flip locally for
-// feel, and the banner at the top says plainly that nothing is saved.
-// When a settings service lands, replace the local state below with it
-// and delete the banner.
+// Settings — almost entirely static. Dark mode is the one preference
+// with a real backing store: it applies instantly and is saved to the
+// user's profile document. Everything else has none yet, so the screen
+// presents the intended structure without pretending to persist
+// anything — those toggles flip locally for feel, and the banner says
+// plainly that they are not saved. When a settings service lands,
+// replace the local state below with it and narrow the banner further.
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import {
   Bell,
   ChevronLeft,
@@ -19,6 +20,13 @@ import {
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
+
+import { themedStyles, useTheme } from '../../Theme/ThemeContext';
+import { useDialog } from '../../Components/Dialog';
+import { useAppDispatch, useAppSelector } from '../../Store/hooks';
+import { selectUserProfile, userThemeModeUpdated } from '../../Store/userProfileSlice';
+import { saveUserThemeMode } from '../../Services/userProfileService';
+import type { ThemeMode } from '../../Theme/colors';
 
 /** A row that shows a value and goes nowhere yet. */
 interface ValueRow {
@@ -37,7 +45,15 @@ interface ToggleRow {
   detail: string;
 }
 
-type Row = ValueRow | ToggleRow;
+/** The dark-mode switch. Unlike ToggleRow this one is real: it drives
+    the app's theme and is persisted. */
+interface ThemeRow {
+  kind: 'theme';
+  label: string;
+  detail: string;
+}
+
+type Row = ValueRow | ToggleRow | ThemeRow;
 
 const SECTIONS: { title: string; icon: React.ComponentType<any>; rows: Row[] }[] = [
   {
@@ -99,7 +115,11 @@ const SECTIONS: { title: string; icon: React.ComponentType<any>; rows: Row[] }[]
         value: 'Metric (kg, cm, kcal)',
         highlight: true,
       },
-      { kind: 'value', label: 'App theme', detail: 'Display brightness mode', value: 'Light' },
+      {
+        kind: 'theme',
+        label: 'Dark mode',
+        detail: 'Dims every screen to the low-light palette',
+      },
       { kind: 'value', label: 'Week starts on', detail: 'Calendar layout', value: 'Monday' },
     ],
   },
@@ -169,6 +189,38 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const flip = (key: string) =>
     setToggles(current => ({ ...current, [key]: !current[key] }));
 
+  const { mode, isDark, setModePersisted } = useTheme();
+  const dispatch = useAppDispatch();
+  const dialog = useDialog();
+  const hasProfile = !!useAppSelector(selectUserProfile);
+
+  /**
+   * Repaints first, saves second. The switch is the kind of control a
+   * user expects to respond on touch, and the write is a round-trip; if
+   * it fails we put the theme back rather than leave the app showing a
+   * preference that was not stored.
+   */
+  const applyTheme = async (next: ThemeMode) => {
+    const previous = mode;
+    setModePersisted(next);
+    dispatch(userThemeModeUpdated(next));
+
+    // Signed in but pre-onboarding there is no profile document to
+    // merge into; the choice still applies for this session.
+    if (!hasProfile) return;
+
+    try {
+      await saveUserThemeMode(next);
+    } catch (error) {
+      setModePersisted(previous);
+      dispatch(userThemeModeUpdated(previous));
+      dialog.show({
+        title: 'Theme not saved',
+        message: (error as Error).message,
+      });
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
@@ -188,8 +240,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
       <View style={styles.notice}>
         <Info size={15} color={colors.info} strokeWidth={2.4} />
         <Text style={styles.noticeText}>
-          Preview only — these preferences are not saved yet. Your profile and plans are
-          unaffected.
+          Dark mode is saved to your profile. The other preferences here are a preview —
+          they are not stored yet, and your profile and plans are unaffected.
         </Text>
       </View>
 
@@ -204,7 +256,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
             <View style={styles.card}>
               {section.rows.map((row, index) => (
-                <View key={row.kind === 'toggle' ? row.key : row.label}>
+                <View key={row.label}>
                   {index > 0 ? <View style={styles.divider} /> : null}
 
                   <View style={styles.row}>
@@ -213,7 +265,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                       {row.detail ? <Text style={styles.rowDetail}>{row.detail}</Text> : null}
                     </View>
 
-                    {row.kind === 'toggle' ? (
+                    {row.kind === 'theme' ? (
+                      <Switch
+                        on={isDark}
+                        onPress={() => applyTheme(isDark ? 'light' : 'dark')}
+                        label={row.label}
+                      />
+                    ) : row.kind === 'toggle' ? (
                       <Switch on={toggles[row.key]} onPress={() => flip(row.key)} label={row.label} />
                     ) : (
                       <View style={styles.rowTrailing}>
@@ -279,7 +337,7 @@ const Switch: React.FC<{ on: boolean; onPress: () => void; label: string }> = ({
 
 export default SettingsScreen;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
@@ -377,4 +435,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     color: colors.textMuted,
   },
-});
+}));

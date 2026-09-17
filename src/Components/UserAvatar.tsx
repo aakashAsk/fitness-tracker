@@ -6,11 +6,12 @@
 // screen can drift out of step with another. Falls back to a person
 // glyph when the user has not set one.
 import React from 'react';
-import { Image, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Image, View, type ViewStyle } from 'react-native';
 import { User } from 'lucide-react-native';
 import { colors } from '../Theme/colors';
 import { useAppSelector } from '../Store/hooks';
 import { selectUserPhotoUrl } from '../Store/userProfileSlice';
+import { themedStyles } from '../Theme/ThemeContext';
 
 export interface UserAvatarProps {
   /** Diameter in px. */
@@ -56,7 +57,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
 export default UserAvatar;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -64,4 +65,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: { width: '100%', height: '100%' },
-});
+}));

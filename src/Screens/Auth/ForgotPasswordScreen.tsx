@@ -4,7 +4,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { ArrowLeft, CheckCircle, Mail } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface ForgotPasswordScreenProps {
     onSubmit: (email: string) => void;
@@ -170,7 +170,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
 
 export default ForgotPasswordScreen;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     flex: { flex: 1, backgroundColor: colors.background },
     scrollContent: {
         flexGrow: 1,
@@ -247,4 +247,4 @@ const styles = StyleSheet.create({
 
     resendButton: { alignSelf: 'center', paddingVertical: 14 },
     resendText: { fontSize: 13.5, fontWeight: '700', color: colors.primary },
-});
+}));

@@ -12,6 +12,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { useCallback, useEffect } from 'react';
 import type { UserProfile } from '../Services/userProfileService';
 import { fetchUserProfile } from '../Services/userProfileService';
+import type { ThemeMode } from '../Theme/colors';
 import { useAppDispatch, useAppSelector } from './hooks';
 
 interface UserProfileState {
@@ -47,6 +48,12 @@ const userProfileSlice = createSlice({
     userPhotoUpdated(state, action: PayloadAction<string>) {
       if (state.profile) state.profile.photoURL = action.payload;
     },
+    /** Patches in the theme the user just picked, so the Settings
+        switch reflects the choice immediately instead of waiting on the
+        Firestore round-trip. */
+    userThemeModeUpdated(state, action: PayloadAction<ThemeMode>) {
+      if (state.profile) state.profile.themeMode = action.payload;
+    },
     /** On sign-out, so the next account never sees the previous one's
         avatar during its own load. */
     userProfileCleared() {
@@ -60,6 +67,7 @@ export const {
   userProfileReceived,
   userProfileFailed,
   userPhotoUpdated,
+  userThemeModeUpdated,
   userProfileCleared,
 } = userProfileSlice.actions;
 
@@ -78,6 +86,7 @@ export const selectUserProfileError = (state: { userProfile: UserProfileState })
 
 export const selectUserPhotoUrl = (state: { userProfile: UserProfileState }) =>
   state.userProfile.profile?.photoURL ?? null;
+
 
 // --- Sync hook ------------------------------------------------------------
 

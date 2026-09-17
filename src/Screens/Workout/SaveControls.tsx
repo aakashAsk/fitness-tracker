@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { radius } from '../../Theme/spacing';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 interface SaveControlsProps {
   onSave: () => void;
@@ -30,7 +31,7 @@ export const SaveControls: React.FC<SaveControlsProps> = ({ onSave, onSaveDraft 
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { gap: 8, paddingTop: 4 },
   primaryBtn: {
     height: 56,
@@ -50,6 +51,6 @@ const styles = StyleSheet.create({
   },
   draftBtnText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   pressed: { opacity: 0.85 },
-});
+}));
 
 export default SaveControls;

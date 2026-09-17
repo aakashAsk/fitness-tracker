@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -7,6 +7,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import { colors } from '../Theme/colors';
+import { themedStyles } from '../Theme/ThemeContext';
 
 // Shared loading placeholders.
 //
@@ -90,7 +91,7 @@ export const SkeletonCard: React.FC<{ withFooter?: boolean; style?: ViewStyle }>
     </SkeletonGroup>
 );
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     block: {
         backgroundColor: colors.surfaceContainer,
     },
@@ -102,6 +103,6 @@ const styles = StyleSheet.create({
     },
     cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     cardText: { flex: 1, gap: 7 },
-});
+}));
 
 export default SkeletonBlock;

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import {
     CalendarDays,
@@ -29,6 +29,7 @@ import {
     findScheduleConflict,
     MAX_PLANS_PER_USER,
 } from '../../Services/planValidation';
+import { themedStyles } from '../../Theme/ThemeContext';
 
 // Every plan the user owns, independent of any date — the counterpart
 // to the day view above it, which only ever shows what is scheduled on
@@ -405,7 +406,7 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
 
 export default PlanLibrary;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
     card: {
         backgroundColor: colors.surface,
         borderRadius: 24,
@@ -572,4 +573,4 @@ const styles = StyleSheet.create({
         fontSize: 10.5,
         fontWeight: '800',
     },
-});
+}));
