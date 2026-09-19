@@ -61,7 +61,7 @@ Deviations: profile field names are `dailyCalorieTarget` and `macros.{proteinG,c
 
 ---
 
-## T-002: Wire the Dashboard calorie budget and macro ring to real data   [P0] [S] [status: todo]
+## T-002: Wire the Dashboard calorie budget and macro ring to real data   [P0] [S] [status: done]
 Feature: F-010
 Depends on: T-001
 Goal: The Dashboard's calorie budget ring and macro bars reflect today's real intake and the user's real targets, reusing the aggregation T-001 introduces.
@@ -79,6 +79,9 @@ Acceptance criteria:
 Tests: covered by T-001's unit tests; verify the two states manually on device.
 Risks / notes: Do not add a Redux slice for this. The remount-on-tab-switch behaviour is load-bearing and already relied on by `useDailyHydration`.
 Evidence: `src/Screens/Dashboard/LiveTelementry.tsx:36-66,107-113,124,140,149,157`; `App.tsx:182`.
+Result: Removed `DEFAULT_MACROS`, and the `bodyWeightKg`/`bodyWeightDeltaKg` stayed (T-007) but `calorieBudgetTotal`/`calorieBudgetConsumed`/`macros` props and their defaults (2100/1420/DEFAULT_MACROS) are gone from `DashboardOverviewProps` and the component signature. `DashboardOverview` now calls `useDayMeals(new Date())` and `selectDerivedTargets` directly — same aggregation T-001 introduced — memoizing `today` with `useMemo` so the hook doesn't re-fetch every render. Loading state (`!hasLogsForDay || !targets`) renders `SkeletonBlock` placeholders for the ring and macro rows, matching `WorkoutProgressCard`'s precedent. A day with `hasLogsForDay` true but `totals === null` (no completed logs, or none estimated) renders "No meals logged today", `—` in the ring, and 0-width macro fills rather than fabricated grams. No new Redux slice added — confirmed no other importer of `DashboardOverview` passes the removed props (only `App.tsx` renders it, with no calorie/macro props).
+Verification: `npm test` → 6/6 pass (no regression). `node --stack-size=8000 ./node_modules/typescript/lib/tsc.js --noEmit` → same pre-existing 28 errors as T-001's baseline, none in `LiveTelementry.tsx`. `grep -n "2100\|1420\|DEFAULT_MACROS" src/Screens/Dashboard/LiveTelementry.tsx` → no matches. Could not manually verify the brand-new-account and post-meal-log states on device/emulator (none available in this environment) — verified by code review that the loading/empty/populated branches match `useDayMeals`'s documented null contract from T-001.
+Deviations: none beyond T-001's field-name adaptation, reused here via the same `selectDerivedTargets` selector.
 
 ---
 

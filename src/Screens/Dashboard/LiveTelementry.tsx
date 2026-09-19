@@ -15,13 +15,15 @@ import {
 import { colors, withOpacity } from '../../Theme/colors';
 import UserAvatar from '../../Components/UserAvatar';
 import ProgressRing from '../../Components/ProgressRing';
+import { SkeletonBlock } from '../../Components/Skeleton';
 import { themedStyles } from '../../Theme/ThemeContext';
 import { useDailySteps } from '../../Hooks/useDailySteps';
 import { DAILY_BURN_GOAL, DAILY_STEP_GOAL } from '../../Services/stepService';
 import { useDailyHydration } from '../../Hooks/useDailyHydration';
+import { useDayMeals } from '../../Hooks/useDayMeals';
 import { useGreeting } from '../../Hooks/useGreeting';
 import { useAppSelector } from '../../Store/hooks';
-import { selectUserProfile } from '../../Store/userProfileSlice';
+import { selectDerivedTargets, selectUserProfile } from '../../Store/userProfileSlice';
 import { useLastNightSleep } from '../../Hooks/useLastNightSleep';
 import {
     formatClock,
@@ -39,21 +41,15 @@ export interface DashboardOverviewProps {
     // now shows progress against DAILY_BURN_GOAL — neither is passed in.
     // Water intake is read from Firestore by the card itself — see
     // useDailyHydration — so there is nothing to pass in.
+    // Calorie budget and macros are read from today's meal logs and the
+    // profile's derived targets by the card itself — see useDayMeals and
+    // selectDerivedTargets — so neither is passed in either.
     bodyWeightKg?: number;
     bodyWeightDeltaKg?: number;
     weeklyAvgKcal?: number;
     monthlyGoalPercent?: number;
-    calorieBudgetTotal?: number;
-    calorieBudgetConsumed?: number;
-    macros?: { label: string; color: string; grams: number; goalGrams: number }[];
     onNotificationsPress?: () => void;
 }
-
-const DEFAULT_MACROS = [
-    { label: 'Protein', color: colors.protein, grams: 110, goalGrams: 140 },
-    { label: 'Carbs', color: colors.carbs, grams: 165, goalGrams: 220 },
-    { label: 'Fats', color: colors.fats, grams: 45, goalGrams: 65 },
-];
 
 const WEEK_ACTIVITY = [
     { day: 'M', percent: 0.44 },
@@ -108,9 +104,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     bodyWeightDeltaKg = -0.4,
     weeklyAvgKcal = 485,
     monthlyGoalPercent = 89,
-    calorieBudgetTotal = 2100,
-    calorieBudgetConsumed = 1420,
-    macros = DEFAULT_MACROS,
     onNotificationsPress,
 }) => {
     // "Good morning" is the clock's business, not a caller's, and the
@@ -171,10 +164,48 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     ? { label: 'Retry reading sleep', onPress: sleep.refresh }
                     : null;
 
-    const kcalLeft = Math.max(calorieBudgetTotal - calorieBudgetConsumed, 0);
+    // Calorie budget & macros come from today's meal logs and the
+    // profile's derived targets — the exact same aggregation the
+    // Nutrition tab uses (see useDayMeals) — rather than from props, so
+    // logging a meal there and returning Home shows the same figure.
+    // The tab switch unmounts and remounts the Dashboard (README:556-560)
+    // so no cross-screen invalidation is needed.
+    const today = React.useMemo(() => new Date(), []);
+    const { hasLogsForDay, totals: nutritionTotals } = useDayMeals(today);
+    const targets = useAppSelector(selectDerivedTargets);
+    const calorieBudgetLoading = !hasLogsForDay || !targets;
+    const calorieBudgetTotal = targets?.calorieTarget ?? 0;
+    const calorieBudgetConsumed = nutritionTotals?.calories ?? 0;
+    const hasCalorieData = !calorieBudgetLoading && nutritionTotals !== null;
+
+    const macros = [
+        {
+            label: 'Protein',
+            color: colors.protein,
+            grams: nutritionTotals?.protein ?? 0,
+            goalGrams: targets?.proteinG ?? 0,
+        },
+        {
+            label: 'Carbs',
+            color: colors.carbs,
+            grams: nutritionTotals?.carbs ?? 0,
+            goalGrams: targets?.carbsG ?? 0,
+        },
+        {
+            label: 'Fats',
+            color: colors.fats,
+            grams: nutritionTotals?.fat ?? 0,
+            goalGrams: targets?.fatsG ?? 0,
+        },
+    ];
+
+    const kcalLeft = hasCalorieData ? Math.max(calorieBudgetTotal - calorieBudgetConsumed, 0) : null;
     const calorieRingRadius = (CALORIE_RING_SIZE - CALORIE_RING_STROKE) / 2;
     const calorieCircumference = 2 * Math.PI * calorieRingRadius;
-    const calorieConsumedPercent = Math.min(calorieBudgetConsumed / calorieBudgetTotal, 1);
+    const calorieConsumedPercent =
+        hasCalorieData && calorieBudgetTotal > 0
+            ? Math.min(calorieBudgetConsumed / calorieBudgetTotal, 1)
+            : 0;
     const calorieDashOffset = calorieCircumference * (1 - calorieConsumedPercent);
 
     const gaugeRadius = (GAUGE_SIZE - GAUGE_STROKE) / 2;
@@ -548,70 +579,87 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <View>
                         <Text style={styles.cardTitle}>Calorie Budget</Text>
                         <Text style={styles.cardSubtitle}>
-                            {calorieBudgetConsumed.toLocaleString()} / {calorieBudgetTotal.toLocaleString()} kcal consumed
+                            {hasCalorieData
+                                ? `${calorieBudgetConsumed.toLocaleString()} / ${calorieBudgetTotal.toLocaleString()} kcal consumed`
+                                : calorieBudgetLoading
+                                    ? 'Loading…'
+                                    : 'No meals logged today'}
                         </Text>
                     </View>
                 </View>
 
-                <View style={styles.calorieBudgetRow}>
-                    <View style={styles.calorieRingWrapper}>
-                        <Svg width={CALORIE_RING_SIZE} height={CALORIE_RING_SIZE}>
-                            <Circle
-                                cx={CALORIE_RING_SIZE / 2}
-                                cy={CALORIE_RING_SIZE / 2}
-                                r={calorieRingRadius}
-                                stroke={colors.surfaceContainer}
-                                strokeWidth={CALORIE_RING_STROKE}
-                                fill="none"
-                            />
-                            <Circle
-                                cx={CALORIE_RING_SIZE / 2}
-                                cy={CALORIE_RING_SIZE / 2}
-                                r={calorieRingRadius}
-                                stroke={colors.secondary}
-                                strokeWidth={CALORIE_RING_STROKE}
-                                strokeDasharray={calorieCircumference}
-                                strokeDashoffset={calorieDashOffset}
-                                strokeLinecap="round"
-                                fill="none"
-                                rotation={-90}
-                                originX={CALORIE_RING_SIZE / 2}
-                                originY={CALORIE_RING_SIZE / 2}
-                            />
-                        </Svg>
-                        <View style={styles.calorieRingTextWrap}>
-                            <Text style={styles.calorieRingValue}>{kcalLeft}</Text>
-                            <Text style={styles.calorieRingLabel}>KCAL LEFT</Text>
+                {calorieBudgetLoading ? (
+                    <View style={styles.calorieBudgetRow}>
+                        <SkeletonBlock width={CALORIE_RING_SIZE} height={CALORIE_RING_SIZE} radius={CALORIE_RING_SIZE / 2} />
+                        <View style={styles.macroList}>
+                            <SkeletonBlock height={34} radius={10} />
+                            <SkeletonBlock height={34} radius={10} />
+                            <SkeletonBlock height={34} radius={10} />
                         </View>
                     </View>
-
-                    <View style={styles.macroList}>
-                        {macros.map((macro) => (
-                            <View key={macro.label} style={styles.macroItem}>
-                                <View style={styles.macroHeaderRow}>
-                                    <View style={styles.macroLabelRow}>
-                                        <View style={[styles.macroDot, { backgroundColor: macro.color }]} />
-                                        <Text style={styles.macroLabel}>{macro.label}</Text>
-                                    </View>
-                                    <Text style={styles.macroValue}>
-                                        {macro.grams} / {macro.goalGrams}g
-                                    </Text>
-                                </View>
-                                <View style={styles.macroTrack}>
-                                    <View
-                                        style={[
-                                            styles.macroFill,
-                                            {
-                                                width: `${Math.min((macro.grams / macro.goalGrams) * 100, 100)}%`,
-                                                backgroundColor: macro.color,
-                                            },
-                                        ]}
-                                    />
-                                </View>
+                ) : (
+                    <View style={styles.calorieBudgetRow}>
+                        <View style={styles.calorieRingWrapper}>
+                            <Svg width={CALORIE_RING_SIZE} height={CALORIE_RING_SIZE}>
+                                <Circle
+                                    cx={CALORIE_RING_SIZE / 2}
+                                    cy={CALORIE_RING_SIZE / 2}
+                                    r={calorieRingRadius}
+                                    stroke={colors.surfaceContainer}
+                                    strokeWidth={CALORIE_RING_STROKE}
+                                    fill="none"
+                                />
+                                <Circle
+                                    cx={CALORIE_RING_SIZE / 2}
+                                    cy={CALORIE_RING_SIZE / 2}
+                                    r={calorieRingRadius}
+                                    stroke={colors.secondary}
+                                    strokeWidth={CALORIE_RING_STROKE}
+                                    strokeDasharray={calorieCircumference}
+                                    strokeDashoffset={calorieDashOffset}
+                                    strokeLinecap="round"
+                                    fill="none"
+                                    rotation={-90}
+                                    originX={CALORIE_RING_SIZE / 2}
+                                    originY={CALORIE_RING_SIZE / 2}
+                                />
+                            </Svg>
+                            <View style={styles.calorieRingTextWrap}>
+                                <Text style={styles.calorieRingValue}>{kcalLeft ?? '—'}</Text>
+                                <Text style={styles.calorieRingLabel}>KCAL LEFT</Text>
                             </View>
-                        ))}
+                        </View>
+
+                        <View style={styles.macroList}>
+                            {macros.map((macro) => (
+                                <View key={macro.label} style={styles.macroItem}>
+                                    <View style={styles.macroHeaderRow}>
+                                        <View style={styles.macroLabelRow}>
+                                            <View style={[styles.macroDot, { backgroundColor: macro.color }]} />
+                                            <Text style={styles.macroLabel}>{macro.label}</Text>
+                                        </View>
+                                        <Text style={styles.macroValue}>
+                                            {hasCalorieData ? `${macro.grams} / ${macro.goalGrams}g` : `— / ${macro.goalGrams}g`}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.macroTrack}>
+                                        <View
+                                            style={[
+                                                styles.macroFill,
+                                                {
+                                                    width: hasCalorieData && macro.goalGrams > 0
+                                                        ? `${Math.min((macro.grams / macro.goalGrams) * 100, 100)}%`
+                                                        : '0%',
+                                                    backgroundColor: macro.color,
+                                                },
+                                            ]}
+                                        />
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
                     </View>
-                </View>
+                )}
             </View>
         </View>
     );
