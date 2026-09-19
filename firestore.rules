@@ -115,6 +115,29 @@ service cloud.firestore {
                       request.resource.data.userId == request.auth.uid;
     }
 
+    // Feature flags — one document per flag, id = flag key, body
+    // { enabled: boolean }. See docs/feature-flags.md.
+    //
+    // Read is deliberately public: flags must resolve before sign-in
+    // (splash, login and onboarding all render without a session, and a
+    // kill switch that cannot disable the login path is not a kill
+    // switch). That is safe only because these documents hold no secret
+    // and no user data — flag keys name features whose code already
+    // ships in the app. Never put anything here that is not public.
+    //
+    // Write is limited to one hardcoded admin uid. Toggling is done by
+    // hand in the Firebase console (which bypasses rules anyway); this
+    // rule exists so that no client, signed in or not, can flip a flag.
+    //
+    // TODO(before deploy): replace YOUR_UID_HERE with the real admin uid
+    // (Firebase console > Authentication > Users > User UID). Until then
+    // the placeholder matches no real user, so nobody can write. These
+    // rules are NOT deployed by this repo's tasks.
+    match /featureToggle/{flagKey} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == 'YOUR_UID_HERE';
+    }
+
     match /mealPlans/{planId} {
       allow read:   if ownsExisting();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;

@@ -487,15 +487,16 @@ Evidence: firebase.json parses as JSON with an emulators block; tsc --noEmit err
 
 ---
 
-## FF-002: Add the `featureToggle` rules to `firestore.rules` (not deployed)   [P1] [S] [status: todo]
+## FF-002: Add the `featureToggle` rules to `firestore.rules` (not deployed)   [P1] [S] [status: done]
 Depends on: FF-001
 Goal: Rules describe flag access: public read, single hardcoded admin uid write.
 Rules: `match /featureToggle/{flagKey}`: `allow read: if true;` `allow write: if isSignedIn() && request.auth.uid == 'YOUR_UID_HERE';`. Placeholder is clearly commented; the human must replace it before deploying. No existing block changes. Never deployed.
 Acceptance criteria:
-  - [ ] Diff touches only added lines
-  - [ ] Placeholder `YOUR_UID_HERE` present with an explanatory comment
-  - [ ] No deploy command run
+  - [x] Diff touches only added lines
+  - [x] Placeholder `YOUR_UID_HERE` present with an explanatory comment
+  - [x] No deploy command run
 Tests: FF-009 (awaiting confirmation) would automate; otherwise emulator manual check if an emulator is available.
+Evidence: git diff --numstat shows only added lines (0 deletions); placeholder YOUR_UID_HERE with TODO comment; no deploy run. NOT verified: rules parse in the emulator or evaluate correctly (no Firebase CLI/Java here); FF-009 would automate this and is awaiting confirmation.
 
 ---
 
