@@ -9,7 +9,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 // condition, so it always resolves to the web build and silently omits
 // getReactNativePersistence. '@firebase/auth' declares that condition
 // correctly, so Metro picks its React Native build instead.
-import { initializeAuth, getAuth, type Auth } from '@firebase/auth';
+import { connectAuthEmulator, initializeAuth, getAuth, type Auth } from '@firebase/auth';
 // The shared auth-public.d.ts (what TS resolves via package.json
 // "types") doesn't declare the RN-only getReactNativePersistence
 // export, even though the actual RN build Metro loads at runtime has
@@ -17,7 +17,7 @@ import { initializeAuth, getAuth, type Auth } from '@firebase/auth';
 // stale typing rather than the whole file being cast to `any`.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { getReactNativePersistence } = require('@firebase/auth');
-import { getFirestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -50,3 +50,31 @@ try {
 }
 
 export { auth };
+
+// Opt-in local emulator. Only when EXPO_PUBLIC_USE_FIREBASE_EMULATOR is
+// exactly '1' — an unset or missing .env keeps pointing at the real
+// project, unchanged. Used to exercise feature flags and security rules
+// without ever writing to production.
+//
+// EXPO_PUBLIC_EMULATOR_HOST defaults to 127.0.0.1, which is right for
+// iOS simulators, web and a physical device tunnelled with adb reverse.
+// The Android emulator is a VM: 127.0.0.1 inside it is the VM itself,
+// not your machine, so set EXPO_PUBLIC_EMULATOR_HOST=10.0.2.2 there.
+// A physical device on Wi-Fi needs the computer's LAN address.
+//
+// The module-level flag plus try/catch guard Fast Refresh, which
+// re-evaluates this file: connecting again after the client has been
+// used throws.
+let emulatorConnected = false;
+if (process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1' && !emulatorConnected) {
+  emulatorConnected = true;
+  const host = process.env.EXPO_PUBLIC_EMULATOR_HOST || '127.0.0.1';
+  try {
+    connectFirestoreEmulator(db, host, 8080);
+    connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
+    console.log(`[firebase] using emulators at ${host}`);
+  } catch {
+    // Already connected on a previous evaluation (Fast Refresh) — the
+    // existing connection is the one we want.
+  }
+}

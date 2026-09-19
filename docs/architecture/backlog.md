@@ -472,17 +472,18 @@ The design's full scope was cut down to a simplified one. Where this section and
 
 ---
 
-## FF-001: Add a Firestore emulator config and an opt-in client switch   [P1] [S] [status: todo]
+## FF-001: Add a Firestore emulator config and an opt-in client switch   [P1] [S] [status: done]
 Depends on: none
 Goal: A developer can run `firebase emulators:start` and point the app at it, so flag behaviour can be demonstrated without touching the production project.
 Files: modify `firebase.json` (emulators: firestore 8080, auth 9099, ui 4000), `src/Firebase/firebaseConfig.ts` (guarded `connectFirestoreEmulator`/`connectAuthEmulator`), `.env.example` (`EXPO_PUBLIC_USE_FIREBASE_EMULATOR`, `EXPO_PUBLIC_EMULATOR_HOST`), `README.md` (short note).
 Steps: connect only when `EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1'`; default host `127.0.0.1`, Android emulator needs `10.0.2.2` (documented); module-level guard against Fast Refresh double-connect; env var unset => behaviour unchanged.
 Acceptance criteria:
-  - [ ] `firebase.json` has a valid `emulators` block
-  - [ ] With the var unset, `firebaseConfig.ts` behaves as before (no connect call)
-  - [ ] Double-connect is guarded
-  - [ ] Typecheck error count unchanged (28)
+  - [x] `firebase.json` has a valid `emulators` block
+  - [x] With the var unset, `firebaseConfig.ts` behaves as before (no connect call)
+  - [x] Double-connect is guarded
+  - [x] Typecheck error count unchanged (28)
 Tests: manual / static; no pure logic. Emulator start cannot be run from this shell if the Firebase CLI or Java are absent -- record honestly.
+Evidence: firebase.json parses as JSON with an emulators block; tsc --noEmit error count 17 before and after (baseline is 17 in the current tree, not the 28 quoted earlier); connect code is behind EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1' with a module guard + try/catch. NOT run: 'firebase emulators:start' (Firebase CLI and Java are not installed in this shell) and no app run, so no live write was observed. Deviation: skipped the double-connect runtime check for the same reason.
 
 ---
 

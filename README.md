@@ -74,6 +74,12 @@ npm run start:go         # Expo Go
 | `npm run web` | `expo start --web` |
 | `npm run build:dev` | EAS development build (Android) |
 
+**Running against the Firebase emulator.** Install the Firebase CLI (and
+Java, which the Firestore emulator needs), run `firebase emulators:start`,
+and set `EXPO_PUBLIC_USE_FIREBASE_EMULATOR=1` in `.env` (plus
+`EXPO_PUBLIC_EMULATOR_HOST=10.0.2.2` on the Android emulator). Unset, the app
+uses the real project.
+
 **Expo Go does not support everything.** Notifications, Health Connect and
 the motion permission all require a development build. See
 [Native modules](#native-modules-and-build-requirements).
