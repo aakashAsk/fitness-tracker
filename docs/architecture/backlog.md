@@ -500,15 +500,16 @@ Evidence: git diff --numstat shows only added lines (0 deletions); placeholder Y
 
 ---
 
-## FF-003: Seed a couple of `featureToggle` docs in the emulator   [P1] [S] [status: todo]
+## FF-003: Seed a couple of `featureToggle` docs in the emulator   [P1] [S] [status: done]
 Depends on: FF-002
 Goal: A repeatable seed so the proof scenarios start from a known emulator state.
 Files: create `scripts/seedFeatureToggles.mjs`; modify `package.json` (`"seed:flags"`).
 Steps: refuse to run unless `FIRESTORE_EMULATOR_HOST` is set (exit non-zero, write nothing); write `featureToggle/scheduleTab` `{enabled: true}` and one more demo doc; idempotent (`setDoc`); never touches production.
 Acceptance criteria:
-  - [ ] Without `FIRESTORE_EMULATOR_HOST` it exits non-zero and writes nothing (verified)
-  - [ ] With an emulator, docs appear with the documented shape (needs an emulator; record if unverifiable)
-  - [ ] Re-running gives the same state
+  - [x] Without `FIRESTORE_EMULATOR_HOST` it exits non-zero and writes nothing (verified)
+  - [ ] (NOT VERIFIED) With an emulator, docs appear with the documented shape (needs an emulator; record if unverifiable)
+  - [x] Re-running gives the same state
+Evidence: Guard verified: no env -> exit 1, non-local host -> exit 1, no requests made. Success path verified only against a throwaway fake HTTP server (2 PATCH upserts to featureToggle/scheduleTab and demoUnknownFlag with Bearer owner, run twice -> 2 distinct docs, idempotent). NOT verified against a real emulator (no Firebase CLI/Java). Deviation: seeds via emulator REST API (not the JS SDK) because the SDK would be subject to the FF-002 rules; script only, npm run seed:flags added. Tick for the 'documented shape in emulator UI' criterion is not real-emulator evidence.
 
 ---
 
