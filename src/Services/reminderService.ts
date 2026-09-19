@@ -160,6 +160,15 @@ export function mealReminder(plan: MealPlan): ReminderTarget[] {
 }
 
 /**
+ * One id per (plan, weekday, lead). The lead is part of it because each
+ * plan deliberately has two reminders per day — 15 min and 1 min out —
+ * and those must stay distinct rather than replace each other.
+ */
+function reminderIdentifier(target: ReminderTarget, day: DayKey): string {
+  return `reminder:${target.planId}:${day}:${target.leadMinutes}`;
+}
+
+/**
  * Replaces every reminder this app has scheduled with one derived from
  * the plans passed in.
  *
@@ -171,8 +180,35 @@ export function mealReminder(plan: MealPlan): ReminderTarget[] {
  *
  * Returns how many were scheduled, which is useful to assert against in
  * a console check.
+ *
+ * Calls are serialised, and a call that has been superseded by a newer
+ * one stops early. This is what prevents duplicate notifications: the
+ * workout and meal plan lists arrive from two separate Firestore
+ * listeners, so on launch this is called twice within milliseconds. Run
+ * concurrently, both would cancel-all up front and then both schedule
+ * their full set — every reminder on the device twice, firing as a
+ * pair at the same moment.
  */
-export async function syncReminders(targets: ReminderTarget[]): Promise<number> {
+export function syncReminders(targets: ReminderTarget[]): Promise<number> {
+  const generation = ++latestGeneration;
+  const run = syncQueue.then(() => runSync(targets, generation));
+  // The queue must survive a failed run, or one error would wedge every
+  // later sync behind a rejected promise.
+  syncQueue = run.catch(() => undefined);
+  return run;
+}
+
+/** Tail of the serial queue — each sync starts only once this settles. */
+let syncQueue: Promise<unknown> = Promise.resolve();
+/** Bumped by every call; a run whose number is stale has been superseded. */
+let latestGeneration = 0;
+
+async function runSync(targets: ReminderTarget[], generation: number): Promise<number> {
+  // A newer call is already queued behind this one and will rebuild the
+  // whole set from fresher plans — doing the work twice would only
+  // widen the window for the OS to fire something stale.
+  if (generation !== latestGeneration) return 0;
+
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   let scheduled = 0;
@@ -180,9 +216,18 @@ export async function syncReminders(targets: ReminderTarget[]): Promise<number> 
     const timeMinutes = parseTimeToMinutes(target.time);
 
     for (const day of target.days) {
+      // Superseded mid-way: stop. What is scheduled so far is harmless —
+      // the newer run starts with its own cancel-all.
+      if (generation !== latestGeneration) return scheduled;
+
       const { weekday, hour, minute } = applyLead(day, timeMinutes, target.leadMinutes);
 
       await Notifications.scheduleNotificationAsync({
+        // Deterministic, so the same reminder always maps to the same
+        // entry. A second schedule of it replaces the first rather than
+        // stacking beside it — a backstop in case anything else ever
+        // manages to schedule the set twice.
+        identifier: reminderIdentifier(target, day),
         content: {
           title: target.title,
           body: target.body,

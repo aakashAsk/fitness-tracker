@@ -1,30 +1,79 @@
-import React from 'react';
+// The dashboard's "Today's Workout" card — today's live session, read
+// from the same place the Workout tab reads it (useDayWorkoutEvents) and
+// timed by the same rules as the meal card (sessionSchedule).
+//
+// It deliberately does not log anything itself. Logging a workout means
+// entering sets, reps and weight per exercise, which lives in the Workout
+// tab; tapping here takes the user there, scrolled to this session.
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { ArrowRight, Dumbbell, Timer } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { themedStyles } from '../../Theme/ThemeContext';
+import { useToday } from '../../Hooks/useNow';
+import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
+import {
+    countOtherDue,
+    describeSession,
+    pickFocusSession,
+    type SessionPhase,
+} from '../../Services/sessionSchedule';
 
 export interface TodaysWorkoutCardProps {
-    categoryLabel?: string;
-    title?: string;
-    durationMinutes?: number;
-    circuitCount?: number;
-    participantInitials?: string[];
-    participantOverflowCount?: number;
-    onStartWorkout?: () => void;
+    /** Opens the Workout tab scrolled to this plan. */
+    onOpenWorkout?: (planId: string) => void;
     onViewAll?: () => void;
 }
 
+const BUTTON_LABEL: Record<SessionPhase, string> = {
+    upcoming: 'View Workout',
+    due: 'Log Workout',
+    logged: 'View Log',
+};
+
 export const TodaysWorkoutCard: React.FC<TodaysWorkoutCardProps> = ({
-    categoryLabel = 'Strength & Hypertrophy',
-    title = 'Upper Body Sculpt',
-    durationMinutes = 45,
-    circuitCount = 4,
-    participantInitials = ['JD', 'SK'],
-    participantOverflowCount = 18,
-    onStartWorkout,
+    onOpenWorkout,
     onViewAll,
 }) => {
+    const { now, today } = useToday();
+    const { dayEvents, completedPlanIds, hasOccurrencesForDay } = useDayWorkoutEvents(today);
+
+    const sessions = useMemo(
+        () =>
+            dayEvents.map((event) => ({
+                event,
+                time: event.time,
+                isLogged: completedPlanIds.has(event.sourceId),
+            })),
+        [dayEvents, completedPlanIds],
+    );
+    const focused = pickFocusSession(sessions, now);
+    const event = focused?.session.event;
+
+    // Whether a session is logged is only known once today's occurrences
+    // arrive. Until then the phase could read "Log Workout" and flip to
+    // "View Log" a moment later, so the status stays quiet instead.
+    const phaseKnown = hasOccurrencesForDay;
+    const otherDue = focused ? countOtherDue(sessions, focused.session, now) : 0;
+    const status = !focused
+        ? 'Rest day — nothing scheduled'
+        : !phaseKnown
+          ? ''
+          : describeSession(focused.session, focused.phase, now) +
+            (otherDue > 0 ? ` · +${otherDue} earlier not logged` : '');
+
+    const categoryLabel = event
+        ? event.muscles.length > 0
+            ? event.muscles.slice(0, 2).join(' & ')
+            : 'Workout'
+        : 'Rest Day';
+    const exerciseCount = event?.exerciseIds.length ?? 0;
+
+    const open = () => {
+        if (event) onOpenWorkout?.(event.sourceId);
+        else onViewAll?.();
+    };
+
     return (
         <View style={styles.wrapper}>
             <View style={styles.sectionHeaderRow}>
@@ -34,7 +83,13 @@ export const TodaysWorkoutCard: React.FC<TodaysWorkoutCardProps> = ({
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.card}>
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={open}
+                style={styles.card}
+                accessibilityRole="button"
+                accessibilityLabel={event ? `Open ${event.title}` : 'Open workouts'}
+            >
                 <View style={styles.glowAccent} />
 
                 <View style={styles.headerRow}>
@@ -42,18 +97,24 @@ export const TodaysWorkoutCard: React.FC<TodaysWorkoutCardProps> = ({
                         <View style={styles.categoryPill}>
                             <Text style={styles.categoryPillText}>{categoryLabel}</Text>
                         </View>
-                        <Text style={styles.workoutTitle}>{title}</Text>
-                        <View style={styles.metaRow}>
-                            <View style={styles.metaItem}>
-                                <Timer size={14} color={colors.textSecondary} strokeWidth={2.2} />
-                                <Text style={styles.metaText}>{durationMinutes} mins</Text>
+                        <Text style={styles.workoutTitle} numberOfLines={2}>
+                            {event ? event.title : 'No workout today'}
+                        </Text>
+                        {event ? (
+                            <View style={styles.metaRow}>
+                                <View style={styles.metaItem}>
+                                    <Timer size={14} color={colors.textSecondary} strokeWidth={2.2} />
+                                    <Text style={styles.metaText}>{event.time}</Text>
+                                </View>
+                                <Text style={styles.metaSeparator}>•</Text>
+                                <View style={styles.metaItem}>
+                                    <Dumbbell size={14} color={colors.textSecondary} strokeWidth={2.2} />
+                                    <Text style={styles.metaText}>
+                                        {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+                                    </Text>
+                                </View>
                             </View>
-                            <Text style={styles.metaSeparator}>•</Text>
-                            <View style={styles.metaItem}>
-                                <Dumbbell size={14} color={colors.textSecondary} strokeWidth={2.2} />
-                                <Text style={styles.metaText}>{circuitCount} circuits</Text>
-                            </View>
-                        </View>
+                        ) : null}
                     </View>
 
                     <View style={styles.thumbnail}>
@@ -62,43 +123,32 @@ export const TodaysWorkoutCard: React.FC<TodaysWorkoutCardProps> = ({
                 </View>
 
                 <View style={styles.footerRow}>
-                    <View style={styles.avatarStack}>
-                        {participantInitials.map((initials, index) => (
-                            <View
-                                key={initials}
-                                style={[
-                                    styles.avatarChip,
-                                    index === 0 ? styles.avatarChipPrimary : styles.avatarChipSecondary,
-                                    index > 0 && styles.avatarChipOverlap,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.avatarChipText,
-                                        index === 0 && styles.avatarChipTextOnPrimary,
-                                    ]}
-                                >
-                                    {initials}
-                                </Text>
-                            </View>
-                        ))}
-                        {participantOverflowCount > 0 ? (
-                            <View style={[styles.avatarChip, styles.avatarChipOverlap, styles.avatarChipMuted]}>
-                                <Text style={styles.avatarChipTextMuted}>+{participantOverflowCount}</Text>
-                            </View>
-                        ) : null}
-                    </View>
-
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={onStartWorkout}
-                        style={styles.startButton}
+                    {/* The slot the placeholder participant avatars held —
+                        there is no social data behind them, so it carries
+                        the session's real status instead. */}
+                    <Text
+                        style={[
+                            styles.statusText,
+                            phaseKnown && focused?.phase === 'due' && styles.statusTextDue,
+                            phaseKnown && focused?.phase === 'logged' && styles.statusTextLogged,
+                        ]}
+                        numberOfLines={2}
                     >
-                        <Text style={styles.startButtonText}>Start Workout</Text>
+                        {status}
+                    </Text>
+
+                    <TouchableOpacity activeOpacity={0.85} onPress={open} style={styles.startButton}>
+                        <Text style={styles.startButtonText}>
+                            {!focused
+                                ? 'Plan Workout'
+                                : !phaseKnown
+                                  ? 'Open Workout'
+                                  : BUTTON_LABEL[focused.phase]}
+                        </Text>
                         <ArrowRight size={16} color={colors.white} strokeWidth={2.4} />
                     </TouchableOpacity>
                 </View>
-            </View>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -206,43 +256,22 @@ const styles = themedStyles(() => ({
         justifyContent: 'space-between',
         marginTop: 18,
     },
-    avatarStack: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    avatarChip: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: colors.surface,
-    },
-    avatarChipOverlap: {
-        marginLeft: -8,
-    },
-    avatarChipPrimary: {
-        backgroundColor: withOpacity(colors.primary, 0.85),
-    },
-    avatarChipSecondary: {
-        backgroundColor: withOpacity(colors.secondary, 0.7),
-    },
-    avatarChipMuted: {
-        backgroundColor: colors.surfaceContainer,
-    },
-    avatarChipText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: colors.textPrimary,
-    },
-    avatarChipTextOnPrimary: {
-        color: colors.white,
-    },
-    avatarChipTextMuted: {
-        fontSize: 10,
-        fontWeight: '700',
+    statusText: {
+        flex: 1,
+        marginRight: 12,
+        fontSize: 12.5,
+        fontWeight: '600',
         color: colors.textSecondary,
+    },
+    // Due is the one state asking the user to act, so it alone takes
+    // the accent; logged settles into the success tone.
+    statusTextDue: {
+        color: colors.secondary,
+        fontWeight: '800',
+    },
+    statusTextLogged: {
+        color: colors.success,
+        fontWeight: '800',
     },
     startButton: {
         flexDirection: 'row',

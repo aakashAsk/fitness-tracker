@@ -50,6 +50,10 @@ const domain = {
     // Hydration
     water: '#0284C7',
     waterBg: 'rgba(2, 132, 199, 0.12)',
+
+    // Sleep — a night-sky indigo, kept distinct from `recovery`'s violet,
+    // which the Steps tile already uses right beside it.
+    sleep: '#4F46E5',
 } as const;
 
 const feedback = {

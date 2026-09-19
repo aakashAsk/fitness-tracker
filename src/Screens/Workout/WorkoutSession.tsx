@@ -20,6 +20,8 @@ import {
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
+import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
+import { useScrollToItem } from '../../Hooks/useScrollToItem';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
@@ -33,19 +35,13 @@ import {
 } from '../../Services/workoutPlanService';
 import {
     fetchExerciseLogLookup,
-    fetchOccurrencesForDate,
     savedEntryKey,
     savePlannedOccurrence,
     saveWorkoutLog,
     toDateKey,
     todayDateKey,
     WorkoutLogServiceError,
-    type WorkoutLog,
 } from '../../Services/workoutLogService';
-import {
-    applyOccurrencesToEvents,
-    getEventsForDate,
-} from '../../Services/calendarEventService';
 import {
     describeConflict,
     findScheduleConflict,
@@ -57,7 +53,6 @@ import {
     fetchExercisesBulk,
     isWeightedEquipment,
 } from '../../Services/exerciseService';
-import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import { useDialog } from '../../Components/Dialog';
 import { themedStyles } from '../../Theme/ThemeContext';
 import ExerciseLibrary from './ExerciseLibrary';
@@ -186,7 +181,16 @@ const ExerciseSkeleton: React.FC<{ rows: number }> = ({ rows }) => (
     </SkeletonGroup>
 );
 
-export const WorkoutSession: React.FC = () => {
+export interface WorkoutSessionProps {
+    /** A plan to scroll to on arrival — set when the user comes here from
+        the dashboard's Today's Workout card. */
+    focusPlanId?: string | null;
+    /** Called once the tab has landed on `focusPlanId`, so the caller can
+        clear it and a later visit does not jump again. */
+    onFocusHandled?: () => void;
+}
+
+export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onFocusHandled }) => {
     const dialog = useDialog();
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const [activeFilter, setActiveFilter] = useState('Push');
@@ -257,12 +261,6 @@ export const WorkoutSession: React.FC = () => {
         setExpandedExerciseId((prev) => (prev === exerciseId ? null : exerciseId));
     };
 
-    // Live-synced plans (App.tsx's useWorkoutPlansSync() keeps this fed
-    // from Firestore) → whichever of them are scheduled on selectedDate's
-    // weekday, for the signed-in user. Same day-matching logic the
-    // Schedule tab uses.
-    const workoutPlans = useWorkoutPlans();
-
     const selectedDateKey = toDateKey(selectedDate);
     // A day is "past" purely by date key — never by comparing Date
     // objects, which carry a time-of-day and would reclassify the
@@ -272,58 +270,16 @@ export const WorkoutSession: React.FC = () => {
     // Nothing can be logged for a day that hasn't happened yet.
     const isFutureDay = selectedDateKey > todayDateKey();
 
-    // This date's materialized occurrences (see workoutLogService):
-    // rows that either override the plan's exercise list for this day
-    // alone, or record a session that was actually performed.
-    //
-    // Bumping `occurrenceRefreshKey` re-reads them after a write —
-    // unlike plans, these are not kept live in Redux by App.tsx.
-    // Results are stored together with the date they describe, rather
-    // than alongside a separate isLoading flag. A flag is set inside an
-    // effect, which runs only AFTER the first commit for the new date —
-    // leaving one rendered frame where the flag still says "loaded" but
-    // the data is the previous day's. Comparing the date instead makes
-    // "is this day's data here yet" true only when it genuinely is.
-    const [occurrences, setOccurrences] = useState<{ dateKey: string; rows: WorkoutLog[] }>({
-        dateKey: '',
-        rows: [],
-    });
-    const [occurrenceRefreshKey, setOccurrenceRefreshKey] = useState(0);
-    const hasOccurrencesForDay = occurrences.dateKey === selectedDateKey;
-
-    useEffect(() => {
-        let cancelled = false;
-        fetchOccurrencesForDate(selectedDateKey)
-            .then((rows) => {
-                if (!cancelled) setOccurrences({ dateKey: selectedDateKey, rows });
-            })
-            .catch(() => {
-                // Non-fatal: the day still renders from the plan rules
-                // alone, just without this date's overrides. It is still
-                // marked as loaded, or the card would stay a skeleton
-                // forever whenever this read fails.
-                if (!cancelled) setOccurrences({ dateKey: selectedDateKey, rows: [] });
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedDateKey, occurrenceRefreshKey]);
-
-    // The recurring rules for this weekday, with this date's own
-    // overrides layered on top — and any occurrence whose plan no
-    // longer schedules this date unioned back in, so an edited or
-    // logged day cannot disappear when its plan is later rescheduled,
-    // paused or deleted.
-    const dayEvents = useMemo(
-        () =>
-            applyOccurrencesToEvents(
-                getEventsForDate(selectedDate, workoutPlans),
-                // Never layer another day's rows over this day.
-                hasOccurrencesForDay ? occurrences.rows : [],
-                workoutPlans,
-            ),
-        [selectedDate, workoutPlans, occurrences, hasOccurrencesForDay],
-    );
+    // The selected date's workouts — plan rules plus that date's own
+    // occurrences. Shared with the dashboard's Today's Workout card (see
+    // useDayWorkoutEvents), so the two can never disagree about a day.
+    const {
+        workoutPlans,
+        dayEvents,
+        hasOccurrencesForDay,
+        refreshKey: occurrenceRefreshKey,
+        refresh: refreshOccurrences,
+    } = useDayWorkoutEvents(selectedDate);
 
     // Real exercise names for today's events, resolved via POST
     // /exercises/bulk and cached by id — same pattern as the old
@@ -478,6 +434,20 @@ export const WorkoutSession: React.FC = () => {
         setExpandedExerciseId(planCards[0]?.exercises[0]?.id ?? null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate, dayEvents.length]);
+
+    // Arriving from the dashboard's Today's Workout card: land on that
+    // plan, with its first exercise open and ready for sets. Waits for
+    // the day to finish loading so it scrolls to the real card, not to a
+    // skeleton that is about to change height.
+    const isFocusReady = !isDayLoading && hasOccurrencesForDay;
+    const focus = useScrollToItem(focusPlanId, isFocusReady, onFocusHandled);
+
+    useEffect(() => {
+        if (!focusPlanId || !isFocusReady) return;
+        const target = planCards.find((plan) => plan.planDocId === focusPlanId);
+        if (target?.exercises[0]) setExpandedExerciseId(target.exercises[0].id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [focusPlanId, isFocusReady]);
 
     // Which plans already have a saved log for the selected day — drives
     // the "Logged" badge, so it's clear whether the numbers on screen are
@@ -639,7 +609,7 @@ export const WorkoutSession: React.FC = () => {
             setLoggedPlanIds((prev) => new Set(prev).add(plan.id));
             // The row just changed state to 'completed' — re-read so the
             // day view reflects it without a manual refresh.
-            setOccurrenceRefreshKey((key) => key + 1);
+            refreshOccurrences();
             dialog.show({
                 title: wasAlreadyLogged ? 'Updated' : 'Saved',
                 message: `${plan.title} logged for ${dateKey}.`,
@@ -876,7 +846,7 @@ export const WorkoutSession: React.FC = () => {
                         name: resolved[exerciseId]?.name ?? humanizeExerciseId(exerciseId),
                     })),
                 });
-                setOccurrenceRefreshKey((key) => key + 1);
+                refreshOccurrences();
             } else {
                 await updateWorkoutPlan(editingPlan.planDocId, {
                     name: payload.name,
@@ -924,6 +894,8 @@ export const WorkoutSession: React.FC = () => {
     return (
         <View style={styles.root}>
         <ScrollView
+            ref={focus.scrollRef}
+            onScrollBeginDrag={focus.onScrollBeginDrag}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
         >
@@ -1013,7 +985,11 @@ export const WorkoutSession: React.FC = () => {
                     const isLogStateKnown = !isDayLoading;
                     const isLogged = isLogStateKnown && loggedPlanIds.has(plan.id);
                     return (
-                    <View key={plan.id} style={styles.card}>
+                    <View
+                        key={plan.id}
+                        style={styles.card}
+                        onLayout={focus.onItemLayout(plan.planDocId)}
+                    >
                         <View style={styles.planCardHeaderRow}>
                             <View style={styles.planCardHeaderLeft}>
                                 <Text style={styles.planCardTitle} numberOfLines={1}>

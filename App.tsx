@@ -161,6 +161,16 @@ function AppContent() {
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
+  // A plan the next tab should scroll to — set when a dashboard card
+  // sends the user to its session. Cleared once the tab has landed, so
+  // returning to that tab later from the nav bar opens at the top as usual.
+  const [focusPlanId, setFocusPlanId] = useState<string | null>(null);
+  const openPlanInTab = (tab: 'workout' | 'nutrition', planId: string) => {
+    setFocusPlanId(planId);
+    setActiveTab(tab);
+  };
+  const clearFocus = () => setFocusPlanId(null);
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
@@ -170,8 +180,14 @@ function AppContent() {
             showsVerticalScrollIndicator={false}
           >
             <DashboardOverview onProfilePress={() => setActiveTab('profile')} />
-            <TodaysWorkoutCard />
-            <UpcomingMealCard />
+            <TodaysWorkoutCard
+              onOpenWorkout={(planId) => openPlanInTab('workout', planId)}
+              onViewAll={() => setActiveTab('workout')}
+            />
+            <UpcomingMealCard
+              onOpenMeal={(planId) => openPlanInTab('nutrition', planId)}
+              onViewAll={() => setActiveTab('nutrition')}
+            />
           </ScrollView>
         );
 
@@ -179,14 +195,14 @@ function AppContent() {
         // return <WorkoutPlanner />;
         return (
           <View style={styles.tabContent}>
-            <WorkoutSession />
+            <WorkoutSession focusPlanId={focusPlanId} onFocusHandled={clearFocus} />
           </View>
         );
 
       case 'nutrition':
         return (
           <View style={styles.tabContent}>
-            <NutritionScreen />
+            <NutritionScreen focusPlanId={focusPlanId} onFocusHandled={clearFocus} />
           </View>
         );
 

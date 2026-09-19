@@ -1,17 +1,20 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { Linking, View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import {
     ArrowRight,
+    BedDouble,
     Bell,
     Clock,
     Droplet,
     Flame,
     Footprints,
+    Moon,
     Weight,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import UserAvatar from '../../Components/UserAvatar';
+import ProgressRing from '../../Components/ProgressRing';
 import { themedStyles } from '../../Theme/ThemeContext';
 import { useDailySteps } from '../../Hooks/useDailySteps';
 import { DAILY_BURN_GOAL, DAILY_STEP_GOAL } from '../../Services/stepService';
@@ -19,6 +22,13 @@ import { useDailyHydration } from '../../Hooks/useDailyHydration';
 import { useGreeting } from '../../Hooks/useGreeting';
 import { useAppSelector } from '../../Store/hooks';
 import { selectUserProfile } from '../../Store/userProfileSlice';
+import { useLastNightSleep } from '../../Hooks/useLastNightSleep';
+import {
+    formatClock,
+    formatDuration,
+    type SleepStatus,
+} from '../../Services/healthConnectSleep';
+import { openHealthConnectSettings } from '../../Services/healthConnectSteps';
 
 export interface DashboardOverviewProps {
     // The greeting's wording and date come from the clock, and the name
@@ -60,60 +70,37 @@ const CALORIE_RING_SIZE = 112;
 const CALORIE_RING_STROKE = 10;
 const GAUGE_SIZE = 40;
 const GAUGE_STROKE = 3;
+/** What the Sleep tile says when there is no night to show. Only the
+    ones with a fix say "tap" — see sleepAction. */
+const SLEEP_STATUS_MESSAGE: Record<SleepStatus, string> = {
+    ok: '',
+    'no-data':
+        'Nothing recorded last night. Sleep appears here once a watch or sleep app saves it to Health Connect.',
+    'permission-denied': 'Tap to allow sleep access in Health Connect.',
+    'provider-unavailable': 'Tap to install Health Connect to see your sleep.',
+    unsupported: 'Sleep tracking is available on Android for now.',
+    error: "Couldn't read your sleep. Tap to retry.",
+};
+
+/** Deepest first, shaded from full indigo down, so the row reads as a
+    scale rather than three unrelated colours. */
+const SLEEP_STAGE_ROWS = [
+    { key: 'deep', label: 'Deep', opacity: 1 },
+    { key: 'rem', label: 'REM', opacity: 0.6 },
+    { key: 'light', label: 'Light', opacity: 0.3 },
+] as const;
+
+const HEALTH_CONNECT_STORE_URL =
+    'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata';
+
+/** Health Connect itself is missing, so its settings screen cannot open
+    — the Play Store listing is the only way forward. */
+function openHealthConnectStore() {
+    void Linking.openURL(HEALTH_CONNECT_STORE_URL);
+}
+
 const METRIC_RING_SIZE = 78;
 const METRIC_RING_STROKE = 8;
-const METRIC_RING_RADIUS = (METRIC_RING_SIZE - METRIC_RING_STROKE) / 2;
-const METRIC_RING_CIRCUMFERENCE = 2 * Math.PI * METRIC_RING_RADIUS;
-
-/**
- * The progress dial inside a metric tile — water drunk, calories burned.
- *
- * `progress` is expected clamped to 0–1 by the caller, which is where
- * the goal lives; this only draws what it is given.
- */
-const MetricRing: React.FC<{
-    progress: number;
-    accent: string;
-    /** Big number in the middle, already formatted. */
-    value: string;
-    /** Small line under it, e.g. "/ 2,000 ml". */
-    caption: string;
-}> = ({ progress, accent, value, caption }) => (
-    <View style={styles.metricRingWrapper}>
-        <Svg width={METRIC_RING_SIZE} height={METRIC_RING_SIZE}>
-            <Circle
-                cx={METRIC_RING_SIZE / 2}
-                cy={METRIC_RING_SIZE / 2}
-                r={METRIC_RING_RADIUS}
-                stroke={colors.surfaceContainer}
-                strokeWidth={METRIC_RING_STROKE}
-                fill="none"
-            />
-            {/* Drawn only once there is something to show — a zero-length
-                arc still paints a dot at the 12 o'clock cap. */}
-            {progress > 0 ? (
-                <Circle
-                    cx={METRIC_RING_SIZE / 2}
-                    cy={METRIC_RING_SIZE / 2}
-                    r={METRIC_RING_RADIUS}
-                    stroke={accent}
-                    strokeWidth={METRIC_RING_STROKE}
-                    strokeDasharray={METRIC_RING_CIRCUMFERENCE}
-                    strokeDashoffset={METRIC_RING_CIRCUMFERENCE * (1 - progress)}
-                    strokeLinecap="round"
-                    fill="none"
-                    rotation={-90}
-                    originX={METRIC_RING_SIZE / 2}
-                    originY={METRIC_RING_SIZE / 2}
-                />
-            ) : null}
-        </Svg>
-        <View style={styles.metricRingCenter}>
-            <Text style={styles.metricRingValue}>{value}</Text>
-            <Text style={styles.metricRingCaption}>{caption}</Text>
-        </View>
-    </View>
-);
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     onProfilePress,
@@ -162,6 +149,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     const caloriesBurned = stepData.caloriesBurned;
     const burnProgress = Math.min(caloriesBurned / DAILY_BURN_GOAL, 1);
     const burnGoalPercent = Math.round((caloriesBurned / DAILY_BURN_GOAL) * 100);
+
+    // Sleep comes from Health Connect, written there by a watch or sleep
+    // app — this app never measures it. Every non-'ok' status gets its
+    // own line, because "no data" means something quite different when
+    // the cause is a missing permission than when nothing recorded sleep.
+    const sleep = useLastNightSleep();
+    const sleepSummary = sleep.loading ? null : sleep.summary;
+    const sleepMessage = sleep.loading
+        ? 'Checking Health Connect…'
+        : SLEEP_STATUS_MESSAGE[sleep.status];
+    const sleepAction: { label: string; onPress: () => void } | null = sleep.loading
+        ? null
+        : sleep.status === 'permission-denied'
+            ? // Android stops showing the dialog after two refusals, so the
+              // tile sends the user to the settings screen instead.
+              { label: 'Allow sleep access in Health Connect', onPress: openHealthConnectSettings }
+            : sleep.status === 'provider-unavailable'
+                ? { label: 'Install Health Connect', onPress: openHealthConnectStore }
+                : sleep.status === 'error'
+                    ? { label: 'Retry reading sleep', onPress: sleep.refresh }
+                    : null;
 
     const kcalLeft = Math.max(calorieBudgetTotal - calorieBudgetConsumed, 0);
     const calorieRingRadius = (CALORIE_RING_SIZE - CALORIE_RING_STROKE) / 2;
@@ -246,7 +254,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         </View>
                     </View>
                     <Text style={styles.metricLabel}>Calories Burned</Text>
-                    <MetricRing
+                    <ProgressRing
+                        size={METRIC_RING_SIZE}
+                        strokeWidth={METRIC_RING_STROKE}
                         progress={stepsUnknown ? 0 : burnProgress}
                         accent={colors.secondary}
                         value={stepsUnknown ? '—' : caloriesBurned.toLocaleString()}
@@ -276,7 +286,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         </View>
                     </View>
                     <Text style={styles.metricLabel}>Water Intake</Text>
-                    <MetricRing
+                    <ProgressRing
+                        size={METRIC_RING_SIZE}
+                        strokeWidth={METRIC_RING_STROKE}
                         progress={hydration.progress}
                         accent={colors.primary}
                         value={waterUnknown ? '—' : hydration.ml.toLocaleString()}
@@ -357,6 +369,84 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         />
                     </View>
                 </View>
+
+                {/* Sleep — the fifth tile, so it takes the grid's last row
+                    on its own at full width, which the bed-to-wake line
+                    and stage breakdown need. */}
+                <TouchableOpacity
+                    style={styles.metricCard}
+                    activeOpacity={sleepAction ? 0.85 : 1}
+                    disabled={!sleepAction}
+                    onPress={sleepAction?.onPress}
+                    accessibilityRole={sleepAction ? 'button' : undefined}
+                    accessibilityLabel={sleepAction?.label}
+                >
+                    <View style={styles.metricCardHeader}>
+                        <View
+                            style={[
+                                styles.metricIconCircle,
+                                { backgroundColor: withOpacity(colors.sleep, 0.14) },
+                            ]}
+                        >
+                            <Moon size={18} color={colors.sleep} strokeWidth={2.4} />
+                        </View>
+                        <View
+                            style={[
+                                styles.metricTrendPill,
+                                {
+                                    backgroundColor: sleepSummary
+                                        ? withOpacity(colors.sleep, 0.14)
+                                        : colors.surfaceContainer,
+                                },
+                            ]}
+                        >
+                            <Text
+                                style={[
+                                    styles.metricTrendText,
+                                    { color: sleepSummary ? colors.sleep : colors.textSecondary },
+                                ]}
+                            >
+                                Last night
+                            </Text>
+                        </View>
+                    </View>
+                    <Text style={styles.metricLabel}>Sleep</Text>
+                    <View style={styles.metricValueRow}>
+                        <Text style={styles.metricValue}>
+                            {sleepSummary ? formatDuration(sleepSummary.asleepMinutes) : '—'}
+                        </Text>
+                        {sleepSummary ? <Text style={styles.metricUnit}>asleep</Text> : null}
+                    </View>
+                    {sleepSummary ? (
+                        <>
+                            <View style={styles.sleepTimesRow}>
+                                <BedDouble size={13} color={colors.textSecondary} strokeWidth={2.2} />
+                                <Text style={styles.sleepTimesText}>
+                                    {formatClock(sleepSummary.start)} → {formatClock(sleepSummary.end)}
+                                </Text>
+                            </View>
+                            {sleepSummary.stages ? (
+                                <View style={styles.sleepStagesRow}>
+                                    {SLEEP_STAGE_ROWS.map(({ key, label, opacity }) => (
+                                        <View key={key} style={styles.sleepStage}>
+                                            <View
+                                                style={[
+                                                    styles.sleepStageDot,
+                                                    { backgroundColor: withOpacity(colors.sleep, opacity) },
+                                                ]}
+                                            />
+                                            <Text style={styles.sleepStageText}>
+                                                {label} {formatDuration(sleepSummary.stages![key])}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : null}
+                        </>
+                    ) : (
+                        <Text style={styles.sleepHint}>{sleepMessage}</Text>
+                    )}
+                </TouchableOpacity>
             </View>
 
             {/* Weekly activity card */}
@@ -681,31 +771,43 @@ const styles = themedStyles(() => ({
         fontWeight: '600',
         color: colors.textSecondary,
     },
-    metricRingWrapper: {
+    sleepTimesRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 5,
         marginTop: 6,
     },
-    metricRingCenter: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    metricRingValue: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        letterSpacing: -0.3,
-    },
-    metricRingCaption: {
-        fontSize: 9,
+    sleepTimesText: {
+        fontSize: 12,
         fontWeight: '600',
         color: colors.textSecondary,
-        marginTop: 1,
+    },
+    sleepStagesRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop: 8,
+    },
+    sleepStage: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    sleepStageDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    sleepStageText: {
+        fontSize: 11.5,
+        fontWeight: '600',
+        color: colors.textPrimary,
+    },
+    sleepHint: {
+        fontSize: 12,
+        lineHeight: 17,
+        color: colors.textSecondary,
+        marginTop: 4,
     },
     stepTrack: {
         height: 5,

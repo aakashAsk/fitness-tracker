@@ -51,8 +51,20 @@ export interface HealthConnectStepResult {
 
 const UNSUPPORTED: HealthConnectStepResult = { steps: null, status: 'unsupported' };
 
-/** The step read permission, in the shape `requestPermission` wants. */
-const STEP_PERMISSION = { accessType: 'read', recordType: 'Steps' } as const;
+/** Every record type this app reads. */
+export type HealthConnectReadType = 'Steps' | 'SleepSession';
+
+/**
+ * Everything this app reads, asked for together. Requesting them one
+ * at a time would stack a second system dialog on top of the first the
+ * moment the dashboard mounts — the steps and sleep tiles both read on
+ * load. Health Connect shows already-granted entries as switched on, so
+ * re-asking for the set only ever surfaces what is still missing.
+ */
+const READ_PERMISSIONS = [
+    { accessType: 'read', recordType: 'Steps' },
+    { accessType: 'read', recordType: 'SleepSession' },
+] as const;
 
 /**
  * The library pulls in Android-only native code, so it is required
@@ -60,7 +72,7 @@ const STEP_PERMISSION = { accessType: 'read', recordType: 'Steps' } as const;
  * all, and a missing or unlinked build (Expo Go, for instance) fails
  * here as a null rather than crashing the bundle.
  */
-function loadModule(): typeof import('react-native-health-connect') | null {
+export function loadModule(): typeof import('react-native-health-connect') | null {
     if (Platform.OS !== 'android') return null;
     try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -97,8 +109,24 @@ export async function getHealthConnectStatus(): Promise<HealthConnectStatus> {
     }
 }
 
+/** Whether a permission list includes read access to `recordType`. */
+function includesRead(
+    permissions: readonly object[],
+    recordType: HealthConnectReadType,
+): boolean {
+    return permissions.some(
+        (permission) =>
+            'recordType' in permission &&
+            permission.recordType === recordType &&
+            'accessType' in permission &&
+            permission.accessType === 'read',
+    );
+}
+
 /**
- * Asks for step read access, returning whether it is now granted.
+ * Asks for read access to `recordType`, returning whether it is now
+ * granted. Prompts only when that type is not already granted, and then
+ * for the app's whole read set at once — see READ_PERMISSIONS.
  *
  * Health Connect shows its own system dialog. If the user has denied
  * it twice Android silently stops showing that dialog, so a `false`
@@ -106,33 +134,33 @@ export async function getHealthConnectStatus(): Promise<HealthConnectStatus> {
  * were never asked. `openHealthConnectSettings` is the escape hatch
  * for that case.
  */
-export async function requestHealthConnectPermission(): Promise<boolean> {
+export async function requestHealthConnectPermission(
+    recordType: HealthConnectReadType = 'Steps',
+): Promise<boolean> {
     const module = loadModule();
     if (!module) return false;
 
     try {
         if (!(await module.initialize(PROVIDER_PACKAGE))) return false;
 
-        const granted = await module.getGrantedPermissions();
-        const alreadyGranted = granted.some(
-            (permission) =>
-                'recordType' in permission &&
-                permission.recordType === 'Steps' &&
-                permission.accessType === 'read',
-        );
-        if (alreadyGranted) return true;
+        if (includesRead(await module.getGrantedPermissions(), recordType)) return true;
 
-        const requested = await module.requestPermission([STEP_PERMISSION]);
-        return requested.some(
-            (permission) =>
-                'recordType' in permission &&
-                permission.recordType === 'Steps' &&
-                permission.accessType === 'read',
-        );
+        // The steps and sleep tiles both land here on the same mount. One
+        // dialog, shared: the second caller waits on the first's answer
+        // instead of opening its own on top of it.
+        pendingRequest ??= module
+            .requestPermission([...READ_PERMISSIONS])
+            .finally(() => {
+                pendingRequest = null;
+            });
+        return includesRead(await pendingRequest, recordType);
     } catch {
         return false;
     }
 }
+
+/** The permission dialog currently on screen, if any. */
+let pendingRequest: Promise<readonly object[]> | null = null;
 
 /** Sends the user to the Health Connect app, for when permission was
     permanently denied and we can no longer prompt. */
