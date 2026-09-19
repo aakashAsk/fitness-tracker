@@ -5,28 +5,22 @@ import {
     Text,
     TouchableOpacity,
     } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import {
     CalendarDays,
-    ChevronDown,
     Flame,
-    Minus,
     Plus,
-    RotateCcw,
     ChevronRight,
-    SlidersHorizontal,
-    Trash2,
 } from 'lucide-react-native';
-import { colors, withOpacity } from '../../Theme/colors';
-import { radius, spacing } from '../../Theme/spacing';
+import { colors } from '../../Theme/colors';
+import { spacing } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
 import { useScrollToItem } from '../../Hooks/useScrollToItem';
+import { useExerciseInputs } from '../../Hooks/useExerciseInputs';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
-import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
-import EquipmentIcon, { equipmentAccent } from '../../Components/EquipmentIcon';
 import WorkoutProgressCard from './WorkoutProgressCard';
+import WorkoutPlanCard from './WorkoutPlanCard';
 import {
     createWorkoutPlan,
     updateWorkoutPlan,
@@ -72,66 +66,9 @@ import ExerciseDetail from './ExerciseDetail';
 // exercise API bulk lookup Schedule.tsx used) — there is no real
 // set-tracking data model yet.
 
-// exerciseIds are the Free Exercise DB slug ids (e.g. "3_4_Sit-Up"). Used
-// as a placeholder label for an id the bulk fetch hasn't resolved yet.
 function humanizeExerciseId(id: string): string {
     return id.replace(/_/g, ' ');
 }
-
-// Key for the sets/reps/weight fields. Scoped by date as well as by row,
-// since a row id is only plan+exercise — the same exercise on a plan
-// that recurs twice a week is the same row id on both days, and each day
-// needs its own numbers.
-function inputKey(dateKey: string, rowId: string): string {
-    return `${dateKey}::${rowId}`;
-}
-
-const EMPTY_SET_INPUT = { reps: '', weight: '' };
-
-// Step sizes for the +/− controls: reps move one at a time, weight in
-// 2.5kg jumps (the smallest plate pair on most bars).
-const SET_STEPS = { reps: 1, weight: 2.5 } as const;
-
-/** Trims the float noise 2.5-steps produce — 62.5 stays 62.5, 65.0 shows as 65. */
-function formatStepValue(value: number): string {
-    return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
-}
-
-interface SetStepperProps {
-    value: string;
-    unit: string;
-    onStep: (direction: 1 | -1) => void;
-}
-
-// Tap targets rather than a numeric keyboard: mid-workout the keyboard
-// is slow to open, covers the row, and is fiddly with sweaty hands —
-// nudging a prefilled number up or down is almost always what's wanted.
-const SetStepper: React.FC<SetStepperProps> = ({ value, unit, onStep }) => (
-    <View style={styles.stepper}>
-        <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={() => onStep(-1)}
-            hitSlop={6}
-            style={styles.stepperButton}
-        >
-            <Minus size={14} color={colors.textSecondary} strokeWidth={2.8} />
-        </TouchableOpacity>
-
-        <View style={styles.stepperValueBlock}>
-            <Text style={styles.stepperValue}>{value === '' ? '—' : value}</Text>
-            <Text style={styles.stepperUnit}>{unit}</Text>
-        </View>
-
-        <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={() => onStep(1)}
-            hitSlop={6}
-            style={styles.stepperButton}
-        >
-            <Plus size={14} color={colors.primary} strokeWidth={2.8} />
-        </TouchableOpacity>
-    </View>
-);
 
 const FILTERS = ['All', 'Push', 'Pull', 'Legs', 'Cardio', 'Core'];
 
@@ -196,64 +133,10 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     const [activeFilter, setActiveFilter] = useState('Push');
     const [showNewPlanModal, setShowNewPlanModal] = useState(false);
     const [isSavingPlan, setIsSavingPlan] = useState(false);
-    // Per-exercise set rows, keyed by DATE + exercise row id (see
-    // inputKey below). The date has to be part of the key: a row id is
-    // plan+exercise only, so without it Monday's numbers would still be
-    // sitting in the fields when you flip to Thursday.
-    //
-    // Each exercise holds one entry per set — Set 1, Set 2, … — so every
-    // set carries its own reps and weight.
-    const [exerciseInputs, setExerciseInputs] = useState<
-        Record<string, { reps: string; weight: string }[]>
-    >({});
 
-    // An exercise with nothing entered yet still shows a single empty
-    // "Set 1" row to type into.
-    const getSetInputs = (rowId: string) =>
-        exerciseInputs[inputKey(toDateKey(selectedDate), rowId)] ?? [EMPTY_SET_INPUT];
-
-    const stepSetInput = (
-        rowId: string,
-        setIndex: number,
-        field: 'reps' | 'weight',
-        direction: 1 | -1,
-    ) => {
-        const key = inputKey(toDateKey(selectedDate), rowId);
-        setExerciseInputs((prev) => {
-            const sets = prev[key] ?? [EMPTY_SET_INPUT];
-            return {
-                ...prev,
-                [key]: sets.map((set, i) => {
-                    if (i !== setIndex) return set;
-                    const current = parseFloat(set[field]) || 0;
-                    // Never below zero — a negative rep count or weight
-                    // is meaningless, and blank + "−" should stay blank-ish.
-                    const next = Math.max(current + SET_STEPS[field] * direction, 0);
-                    return { ...set, [field]: formatStepValue(next) };
-                }),
-            };
-        });
-    };
-
-    const addSet = (rowId: string) => {
-        const key = inputKey(toDateKey(selectedDate), rowId);
-        setExerciseInputs((prev) => {
-            const sets = prev[key] ?? [EMPTY_SET_INPUT];
-            // A new set usually repeats the previous one, so seeding it
-            // with those numbers is less typing than starting blank.
-            const last = sets[sets.length - 1] ?? EMPTY_SET_INPUT;
-            return { ...prev, [key]: [...sets, { ...last }] };
-        });
-    };
-
-    const removeSet = (rowId: string, setIndex: number) => {
-        const key = inputKey(toDateKey(selectedDate), rowId);
-        setExerciseInputs((prev) => {
-            const sets = prev[key] ?? [EMPTY_SET_INPUT];
-            if (sets.length <= 1) return prev; // always keep Set 1
-            return { ...prev, [key]: sets.filter((_, i) => i !== setIndex) };
-        });
-    };
+    const { exerciseInputs, getSetInputs, stepSetInput, addSet, removeSet, setAllInputs } = useExerciseInputs({
+        selectedDate,
+    });
     // Accordion — only one exercise row's sets/reps/weight fields are
     // expanded at a time; opening another closes whichever was open.
     const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
@@ -962,9 +845,6 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                 />
             </View>
 
-            {/* One card per plan scheduled on the selected day: plan name
-                + its exercises, each with a weight/reps placeholder field
-                (no real per-exercise set data exists yet). */}
             {!hasWorkoutToday ? (
                 <View style={styles.card}>
                     <Text style={styles.emptyStateTitle}>No workout scheduled</Text>
@@ -975,197 +855,30 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                 </View>
             ) : (
                 planCards.map((plan) => {
-                    // `loggedPlanIds` still holds the PREVIOUS day's
-                    // result until this day's lookup resolves, so
-                    // anything driven by it has to wait for the same
-                    // signal the exercise rows wait for. Rendering it
-                    // early flashes the wrong control — a logged day
-                    // shows "Edit Plan" for a moment before flipping to
-                    // the "Logged" badge.
                     const isLogStateKnown = !isDayLoading;
                     const isLogged = isLogStateKnown && loggedPlanIds.has(plan.id);
+
                     return (
-                    <View
-                        key={plan.id}
-                        style={styles.card}
-                        onLayout={focus.onItemLayout(plan.planDocId)}
-                    >
-                        <View style={styles.planCardHeaderRow}>
-                            <View style={styles.planCardHeaderLeft}>
-                                <Text style={styles.planCardTitle} numberOfLines={1}>
-                                    {plan.title}
-                                </Text>
-                                <View style={styles.planCardCountPill}>
-                                    <Text style={styles.planCardCountText}>
-                                        {plan.exercises.length}
-                                    </Text>
-                                </View>
-                                {isLogged ? (
-                                    <View style={styles.planCardLoggedPill}>
-                                        <Text style={styles.planCardLoggedText}>Logged</Text>
-                                    </View>
-                                ) : null}
-                            </View>
-                            {/* Neither control renders until the day's
-                                log state is known — showing one and
-                                then swapping it for the other is worse
-                                than showing nothing for the same
-                                moment the rows are skeletons. */}
-                            {isLogStateKnown && !isLogged ? (
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => openPlanEditor(plan)}
-                                    style={styles.editPlanButton}
-                                >
-                                    <Text style={styles.editPlanText}>Edit Plan</Text>
-                                    <SlidersHorizontal size={13} color={colors.primary} strokeWidth={2.4} />
-                                </TouchableOpacity>
-                            ) : null}
-                        </View>
-
-                        {isDayLoading ? (
-                            <ExerciseSkeleton rows={plan.exercises.length || 3} />
-                        ) : (
-                        <View style={styles.planExerciseList}>
-                            {plan.exercises.map((exercise, index) => {
-                                const setInputs = getSetInputs(exercise.id);
-                                const isLast = index === plan.exercises.length - 1;
-                                const isExpanded = expandedExerciseId === exercise.id;
-                                return (
-                                    <Animated.View
-                                        key={exercise.id}
-                                        layout={LinearTransition.duration(220)}
-                                        style={[styles.planExerciseRow, !isLast && styles.planExerciseRowDivider]}
-                                    >
-                                        <TouchableOpacity
-                                            activeOpacity={0.7}
-                                            onPress={() => toggleExerciseExpanded(exercise.id)}
-                                            style={styles.planExerciseTopRow}
-                                        >
-                                            <Text style={styles.planExerciseIndex}>
-                                                {String(index + 1).padStart(2, '0')}
-                                            </Text>
-                                            <View
-                                                style={[
-                                                    styles.planExerciseIcon,
-                                                    {
-                                                        backgroundColor: withOpacity(
-                                                            equipmentAccent(exercise.equipment),
-                                                            0.16,
-                                                        ),
-                                                    },
-                                                ]}
-                                            >
-                                                <EquipmentIcon
-                                                    equipment={exercise.equipment}
-                                                    size={18}
-                                                    strokeWidth={2.2}
-                                                />
-                                            </View>
-                                            <View style={styles.planExerciseTextBlock}>
-                                                <Text style={styles.planExerciseName} numberOfLines={1}>
-                                                    {exercise.name}
-                                                </Text>
-                                                <Text style={styles.planExerciseMeta} numberOfLines={1}>
-                                                    {exercise.meta || 'Loading details…'}
-                                                </Text>
-                                            </View>
-                                            <View
-                                                style={[
-                                                    styles.planExerciseChevron,
-                                                    isExpanded && styles.planExerciseChevronExpanded,
-                                                ]}
-                                            >
-                                                <ChevronDown size={16} color={colors.textSecondary} strokeWidth={2.4} />
-                                            </View>
-                                        </TouchableOpacity>
-
-                                        {isExpanded ? (
-                                            <Animated.View
-                                                entering={FadeIn.duration(160)}
-                                                exiting={FadeOut.duration(120)}
-                                                style={styles.planSetList}
-                                            >
-                                                {setInputs.map((set, setIndex) => (
-                                                    <View key={setIndex} style={styles.planSetRow}>
-                                                        <Text style={styles.planSetLabel}>
-                                                            Set {setIndex + 1}
-                                                        </Text>
-                                                        <SetStepper
-                                                            value={set.reps}
-                                                            unit="reps"
-                                                            onStep={(direction) =>
-                                                                stepSetInput(exercise.id, setIndex, 'reps', direction)
-                                                            }
-                                                        />
-                                                        {/* Bodyweight and band work take no
-                                                            load, so there is nothing to enter —
-                                                            see isWeightedEquipment. */}
-                                                        {exercise.isWeighted ? (
-                                                            <SetStepper
-                                                                value={set.weight}
-                                                                unit="kg"
-                                                                onStep={(direction) =>
-                                                                    stepSetInput(exercise.id, setIndex, 'weight', direction)
-                                                                }
-                                                            />
-                                                        ) : null}
-                                                        {setInputs.length > 1 ? (
-                                                            <TouchableOpacity
-                                                                activeOpacity={0.7}
-                                                                onPress={() => removeSet(exercise.id, setIndex)}
-                                                                style={styles.removeSetButton}
-                                                                hitSlop={8}
-                                                            >
-                                                                <Trash2 size={15} color={colors.error} strokeWidth={2.2} />
-                                                            </TouchableOpacity>
-                                                        ) : (
-                                                            <View style={styles.removeSetButton} />
-                                                        )}
-                                                    </View>
-                                                ))}
-
-                                                <TouchableOpacity
-                                                    activeOpacity={0.8}
-                                                    onPress={() => addSet(exercise.id)}
-                                                    style={styles.addSetRowButton}
-                                                >
-                                                    <Plus size={15} color={colors.primary} strokeWidth={2.6} />
-                                                    <Text style={styles.addSetRowText}>
-                                                        Add set {setInputs.length + 1}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </Animated.View>
-                                        ) : null}
-                                    </Animated.View>
-                                );
-                            })}
-                        </View>
-                        )}
-
-                        <TouchableOpacity
-                            activeOpacity={0.85}
-                            disabled={savingPlanId === plan.id || isDayLoading || isFutureDay}
-                            onPress={() => handleSaveWorkout(plan)}
-                            style={[
-                                styles.saveWorkoutButton,
-                                (savingPlanId === plan.id || isFutureDay) &&
-                                    styles.submitButtonDisabled,
-                            ]}
-                        >
-                            <Text style={styles.saveWorkoutButtonText}>
-                                {savingPlanId === plan.id
-                                    ? 'Saving…'
-                                    : isFutureDay
-                                      ? 'Upcoming'
-                                      : !isLogStateKnown
-                                        ? 'Loading…'
-                                        : isLogged
-                                          ? 'Update Log'
-                                          : 'Save Log'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                        <WorkoutPlanCard
+                            key={plan.id}
+                            id={plan.id}
+                            planDocId={plan.planDocId}
+                            title={plan.title}
+                            exercises={plan.exercises}
+                            isLogged={isLogged}
+                            isLogStateKnown={isLogStateKnown}
+                            isDayLoading={isDayLoading}
+                            isSaving={savingPlanId === plan.id || isFutureDay}
+                            expandedExerciseId={expandedExerciseId}
+                            exerciseInputs={exerciseInputs}
+                            onToggleExercise={toggleExerciseExpanded}
+                            onEditPlan={() => openPlanEditor(plan)}
+                            onSaveWorkout={() => handleSaveWorkout(plan)}
+                            onStepSetInput={stepSetInput}
+                            onAddSet={addSet}
+                            onRemoveSet={removeSet}
+                            onFocusLayout={focus.onItemLayout(plan.planDocId)}
+                        />
                     );
                 })
             )}
@@ -1364,10 +1077,6 @@ const styles = themedStyles(() => ({
         fontWeight: '600',
         color: colors.textSecondary,
     },
-    filterChipTextActive: {
-        color: colors.white,
-        fontWeight: '700',
-    },
     card: {
         backgroundColor: colors.surface,
         borderRadius: 24,
@@ -1378,82 +1087,6 @@ const styles = themedStyles(() => ({
         shadowOpacity: 0.07,
         shadowRadius: 18,
         elevation: 3,
-    },
-    trendHeaderRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-    },
-    trendTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 4,
-    },
-    trendTitle: {
-        fontSize: 12.5,
-        fontWeight: '700',
-        color: colors.textSecondary,
-    },
-    trendStatRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 5,
-    },
-    trendValue: {
-        fontSize: 26,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        letterSpacing: -0.4,
-    },
-    trendUnit: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.textSecondary,
-    },
-    prBadge: {
-        marginLeft: 4,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: withOpacity(colors.secondary, 0.14),
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 12,
-    },
-    prBadgeText: {
-        fontSize: 10.5,
-        fontWeight: '800',
-        color: colors.secondary,
-    },
-    runsPill: {
-        backgroundColor: colors.surfaceContainer,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 14,
-    },
-    runsPillText: {
-        fontSize: 10.5,
-        fontWeight: '700',
-        color: colors.textSecondary,
-    },
-    chart: {
-        marginTop: 10,
-    },
-    chartLabelsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 2,
-        paddingHorizontal: 2,
-    },
-    chartLabel: {
-        fontSize: 10.5,
-        fontWeight: '600',
-        color: colors.textSecondary,
-    },
-    chartLabelActive: {
-        fontSize: 10.5,
-        fontWeight: '800',
-        color: colors.primary,
     },
     sectionHeaderRow: {
         flexDirection: 'row',
@@ -1510,435 +1143,6 @@ const styles = themedStyles(() => ({
     editPlanText: {
         fontSize: 12.5,
         fontWeight: '700',
-        color: colors.primary,
-    },
-    exerciseTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-    },
-    exerciseTitleLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        flex: 1,
-        minWidth: 0,
-    },
-    exerciseIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    exerciseTitleTextBlock: {
-        flexShrink: 1,
-        minWidth: 0,
-    },
-    exerciseName: {
-        fontSize: 15.5,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        letterSpacing: -0.2,
-    },
-    exerciseMeta: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    planCardHeaderRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    planCardHeaderLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flexShrink: 1,
-    },
-    planCardTitle: {
-        fontSize: 16.5,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        letterSpacing: -0.2,
-        flexShrink: 1,
-    },
-    planCardCountPill: {
-        backgroundColor: withOpacity(colors.primary, 0.14),
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    planCardCountText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: colors.primary,
-    },
-    planCardLoggedPill: {
-        backgroundColor: withOpacity(colors.success, 0.16),
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 10,
-    },
-    planCardLoggedText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: colors.success,
-        letterSpacing: 0.2,
-    },
-    planExerciseList: {},
-    planExerciseRow: {
-        paddingVertical: 12,
-        gap: 10,
-    },
-    planExerciseTopRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    planExerciseRowDivider: {
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-
-    },
-    planExerciseIndex: {
-        width: 18,
-        fontSize: 11,
-        fontWeight: '700',
-        color: colors.textMuted,
-        fontVariant: ['tabular-nums'],
-    },
-    planExerciseIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: 11,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    planExerciseTextBlock: {
-        flex: 1,
-        minWidth: 0,
-    },
-    planExerciseName: {
-        fontSize: 13.5,
-        fontWeight: '700',
-        color: colors.textPrimary,
-    },
-    planExerciseMeta: {
-        fontSize: 11,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        marginTop: 1,
-        textTransform: 'capitalize',
-    },
-    planExerciseChevron: {
-        transform: [{ rotate: '0deg' }],
-    },
-    planExerciseChevronExpanded: {
-        transform: [{ rotate: '180deg' }],
-    },
-    skeletonList: {
-        gap: 14,
-        paddingVertical: 6,
-    },
-    skeletonRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    skeletonIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: 11,
-        backgroundColor: colors.surfaceContainer,
-    },
-    skeletonTextBlock: {
-        flex: 1,
-        gap: 6,
-    },
-    skeletonLineWide: {
-        height: 11,
-        borderRadius: 6,
-        backgroundColor: colors.surfaceContainer,
-        width: '62%',
-    },
-    skeletonLineNarrow: {
-        height: 9,
-        borderRadius: 5,
-        backgroundColor: colors.surfaceLow,
-        width: '38%',
-    },
-    planSetList: {
-        gap: 8,
-        marginTop: 2,
-    },
-    planSetRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    planSetLabel: {
-        width: 46,
-        fontSize: 11.5,
-        fontWeight: '800',
-        color: colors.textSecondary,
-    },
-    removeSetButton: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        alignSelf: 'center',
-    },
-    addSetRowButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        backgroundColor: withOpacity(colors.primary, 0.1),
-        borderRadius: 12,
-        paddingVertical: 9,
-        marginTop: 2,
-    },
-    addSetRowText: {
-        fontSize: 12.5,
-        fontWeight: '800',
-        color: colors.primary,
-    },
-    stepper: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colors.surfaceLow,
-        borderRadius: 12,
-        paddingHorizontal: 4,
-        paddingVertical: 4,
-    },
-    stepperButton: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.surface,
-    },
-    stepperValueBlock: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        // Matches stepperButton, so the value/unit pair centres against
-        // the +/− buttons rather than against the padded row.
-        minHeight: 28,
-    },
-    stepperValue: {
-        fontSize: 14,
-        // Explicit lineHeight plus includeFontPadding:false — on Android
-        // RN adds asymmetric font padding above the glyph by default,
-        // which is what makes an entered number sit visibly high in the
-        // pill while the em-dash placeholder looks fine.
-        lineHeight: 16,
-        includeFontPadding: false,
-        textAlign: 'center',
-        textAlignVertical: 'center',
-        fontWeight: '800',
-        color: colors.textPrimary,
-    },
-    stepperUnit: {
-        fontSize: 9,
-        lineHeight: 11,
-        includeFontPadding: false,
-        textAlign: 'center',
-        fontWeight: '700',
-        color: colors.textMuted,
-        letterSpacing: 0.3,
-        textTransform: 'uppercase',
-    },
-    saveWorkoutButton: {
-        backgroundColor: colors.primary,
-        borderRadius: 16,
-        paddingVertical: 13,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 16,
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-        elevation: 3,
-    },
-    submitButtonDisabled: {
-        opacity: 0.5,
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    saveWorkoutButtonText: {
-        fontSize: 13.5,
-        fontWeight: '800',
-        color: colors.white,
-    },
-    trendBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colors.surfaceLow,
-        borderRadius: 14,
-        paddingHorizontal: 12,
-        paddingVertical: 9,
-        marginTop: 12,
-    },
-    trendBannerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        flexShrink: 1,
-    },
-    trendBannerText: {
-        fontSize: 11.5,
-        fontWeight: '500',
-        color: colors.textSecondary,
-    },
-    trendBannerStrong: {
-        fontWeight: '800',
-        color: colors.textPrimary,
-    },
-    trendBannerTarget: {
-        fontSize: 11.5,
-        fontWeight: '700',
-        color: colors.secondary,
-    },
-    setHeaderRow: {
-        flexDirection: 'row',
-        paddingHorizontal: 4,
-        marginTop: 14,
-        marginBottom: 6,
-    },
-    setHeaderText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: colors.textSecondary,
-        textAlign: 'center',
-    },
-    setColSet: {
-        width: 32,
-    },
-    setColPrevious: {
-        flex: 1,
-    },
-    setColWeight: {
-        flex: 1.3,
-    },
-    setColStatus: {
-        width: 44,
-        alignItems: 'center',
-    },
-    setList: {
-        gap: 6,
-    },
-    setRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.surfaceLow,
-        borderRadius: 14,
-        paddingVertical: 9,
-        paddingHorizontal: 4,
-    },
-    setRowPending: {
-        backgroundColor: withOpacity(colors.secondary, 0.1),
-    },
-    setNumber: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        textAlign: 'center',
-    },
-    setNumberPending: {
-        color: colors.secondary,
-    },
-    setPreviousText: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        textAlign: 'center',
-    },
-    setWeightText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.textPrimary,
-        textAlign: 'center',
-    },
-    setInputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 4,
-    },
-    setInput: {
-        width: 44,
-        textAlign: 'center',
-        fontSize: 13,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        backgroundColor: colors.surface,
-        borderRadius: 8,
-        paddingVertical: 5,
-    },
-    setInputSmall: {
-        width: 32,
-    },
-    setCheckButton: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.surfaceContainer,
-    },
-    setCheckButtonDone: {
-        backgroundColor: colors.primary,
-    },
-    collapsedExerciseCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    collapsedMetaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginTop: 2,
-    },
-    metaSeparator: {
-        color: colors.textMuted,
-        fontSize: 11,
-    },
-    collapsedMetaStrong: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: colors.textPrimary,
-    },
-    collapsedRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    progressBadge: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.surfaceContainer,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    progressBadgeText: {
-        fontSize: 11,
-        fontWeight: '800',
         color: colors.primary,
     },
     browseSection: { gap: spacing.xs, margin: spacing.screenHorizontalPadding, },
