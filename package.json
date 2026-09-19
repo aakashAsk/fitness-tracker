@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "start:go": "expo start --go",
     "start:clear": "expo start --go -c",
-    "build:dev": "npx eas-cli build --profile development --platform android"
+    "build:dev": "npx eas-cli build --profile development --platform android",
+    "test": "node --test src/**/__tests__/*.test.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
