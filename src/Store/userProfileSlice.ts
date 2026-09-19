@@ -8,7 +8,7 @@
 // Firestore subscription would spend a connection watching for events
 // that only ever originate here. The writer dispatches the change
 // instead (see userPhotoUpdated).
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { useCallback, useEffect } from 'react';
 import type { UserProfile } from '../Services/userProfileService';
 import { fetchUserProfile } from '../Services/userProfileService';
@@ -89,16 +89,18 @@ export const selectUserPhotoUrl = (state: { userProfile: UserProfileState }) =>
 
 /** The user's derived calorie/macro targets, or null before the profile
     has loaded (or for a pre-onboarding account with no profile yet). */
-export const selectDerivedTargets = (state: { userProfile: UserProfileState }) => {
-  const profile = state.userProfile.profile;
-  if (!profile) return null;
-  return {
-    calorieTarget: profile.dailyCalorieTarget,
-    proteinG: profile.macros.proteinG,
-    carbsG: profile.macros.carbsG,
-    fatsG: profile.macros.fatsG,
-  };
-};
+export const selectDerivedTargets = createSelector(
+  [selectUserProfile],
+  profile => {
+    if (!profile) return null;
+    return {
+      calorieTarget: profile.dailyCalorieTarget,
+      proteinG: profile.macros.proteinG,
+      carbsG: profile.macros.carbsG,
+      fatsG: profile.macros.fatsG,
+    };
+  },
+);
 
 
 // --- Sync hook ------------------------------------------------------------

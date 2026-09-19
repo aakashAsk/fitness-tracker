@@ -83,6 +83,7 @@ export function useExerciseInputs({ selectedDate }: UseExerciseInputsOptions) {
 
   return {
     exerciseInputs,
+    setExerciseInputs,
     getSetInputs,
     stepSetInput,
     addSet,
@@ -90,3 +91,5 @@ export function useExerciseInputs({ selectedDate }: UseExerciseInputsOptions) {
     setAllInputs,
   };
 }
+
+export { inputKey, EMPTY_SET_INPUT };

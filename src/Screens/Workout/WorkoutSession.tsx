@@ -11,12 +11,13 @@ import {
     Plus,
     ChevronRight,
 } from 'lucide-react-native';
-import { colors } from '../../Theme/colors';
-import { spacing } from '../../Theme/spacing';
+import { colors, withOpacity } from '../../Theme/colors';
+import { spacing, radius } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
 import { useScrollToItem } from '../../Hooks/useScrollToItem';
-import { useExerciseInputs } from '../../Hooks/useExerciseInputs';
+import { useExerciseInputs, inputKey, EMPTY_SET_INPUT } from '../../Hooks/useExerciseInputs';
+import { EquipmentIcon } from '../../Components/EquipmentIcon';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
 import WorkoutProgressCard from './WorkoutProgressCard';
@@ -134,7 +135,7 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     const [showNewPlanModal, setShowNewPlanModal] = useState(false);
     const [isSavingPlan, setIsSavingPlan] = useState(false);
 
-    const { exerciseInputs, getSetInputs, stepSetInput, addSet, removeSet, setAllInputs } = useExerciseInputs({
+    const { exerciseInputs, setExerciseInputs, getSetInputs, stepSetInput, addSet, removeSet, setAllInputs } = useExerciseInputs({
         selectedDate,
     });
     // Accordion — only one exercise row's sets/reps/weight fields are
