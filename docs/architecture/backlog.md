@@ -442,3 +442,144 @@ Acceptance criteria:
 Tests: unit-test the cache-hit path.
 Risks / notes: Medical-adjacent content. `coachService`'s prompt already sets the right precedent ("Do not give medical advice") — reuse that constraint verbatim. If in doubt, hide the tabs.
 Evidence: `src/Screens/Workout/ExerciseDetail.tsx:353-366`; `src/Services/nutritionAiService.ts` (pattern to follow).
+
+---
+
+# Feature flags / kill switch (FF-*)
+
+Design: `docs/architecture/feature-flags-design.md`. This is a **separate workstream** from the T-* tasks above, which come from `GAPS_REPORT.md`. IDs use an `FF-` prefix rather than continuing `T-016` so the two streams can be worked and reordered independently; FF tasks depend only on other FF tasks (plus T-000's test runner, which already exists).
+
+Build constraints for every FF task, no exceptions:
+- **Firestore emulator only. Never touch the production project** (`fitness-tracker-4690b`).
+- **No `firebase deploy`.** No rules publishing, no index publishing. Editing `firestore.rules` in the repo is allowed only where a task says so; deploying it is not.
+- No secrets in commits. The flags document holds no secret and no user data — uids only.
+- One commit per task: `feat(FF-00X): <title>`.
+- Repo conventions still apply (`README.md:696-712`): screens never import `firebase/firestore`; `themedStyles` only; `src/Store/hooks.ts` only; `useDialog()` not `Alert.alert`; `getCurrentUserId()` never a literal uid; `.tsx` files are CRLF.
+- Tests are `node --test` on pure modules only. Test imports need explicit `.ts` extensions (T-000 result). Never import `src/Firebase/firebaseConfig.ts` from a test.
+
+---
+
+## Scope amendment (approved by the user, overrides the design where they differ)
+
+The design's full scope was cut down to a simplified one. Where this section and `feature-flags-design.md` disagree, **this section wins** (the design carries a matching banner).
+
+- **Storage:** Firestore collection `featureToggle`, **one document per flag**, doc id = flag key, fields `{ enabled: boolean }` (optional `description` string allowed). Not `config/featureFlags`. Loaded at app start with a 2500 ms timeout, an AsyncStorage cache, and registry bundled defaults (server -> cache -> default, per-flag fail-open/closed).
+- **Admin:** the admin uid is hardcoded in `firestore.rules` as the placeholder `YOUR_UID_HERE` (the real uid has not been supplied and must not be invented). Rules: anyone can read `featureToggle`; only `request.auth.uid == <that id>` can write. Rules are file edits only; never deployed.
+- **Toggling:** manually in the Firebase console. **Dropped:** admin screen (FF-008), `config/admins`, Cloud Functions, audit trail (`changes`), crash-report keys / Sentry (FF-011 crash part), targeting fields (`environments`, `rolloutPercent`, `allowUserIds`, `minAppVersion`, `note`, `updatedBy`, `schemaVersion`).
+- **Kept:** registry, pure resolver + staleness helper, cache + service, `FeatureFlagProvider` gating the boot latch, `useFeatureFlag` / `FeatureGate` / `isFeatureEnabled`, Schedule tab as proof feature, developer guide.
+- **Approved:** emulator block in `firebase.json` and opt-in client emulator switch (FF-001). Emulator only.
+- **FF-009** needs devDependency `@firebase/rules-unit-testing`; approval of that dependency is UNCERTAIN, so it is last and is not started without confirmation.
+
+---
+
+## FF-001: Add a Firestore emulator config and an opt-in client switch   [P1] [S] [status: todo]
+Depends on: none
+Goal: A developer can run `firebase emulators:start` and point the app at it, so flag behaviour can be demonstrated without touching the production project.
+Files: modify `firebase.json` (emulators: firestore 8080, auth 9099, ui 4000), `src/Firebase/firebaseConfig.ts` (guarded `connectFirestoreEmulator`/`connectAuthEmulator`), `.env.example` (`EXPO_PUBLIC_USE_FIREBASE_EMULATOR`, `EXPO_PUBLIC_EMULATOR_HOST`), `README.md` (short note).
+Steps: connect only when `EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1'`; default host `127.0.0.1`, Android emulator needs `10.0.2.2` (documented); module-level guard against Fast Refresh double-connect; env var unset => behaviour unchanged.
+Acceptance criteria:
+  - [ ] `firebase.json` has a valid `emulators` block
+  - [ ] With the var unset, `firebaseConfig.ts` behaves as before (no connect call)
+  - [ ] Double-connect is guarded
+  - [ ] Typecheck error count unchanged (28)
+Tests: manual / static; no pure logic. Emulator start cannot be run from this shell if the Firebase CLI or Java are absent -- record honestly.
+
+---
+
+## FF-002: Add the `featureToggle` rules to `firestore.rules` (not deployed)   [P1] [S] [status: todo]
+Depends on: FF-001
+Goal: Rules describe flag access: public read, single hardcoded admin uid write.
+Rules: `match /featureToggle/{flagKey}`: `allow read: if true;` `allow write: if isSignedIn() && request.auth.uid == 'YOUR_UID_HERE';`. Placeholder is clearly commented; the human must replace it before deploying. No existing block changes. Never deployed.
+Acceptance criteria:
+  - [ ] Diff touches only added lines
+  - [ ] Placeholder `YOUR_UID_HERE` present with an explanatory comment
+  - [ ] No deploy command run
+Tests: FF-009 (awaiting confirmation) would automate; otherwise emulator manual check if an emulator is available.
+
+---
+
+## FF-003: Seed a couple of `featureToggle` docs in the emulator   [P1] [S] [status: todo]
+Depends on: FF-002
+Goal: A repeatable seed so the proof scenarios start from a known emulator state.
+Files: create `scripts/seedFeatureToggles.mjs`; modify `package.json` (`"seed:flags"`).
+Steps: refuse to run unless `FIRESTORE_EMULATOR_HOST` is set (exit non-zero, write nothing); write `featureToggle/scheduleTab` `{enabled: true}` and one more demo doc; idempotent (`setDoc`); never touches production.
+Acceptance criteria:
+  - [ ] Without `FIRESTORE_EMULATOR_HOST` it exits non-zero and writes nothing (verified)
+  - [ ] With an emulator, docs appear with the documented shape (needs an emulator; record if unverifiable)
+  - [ ] Re-running gives the same state
+
+---
+
+## FF-004: Flag registry + pure resolver + staleness helper   [P1] [M] [status: todo]
+Depends on: none
+Goal: One typed definition of every flag, plus pure decision logic, unit-tested.
+Files: create `src/FeatureFlags/registry.ts`, `types.ts`, `resolveFlag.ts`, `staleness.ts`, tests `resolveFlag.test.ts`, `registry.test.ts`, `staleness.test.ts`.
+Steps: `FlagDefinition` per design section 2 with single entry `scheduleTab` (`failMode:'open'`, default true). Resolver: server value (boolean) -> cached value -> registry default; `failMode:'closed'` never resolves to true from nothing. `findStaleFlags(today)`; 30-day guard test. No Firebase imports.
+Acceptance criteria:
+  - [ ] `npm test` passes, at least 12 new tests
+  - [ ] No `firebase` import under the new pure files
+  - [ ] Closed flag with no value resolves false; registry test rejects closed+default true
+
+---
+
+## FF-005: Device cache + `featureFlagService` (collection listener)   [P1] [M] [status: todo]
+Depends on: FF-004
+Files: create `src/FeatureFlags/featureFlagStorage.ts` (+ pure `encodeCache`/`decodeCache`), `src/Services/featureFlagService.ts` (`subscribeToFeatureFlags(onChange, onError)` over the `featureToggle` collection), `src/FeatureFlags/__tests__/featureFlagCodec.test.ts`.
+Steps: storage copies `themeStorage.ts` (never throws, `pulsefit.featureFlags` key); service is the only importer of `firebase/firestore` for flags and emits a plain `Record<string, boolean>`; documents whose `enabled` is not a boolean are ignored.
+Acceptance criteria:
+  - [ ] Codec tests pass (corrupt JSON -> null, round trip)
+  - [ ] `grep firebase/firestore src/Screens src/FeatureFlags` finds nothing
+  - [ ] Listener against emulator (needs emulator; record if unverifiable)
+
+---
+
+## FF-006: `FeatureFlagProvider` with timeout, fallback chain and live listener   [P0] [M] [status: todo]
+Depends on: FF-005
+Files: create `FeatureFlagProvider.tsx`, `useFeatureFlag.ts`, `FeatureGate.tsx`, `isFeatureEnabled.ts`; modify `App.tsx` (provider at root; `flagsReady` added to the boot latch).
+Steps: on mount arm a 2500 ms timer first, start the listener and read the cache concurrently; ready on first of server/cache-miss/timeout; listener never cancelled by the timer; mirror snapshots to cache; per-key fallback server -> cache -> default; module-level snapshot for `isFeatureEnabled`; `__DEV__` log of summary/source/overdue flags.
+Acceptance criteria:
+  - [ ] Timer armed before any await; boot latch semantics unchanged apart from the extra input
+  - [ ] Only the provider talks to `featureFlagService`
+  - [ ] Typecheck baseline unchanged; bundle export succeeds
+  - [ ] Runtime behaviours (server/cache/timeout, live update) verified where an emulator/device allows; otherwise stated as unverified
+
+---
+
+## FF-007: Gate the Schedule tab end to end (the proof feature)   [P0] [M] [status: todo]
+Depends on: FF-006
+Files: modify `src/Components/Navigation.tsx` (filter `TABS`), `App.tsx` (`renderScreen`, `openPlanInTab`, `setActiveTab` entry points, fall back to home when the active tab is disabled).
+Acceptance criteria:
+  - [ ] TABS filtered by flag; schedule case gated; every `setActiveTab` path refuses a disabled tab
+  - [ ] Falls back to `home` if the flag turns off while on Schedule
+  - [ ] Design scenarios (a)-(d) demonstrated where an emulator/device allows; the rest listed as not run
+
+---
+
+## FF-008: Admin screen for toggling flags   [status: dropped]
+Dropped by the approved simplified scope: toggling is manual in the Firebase console.
+
+---
+
+## FF-009: Rules test: non-admin cannot write flags   [P1] [M] [status: blocked -- awaiting user confirmation of devDependency]
+Depends on: FF-002
+Goal: Automated proof that a non-admin cannot write `featureToggle`, anyone can read, and the admin uid can write.
+Needs: devDependency `@firebase/rules-unit-testing`, a `test:rules` script, and a running Firestore emulator (Java + Firebase CLI). NOT started: the dependency approval is uncertain. Do not install until the user confirms.
+
+---
+
+## FF-010: Developer guide "How to ship a new feature behind a flag"   [P2] [S] [status: todo]
+Depends on: FF-007
+Files: create `docs/feature-flags.md`.
+Scope change: the design's second fail-closed flag is dropped (no risky surface is being added in this workstream); the fail-closed path is covered by resolver unit tests instead.
+Acceptance criteria:
+  - [ ] Guide covers add-to-registry, create the `featureToggle/<key>` doc in the console, gate every entry point, test both states, roll out, remove; how to kill a feature; what offline users see; console-only toggling; no secrets in flag docs
+  - [ ] `npm test` still passes
+
+---
+
+## FF-011: Staleness guard test   [P3] [S] [status: todo]
+Depends on: FF-004
+Scope change: crash-report keys / Sentry dropped. Only the guard remains: a test over the real registry failing when a flag is more than 30 days past `plannedRemoval`, and the removal checklist in the guide. (The guard test is written in FF-004 alongside `staleness.ts`; this task is closed by verifying it fails on a backdated entry and by the checklist in FF-010.)
+Acceptance criteria:
+  - [ ] Backdating a registry entry makes `npm test` fail (then reverted)
+  - [ ] Removal checklist present in the guide
