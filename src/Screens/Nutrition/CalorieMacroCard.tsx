@@ -8,16 +8,22 @@ import { themedStyles } from '../../Theme/ThemeContext';
 
 interface Macro {
   label: string;
-  percent: number;
-  grams: number;
+  /** Grams eaten so far, or null when there is no estimate yet. */
+  grams: number | null;
   goalGrams: number;
   color: string;
 }
 
 interface CalorieMacroCardProps {
-  calorieTotal: number;
-  calorieConsumed: number;
-  calorieBurned: number;
+  /** The user's derived daily target, or null before the profile loads. */
+  calorieTotal: number | null;
+  /** Null when the day has no completed logs with an AI estimate yet —
+      distinct from a genuine zero. */
+  calorieConsumed: number | null;
+  /** Null when burn cannot be shown — a past date (steps are
+      device-local, with no history) or steps unavailable on this
+      device. */
+  calorieBurned: number | null;
   macros: Macro[];
 }
 
@@ -30,10 +36,15 @@ export const CalorieMacroCard: React.FC<CalorieMacroCardProps> = ({
   calorieBurned,
   macros,
 }) => {
-  const kcalLeft = calorieTotal - calorieConsumed;
+  const hasTarget = calorieTotal != null;
+  const hasConsumed = calorieConsumed != null;
+  const kcalLeft = hasTarget && hasConsumed ? calorieTotal - calorieConsumed : null;
   const ringRadius = (RING_SIZE - RING_STROKE) / 2;
   const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringPercent = Math.min(calorieConsumed / calorieTotal, 1);
+  const ringPercent =
+    hasTarget && hasConsumed && calorieTotal > 0
+      ? Math.min(calorieConsumed / calorieTotal, 1)
+      : 0;
   const ringDashOffset = ringCircumference * (1 - ringPercent);
 
   return (
@@ -75,7 +86,7 @@ export const CalorieMacroCard: React.FC<CalorieMacroCardProps> = ({
             />
           </Svg>
           <View style={styles.ringTextWrap}>
-            <Text style={styles.ringValue}>{kcalLeft.toLocaleString()}</Text>
+            <Text style={styles.ringValue}>{kcalLeft != null ? kcalLeft.toLocaleString() : '—'}</Text>
             <Text style={styles.ringLabel}>kcal left</Text>
           </View>
         </View>
@@ -89,7 +100,7 @@ export const CalorieMacroCard: React.FC<CalorieMacroCardProps> = ({
               </Text>
             </View>
             <Text style={styles.summaryValue} numberOfLines={1}>
-              {calorieConsumed.toLocaleString()} kcal
+              {hasConsumed ? `${calorieConsumed.toLocaleString()} kcal` : '—'}
             </Text>
           </View>
           <View style={styles.summaryRow}>
@@ -100,7 +111,7 @@ export const CalorieMacroCard: React.FC<CalorieMacroCardProps> = ({
               </Text>
             </View>
             <Text style={styles.summaryValue} numberOfLines={1}>
-              {calorieTotal.toLocaleString()} kcal
+              {hasTarget ? `${calorieTotal.toLocaleString()} kcal` : '—'}
             </Text>
           </View>
           <View style={styles.summaryRow}>
@@ -111,33 +122,41 @@ export const CalorieMacroCard: React.FC<CalorieMacroCardProps> = ({
               </Text>
             </View>
             <Text style={[styles.summaryValue, { color: colors.primary }]} numberOfLines={1}>
-              +{calorieBurned} kcal
+              {calorieBurned != null ? `+${calorieBurned} kcal` : '—'}
             </Text>
           </View>
         </View>
       </View>
 
       <View style={styles.macroRow}>
-        {macros.map((macro) => (
-          <View key={macro.label} style={styles.macroColumn}>
-            <View style={styles.macroHeaderRow}>
-              <Text style={styles.macroLabel}>{macro.label}</Text>
-              <Text style={[styles.macroPercent, { color: macro.color }]}>{macro.percent}%</Text>
+        {macros.map((macro) => {
+          const percent =
+            macro.grams != null && macro.goalGrams > 0
+              ? Math.min(Math.round((macro.grams / macro.goalGrams) * 100), 100)
+              : 0;
+          return (
+            <View key={macro.label} style={styles.macroColumn}>
+              <View style={styles.macroHeaderRow}>
+                <Text style={styles.macroLabel}>{macro.label}</Text>
+                <Text style={[styles.macroPercent, { color: macro.color }]}>
+                  {macro.grams != null ? `${percent}%` : '—'}
+                </Text>
+              </View>
+              <View style={styles.macroTrack}>
+                <View
+                  style={[
+                    styles.macroFill,
+                    { width: `${percent}%`, backgroundColor: macro.color },
+                  ]}
+                />
+              </View>
+              <Text style={styles.macroGrams}>
+                {macro.grams ?? '—'}
+                <Text style={styles.macroGramsGoal}>/{macro.goalGrams}g</Text>
+              </Text>
             </View>
-            <View style={styles.macroTrack}>
-              <View
-                style={[
-                  styles.macroFill,
-                  { width: `${macro.percent}%`, backgroundColor: macro.color },
-                ]}
-              />
-            </View>
-            <Text style={styles.macroGrams}>
-              {macro.grams}
-              <Text style={styles.macroGramsGoal}>/{macro.goalGrams}g</Text>
-            </Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );

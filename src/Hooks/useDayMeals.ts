@@ -11,7 +11,9 @@ import { useDialog } from '../Components/Dialog';
 import type { MealPlanPayload } from '../Screens/Nutrition/NewMealPlanModal';
 import {
     getMealPlansForDate,
+    sumItemNutrition,
     type MealPlan,
+    type NutritionTotals,
 } from '../Services/mealPlanService';
 import {
     fetchMealLogsForDate,
@@ -42,6 +44,11 @@ export interface UseDayMealsResult {
     dayCards: DayMealCard[];
     /** True once this date's logs have loaded. */
     hasLogsForDay: boolean;
+    /** Sum of the day's *completed* logs' item nutrition. Null when the
+        day has no completed logs, or none of their items carry an AI
+        estimate — "no data yet" is kept distinct from "genuinely zero",
+        same contract as `sumItemNutrition`. */
+    totals: NutritionTotals | null;
     /** The date's row for a plan, planned or completed — what the edit
         sheet starts from, so reopening it keeps an earlier correction. */
     rowFor: (planId: string) => MealLog | undefined;
@@ -170,6 +177,16 @@ export function useDayMeals(date: Date): UseDayMealsResult {
         );
     }, [dayMeals, mealLogs, hasLogsForDay, mealPlans]);
 
+    // What the user actually ate on this date — only 'completed' rows
+    // count. A 'planned' row is an adjustment, not yet eaten, so it must
+    // not move the consumed figure.
+    const totals = useMemo<NutritionTotals | null>(() => {
+        const completedItems = (hasLogsForDay ? mealLogs.rows : [])
+            .filter((row) => row.state === 'completed')
+            .flatMap((row) => row.items);
+        return sumItemNutrition(completedItems);
+    }, [mealLogs, hasLogsForDay]);
+
     const [loggingPlanId, setLoggingPlanId] = useState<string | null>(null);
 
     /** Merges one saved row into the day's logs, replacing any earlier
@@ -261,7 +278,7 @@ export function useDayMeals(date: Date): UseDayMealsResult {
         setLogRefreshKey((key) => key + 1);
     };
 
-    return { dayMeals, dayCards, hasLogsForDay, rowFor, loggingPlanId, logMeal, saveDayEdit };
+    return { dayMeals, dayCards, hasLogsForDay, totals, rowFor, loggingPlanId, logMeal, saveDayEdit };
 }
 
 export default useDayMeals;

@@ -87,6 +87,19 @@ export const selectUserProfileError = (state: { userProfile: UserProfileState })
 export const selectUserPhotoUrl = (state: { userProfile: UserProfileState }) =>
   state.userProfile.profile?.photoURL ?? null;
 
+/** The user's derived calorie/macro targets, or null before the profile
+    has loaded (or for a pre-onboarding account with no profile yet). */
+export const selectDerivedTargets = (state: { userProfile: UserProfileState }) => {
+  const profile = state.userProfile.profile;
+  if (!profile) return null;
+  return {
+    calorieTarget: profile.dailyCalorieTarget,
+    proteinG: profile.macros.proteinG,
+    carbsG: profile.macros.carbsG,
+    fatsG: profile.macros.fatsG,
+  };
+};
+
 
 // --- Sync hook ------------------------------------------------------------
 

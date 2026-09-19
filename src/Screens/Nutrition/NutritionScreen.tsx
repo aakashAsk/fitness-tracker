@@ -32,15 +32,12 @@ import { toDateKey, todayDateKey } from '../../Services/workoutLogService';
 import { themedStyles } from '../../Theme/ThemeContext';
 import { useDayMeals } from '../../Hooks/useDayMeals';
 import { useScrollToItem } from '../../Hooks/useScrollToItem';
+import { useDailySteps } from '../../Hooks/useDailySteps';
+import { useAppSelector } from '../../Store/hooks';
+import { selectDerivedTargets } from '../../Store/userProfileSlice';
 import HydrationCard from './HydrationCard';
 import CalorieMacroCard from './CalorieMacroCard';
 import MealLogsCard from './MealLogsCard';
-
-const MACROS = [
-    { label: 'Protein', percent: 78, grams: 125, goalGrams: 160, color: colors.protein },
-    { label: 'Carbs', percent: 75, grams: 180, goalGrams: 240, color: colors.carbs },
-    { label: 'Fats', percent: 74, grams: 52, goalGrams: 70, color: colors.fats },
-];
 
 export interface NutritionScreenProps {
     /** A meal plan to scroll to on arrival — set when the user comes here
@@ -89,9 +86,19 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
         hasLogsForDay,
         rowFor,
         loggingPlanId,
+        totals,
         logMeal: handleLogMeal,
         saveDayEdit,
     } = useDayMeals(selectedDate);
+
+    const targets = useAppSelector(selectDerivedTargets);
+    const stepData = useDailySteps();
+    // Steps are device-local with no history (README:397-400) — only
+    // today can show a burn figure. A past date always shows '—'.
+    const calorieBurned =
+        isToday && !stepData.loading && stepData.source !== 'unavailable'
+            ? stepData.caloriesBurned
+            : null;
 
     // Arriving from the dashboard's meal card: land on that meal, where
     // its Log and Edit buttons are. Waits for the day's logs so it
@@ -181,10 +188,6 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
             setIsSavingMeal(false);
         }
     };
-
-    const calorieTotal = 2200;
-    const calorieConsumed = 1310;
-    const calorieBurned = 650;
 
     const hasHydrationForDay = hydration.dateKey === selectedDateKey;
     const waterEntries = hasHydrationForDay ? hydration.entries : [];
@@ -279,10 +282,29 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                 showsVerticalScrollIndicator={false}
             >
                 <CalorieMacroCard
-                    calorieTotal={calorieTotal}
-                    calorieConsumed={calorieConsumed}
+                    calorieTotal={targets?.calorieTarget ?? null}
+                    calorieConsumed={totals?.calories ?? null}
                     calorieBurned={calorieBurned}
-                    macros={MACROS}
+                    macros={[
+                        {
+                            label: 'Protein',
+                            grams: totals?.protein ?? null,
+                            goalGrams: targets?.proteinG ?? 0,
+                            color: colors.protein,
+                        },
+                        {
+                            label: 'Carbs',
+                            grams: totals?.carbs ?? null,
+                            goalGrams: targets?.carbsG ?? 0,
+                            color: colors.carbs,
+                        },
+                        {
+                            label: 'Fats',
+                            grams: totals?.fat ?? null,
+                            goalGrams: targets?.fatsG ?? 0,
+                            color: colors.fats,
+                        },
+                    ]}
                 />
 
                 <View style={styles.dateStripWrapper}>

@@ -29,7 +29,7 @@ Result: Added `"test": "node --test src/**/__tests__/*.test.ts"` to `package.jso
 
 ---
 
-## T-001: Wire the Nutrition calorie/macro card to real meal logs and profile targets   [P0] [M] [status: todo]
+## T-001: Wire the Nutrition calorie/macro card to real meal logs and profile targets   [P0] [M] [status: done]
 Feature: F-011
 Depends on: T-000
 Goal: The Nutrition tab's headline card shows the signed-in user's actual consumed calories and macros for the selected date, against their own derived targets — instead of the literals 2200 / 1310 / 650.
@@ -55,6 +55,9 @@ Acceptance criteria:
 Tests: `src/Services/__tests__/nutritionTotals.test.ts` — sum over mixed planned/completed logs, all-unestimated → null, partial estimates.
 Risks / notes: Items estimated at different times can be re-estimated; `nutritionAiService.ts:155` notes estimates are stored so a meal does not get different calories each save. Do not trigger re-estimation from this read path.
 Evidence: `src/Screens/Nutrition/NutritionScreen.tsx:39-43,185-187,281-287`; `src/Services/mealPlanService.ts:109-170`; `src/Services/userProfileService.ts:62-72`; `src/Hooks/useDayMeals.ts:38,196-258`.
+Result: `useDayMeals` now exposes `totals: NutritionTotals | null`, summed via `sumItemNutrition` over only `state === 'completed'` rows for the selected date (planned rows excluded). Extracted `MealItem`/`MealItemNutrition`/`NutritionTotals`/`sumItemNutrition` out of `mealPlanService.ts` into a new pure module `src/Services/nutritionTotals.ts` (re-exported from `mealPlanService.ts` unchanged) so the logic is testable without importing `firebaseConfig` — this is a structural prerequisite T-000 flagged and applies to every later `Services/__tests__` file that needs a pure dependency. Added `selectDerivedTargets` to `src/Store/userProfileSlice.ts` (profile's `dailyCalorieTarget`/`macros.{proteinG,carbsG,fatsG}` — note actual field names differ from the task's `calorieTarget`/`proteinG` at top level; adapted, minor drift). `NutritionScreen.tsx` now derives `calorieTotal`/`calorieConsumed`/macros from `totals` + `targets`, and `calorieBurned` from `useDailySteps()`, showing `null` (rendered as `—` by `CalorieMacroCard`) whenever `!isToday` or steps are loading/unavailable. `CalorieMacroCard` and its `Macro` prop now accept `number | null` throughout and render `—` for null.
+Evidence of verification: `npm test` → 6/6 passing (`src/Services/__tests__/progressService.test.ts`, `src/Services/__tests__/nutritionTotals.test.ts` — null-when-no-estimate, sum-with-mixed-estimated, completed-only). `grep -n "2200\|1310\|650" src/Screens/Nutrition/NutritionScreen.tsx` → no matches. `node --stack-size=8000 ./node_modules/typescript/lib/tsc.js --noEmit` → same 28 pre-existing errors before and after this change (confirmed via `git stash`/`git stash pop` diff — all in `WorkoutSession.tsx` (dead-code chain, T-012), `MealLogsCard.tsx`/`NutritionScreen.tsx:332` (pre-existing `MealType` narrowing gap, not touched by this task) and the two test files (missing `@types/node`, pre-existing since T-000) — none introduced by T-001.
+Deviations: profile field names are `dailyCalorieTarget` and `macros.{proteinG,carbsG,fatsG}`, not the flat `calorieTarget`/`proteinG`/etc the task text assumed — adapted in the selector, which normalizes the shape for callers. Could not manually verify on-device/emulator states (no Firebase emulator or device session available in this environment); acceptance criteria for zero-logs/—, completed-vs-planned exclusion, and date-switch recompute are proven at the unit level (`sumItemNutrition`, `useDayMeals`'s completed-only filter) and via code review of the render paths, not a live walkthrough.
 
 ---
 
