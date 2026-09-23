@@ -6,15 +6,22 @@
 // Workout" card cannot disagree with the Workout tab about what is on
 // today — a one-day edit, a rename, or a plan since rescheduled all
 // resolve the same way in both, because it is the same code.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     applyOccurrencesToEvents,
     getEventsForDate,
     type CalendarEvent,
 } from '../Services/calendarEventService';
-import { fetchOccurrencesForDate, toDateKey, type WorkoutLog } from '../Services/workoutLogService';
+import { subscribeToLogChanges } from '../Services/logChangeBus';
+import {
+    fetchOccurrencesForDate,
+    peekOccurrencesForDate,
+    toDateKey,
+    type WorkoutLog,
+} from '../Services/workoutLogService';
 import type { WorkoutPlan } from '../Services/workoutPlanService';
+import type { WorkoutStats } from '../Services/workoutStats';
 import { useWorkoutPlans } from '../Store/workoutPlansSlice';
 
 export interface UseDayWorkoutEventsResult {
@@ -27,6 +34,9 @@ export interface UseDayWorkoutEventsResult {
     hasOccurrencesForDay: boolean;
     /** Plan ids with a completed session on this date. */
     completedPlanIds: ReadonlySet<string>;
+    /** The saved benefit estimates for this date's completed sessions,
+        keyed by plan id. A plan with no entry has none stored. */
+    statsByPlanId: ReadonlyMap<string, WorkoutStats>;
     /** Bumped by `refresh`; for anything else that should re-read after
         a write to this date. */
     refreshKey: number;
@@ -54,16 +64,30 @@ export function useDayWorkoutEvents(date: Date): UseDayWorkoutEventsResult {
     // leaving one rendered frame where the flag still says "loaded" but
     // the data is the previous day's. Comparing the date instead makes
     // "is this day's data here yet" true only when it genuinely is.
-    const [occurrences, setOccurrences] = useState<{ dateKey: string; rows: WorkoutLog[] }>({
-        dateKey: '',
-        rows: [],
+    //
+    // Seeded from the read cache where this date was read recently, so a
+    // screen that mounts on a known day paints its rows on the first frame.
+    const [occurrences, setOccurrences] = useState<{ dateKey: string; rows: WorkoutLog[] }>(() => {
+        const cachedRows = peekOccurrencesForDate(dateKey);
+        return cachedRows ? { dateKey, rows: cachedRows } : { dateKey: '', rows: [] };
     });
     const [refreshKey, setRefreshKey] = useState(0);
+    // The refresh key the last read was made under — lets the effect tell
+    // "the key changed" (read for real) from "the date changed" (cache ok).
+    const handledRefreshKey = useRef(0);
     const hasOccurrencesForDay = occurrences.dateKey === dateKey;
+
+    // A workout logged from elsewhere (the dashboard's session timer) is
+    // invisible to this copy of the rows until it re-reads.
+    useEffect(() => subscribeToLogChanges(() => setRefreshKey((key) => key + 1)), []);
 
     useEffect(() => {
         let cancelled = false;
-        fetchOccurrencesForDate(dateKey)
+        // A changed refresh key means a log was written, so it reads for
+        // real. Merely switching date does not — that may come from cache.
+        const force = handledRefreshKey.current !== refreshKey;
+        handledRefreshKey.current = refreshKey;
+        fetchOccurrencesForDate(dateKey, { force })
             .then((rows) => {
                 if (!cancelled) setOccurrences({ dateKey, rows });
             })
@@ -108,11 +132,21 @@ export function useDayWorkoutEvents(date: Date): UseDayWorkoutEventsResult {
         [occurrences, hasOccurrencesForDay],
     );
 
+    const statsByPlanId = useMemo(() => {
+        const map = new Map<string, WorkoutStats>();
+        if (!hasOccurrencesForDay) return map;
+        for (const row of occurrences.rows) {
+            if (row.state === 'completed' && row.stats) map.set(row.planId, row.stats);
+        }
+        return map;
+    }, [occurrences, hasOccurrencesForDay]);
+
     return {
         workoutPlans,
         dayEvents,
         hasOccurrencesForDay,
         completedPlanIds,
+        statsByPlanId,
         refreshKey,
         refresh: () => setRefreshKey((key) => key + 1),
     };

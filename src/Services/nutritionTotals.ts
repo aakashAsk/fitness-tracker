@@ -64,6 +64,24 @@ export interface NutritionTotals {
 }
 
 /**
+ * Reads one stored item back into a MealItem, keeping its nutrition
+ * estimate. Shared by the plan and log services: a reader that drops
+ * `nutrition` makes every logged meal read back as "no data".
+ */
+export function toMealItem(raw: unknown): MealItem {
+  const entry = (raw ?? {}) as Record<string, unknown>;
+  return {
+    name: (entry.name as string) ?? '',
+    quantity: entry.quantity == null ? '' : String(entry.quantity),
+    unit: (entry.unit as string) ?? '',
+    // Spread rather than assigned: an explicit `nutrition: undefined`
+    // key is rejected by Firestore ("Unsupported field value") the next
+    // time these items are written back.
+    ...(entry.nutrition ? { nutrition: entry.nutrition as MealItemNutrition } : {}),
+  };
+}
+
+/**
  * Sums whatever estimates the items carry.
  *
  * Returns null when none of them have one, so a caller can tell "no

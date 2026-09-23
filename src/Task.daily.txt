@@ -9,3 +9,5 @@ add exercise padding align with other components
 
 
 notification bug - throwing 2 notification message
+
+for no data show 0 cal dont show -

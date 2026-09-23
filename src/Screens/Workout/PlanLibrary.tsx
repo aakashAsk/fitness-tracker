@@ -15,11 +15,13 @@ import {
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import {
+    parseTimeToMinutes,
     updateWorkoutPlan,
     WorkoutPlanServiceError,
     type WorkoutPlan,
     type WorkoutPlanStatus,
 } from '../../Services/workoutPlanService';
+import { DAY_ORDER } from './Data';
 import { useWorkoutPlans, useWorkoutPlansLoading } from '../../Store/workoutPlansSlice';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import { useDialog } from '../../Components/Dialog';
@@ -29,6 +31,7 @@ import {
     findScheduleConflict,
     MAX_PLANS_PER_USER,
 } from '../../Services/planValidation';
+import { describePlanSummary } from '../../Services/planCategory';
 import { themedStyles } from '../../Theme/ThemeContext';
 
 // Every plan the user owns, independent of any date — the counterpart
@@ -61,6 +64,13 @@ function describeDays(plan: WorkoutPlan): string {
     return plan.days.join(', ');
 }
 
+/** Index of the earliest day a plan trains, Monday first. A plan with no
+ * days set has nothing to sort by, so it sorts after every scheduled one. */
+function earliestDayIndex(plan: WorkoutPlan): number {
+    if (plan.days.length === 0) return DAY_ORDER.length;
+    return Math.min(...plan.days.map((day) => DAY_ORDER.indexOf(day)));
+}
+
 export interface PlanLibraryProps {
     /**
      * Opens the full plan editor. Editing from here is always a
@@ -79,13 +89,17 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
     // exercise rows in the day cards above.
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
-    // Live first, then paused, then drafts. Within a group the store's
-    // own order (newest first) is preserved — sort() is stable.
+    // Monday first, by each plan's earliest training day; same-day plans
+    // sort by time. A plan with no days set falls to the end, and among
+    // ties the store's own order (newest first) is preserved — sort() is
+    // stable.
     const ordered = useMemo(
         () =>
-            [...plans].sort(
-                (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status),
-            ),
+            [...plans].sort((a, b) => {
+                const dayDiff = earliestDayIndex(a) - earliestDayIndex(b);
+                if (dayDiff !== 0) return dayDiff;
+                return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+            }),
         [plans],
     );
 
@@ -221,7 +235,7 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                                                 {plan.name || 'Untitled plan'}
                                             </Text>
                                             <Text style={styles.rowMeta} numberOfLines={1}>
-                                                {plan.exerciseIds.length} exercises ·{' '}
+                                                {describePlanSummary(plan)} ·{' '}
                                                 {describeDays(plan)}
                                             </Text>
                                         </View>

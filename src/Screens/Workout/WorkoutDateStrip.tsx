@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { FlatList, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, LayoutChangeEvent, Text, TouchableOpacity, View } from 'react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import { themedStyles } from '../../Theme/ThemeContext';
@@ -9,6 +9,15 @@ import { themedStyles } from '../../Theme/ThemeContext';
 // once, and keeping the selected date centered (scrollToIndex with
 // viewPosition 0.5) whenever it changes — same pattern as the Schedule
 // tab's InfiniteDateStrip (src/Screens/ScheduleScreen/DateNavigator.tsx).
+//
+// Sized from its own measured width (onLayout), not useWindowDimensions —
+// the device width is only the same as this component's available width
+// when nothing between them adds padding of its own, which does not hold
+// everywhere this is used. The wrapper below applies marginHorizontal the
+// same way every sibling card on these screens does (see ScheduleSession/
+// WorkoutSession's `marginHorizontal: spacing.screenHorizontalPadding`
+// cards), so the strip's edges land exactly where theirs do regardless of
+// what the actual parent width turns out to be.
 
 const MONTHS_BACK = 2;
 const MONTHS_FORWARD = 2;
@@ -60,14 +69,20 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
     screenHorizontalPadding = spacing.screenHorizontalPadding,
     accentColor = colors.primary,
 }) => {
-    const { width: windowWidth } = useWindowDimensions();
+    const [wrapperWidth, setWrapperWidth] = useState(0);
+    const onWrapperLayout = useCallback(
+        (event: LayoutChangeEvent) => setWrapperWidth(event.nativeEvent.layout.width),
+        [],
+    );
     const listRef = useRef<FlatList<Date>>(null);
     const today = useMemo(() => new Date(), []);
 
+    // wrapperWidth is already net of the marginHorizontal below — no
+    // second subtraction of screenHorizontalPadding needed here.
     const tileWidth = useMemo(() => {
-        const available = windowWidth - screenHorizontalPadding * 2;
-        return (available - TILE_GAP * (VISIBLE_TILES - 1)) / VISIBLE_TILES;
-    }, [windowWidth, screenHorizontalPadding]);
+        if (wrapperWidth === 0) return 0;
+        return (wrapperWidth - TILE_GAP * (VISIBLE_TILES - 1)) / VISIBLE_TILES;
+    }, [wrapperWidth]);
 
     const step = tileWidth + TILE_GAP;
 
@@ -94,6 +109,13 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
 
     const hasCenteredRef = useRef(false);
     useEffect(() => {
+        // Before the wrapper has measured, the list hasn't mounted yet
+        // (see the `wrapperWidth > 0` guard below) — listRef is null and
+        // this run would be a no-op. It must not count as "already
+        // centered", or the list's actual first centering — once it
+        // really mounts — would animate into place instead of already
+        // being there on the first frame.
+        if (!listRef.current) return;
         scrollToDate(selectedDate, hasCenteredRef.current);
         hasCenteredRef.current = true;
         // Re-run only when the selected date or tile sizing changes — not
@@ -101,16 +123,15 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate, tileWidth]);
 
-    // Offset must include the list's own leading paddingHorizontal (set
-    // below) — FlatList uses this value verbatim, not the actual measured
-    // layout, to compute where an item sits for scrollToIndex.
+    // No leading offset term needed any more — the FlatList's own content
+    // no longer carries its own horizontal padding, so item 0 starts at x=0.
     const getItemLayout = useCallback(
         (_: unknown, index: number) => ({
             length: tileWidth,
-            offset: screenHorizontalPadding + step * index,
+            offset: step * index,
             index,
         }),
-        [tileWidth, step, screenHorizontalPadding],
+        [tileWidth, step],
     );
 
     const renderItem = useCallback(
@@ -141,49 +162,64 @@ export const WorkoutDateStrip: React.FC<WorkoutDateStripProps> = ({
     );
 
     return (
-        <FlatList
-            ref={listRef}
-            data={dates}
-            keyExtractor={toKey}
-            renderItem={renderItem}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            // A horizontal FlatList is a ScrollView, and a bare ScrollView
-            // dropped straight into a flex parent — e.g. the Schedule tab's
-            // vertical ScrollView content container — stretches to fill the
-            // screen. Pinning flexGrow to 0 and the height to the tile makes
-            // the strip exactly as tall as its tiles wherever it is used,
-            // with no wrapper View required.
-            style={styles.list}
-            // initialScrollIndex puts the item at the LEFT edge, so it
-            // is offset by half a screenful of tiles to land centred on
-            // the very first paint rather than sliding into place after.
-            initialScrollIndex={Math.max(selectedIndex - Math.floor(VISIBLE_TILES / 2), 0)}
-            getItemLayout={getItemLayout}
-            onScrollToIndexFailed={(info) => {
-                setTimeout(() => {
-                    listRef.current?.scrollToIndex({
-                        index: info.index,
-                        animated: false,
-                        viewPosition: 0.5,
-                    });
-                }, 50);
-            }}
-            // Centring on mount can run before the list has measured, in
-            // which case scrollToIndex silently does nothing. Re-centring
-            // once layout lands makes it deterministic; it is a no-op when
-            // the date is already in the middle.
-            onLayout={() => scrollToDate(selectedDate, false)}
-            contentContainerStyle={{
-                gap: TILE_GAP,
-                paddingVertical: STRIP_VERTICAL_PADDING,
-                paddingHorizontal: screenHorizontalPadding,
-            }}
-            windowSize={7}
-            maxToRenderPerBatch={14}
-            initialNumToRender={14}
-            removeClippedSubviews
-        />
+        <View
+            // The single source of the strip's edge inset — same property,
+            // same value, as every sibling card on these screens.
+            style={{ marginHorizontal: screenHorizontalPadding }}
+            onLayout={onWrapperLayout}
+        >
+            {wrapperWidth > 0 ? (
+                <FlatList
+                    ref={listRef}
+                    data={dates}
+                    keyExtractor={toKey}
+                    renderItem={renderItem}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    // A horizontal FlatList is a ScrollView, and a bare
+                    // ScrollView dropped straight into a flex parent — e.g.
+                    // the Schedule tab's vertical ScrollView content
+                    // container — stretches to fill the screen. Pinning
+                    // flexGrow to 0 and the height to the tile makes the
+                    // strip exactly as tall as its tiles wherever it is used.
+                    style={styles.list}
+                    // initialScrollIndex puts the item at the LEFT edge, so
+                    // it is offset by half a screenful of tiles to land
+                    // centred on the very first paint rather than sliding
+                    // into place after.
+                    initialScrollIndex={Math.max(selectedIndex - Math.floor(VISIBLE_TILES / 2), 0)}
+                    getItemLayout={getItemLayout}
+                    onScrollToIndexFailed={(info) => {
+                        setTimeout(() => {
+                            listRef.current?.scrollToIndex({
+                                index: info.index,
+                                animated: false,
+                                viewPosition: 0.5,
+                            });
+                        }, 50);
+                    }}
+                    // Centring on mount can run before the list has
+                    // measured, in which case scrollToIndex silently does
+                    // nothing. Re-centring once layout lands makes it
+                    // deterministic; it is a no-op when the date is already
+                    // in the middle.
+                    onLayout={() => scrollToDate(selectedDate, false)}
+                    contentContainerStyle={{
+                        gap: TILE_GAP,
+                        paddingVertical: STRIP_VERTICAL_PADDING,
+                    }}
+                    windowSize={7}
+                    maxToRenderPerBatch={14}
+                    initialNumToRender={14}
+                    removeClippedSubviews
+                />
+            ) : (
+                // Reserves the strip's height for the one frame before
+                // wrapperWidth is known, so nothing above/below jumps once
+                // the FlatList mounts in.
+                <View style={styles.list} />
+            )}
+        </View>
     );
 };
 

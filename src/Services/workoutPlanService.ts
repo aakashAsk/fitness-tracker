@@ -11,10 +11,12 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import type { DayKey } from '../Screens/Workout/Types';
 import { getCurrentUserId } from './userService';
+import { toPlanCategory, type PlanCategory } from './planCategory';
 
 const PLANS_COLLECTION = 'workoutPlans';
 
@@ -28,6 +30,12 @@ export interface WorkoutPlanInput {
   /** e.g. "6:30 PM" — the same time slot on every day in `days`. */
   time: string;
   status: WorkoutPlanStatus;
+  /** Absent on plans saved before categories existed, which read as 'workout'. */
+  category?: PlanCategory;
+  /** Distance target in km — cardio, cycling and walking plans. `null` clears it. */
+  targetKm?: number | null;
+  /** Time target in minutes — cardio, cycling and walking plans. `null` clears it. */
+  targetMinutes?: number | null;
 }
 
 export interface WorkoutPlan extends WorkoutPlanInput {
@@ -58,6 +66,9 @@ function toWorkoutPlan(id: string, data: Record<string, unknown>): WorkoutPlan {
     // Older docs predate per-user scoping.
     userId: (data.userId as string) ?? getCurrentUserId(),
     createdAt,
+    ...(toPlanCategory(data.category) ? { category: toPlanCategory(data.category) } : {}),
+    ...(typeof data.targetKm === 'number' ? { targetKm: data.targetKm } : {}),
+    ...(typeof data.targetMinutes === 'number' ? { targetMinutes: data.targetMinutes } : {}),
   };
 }
 
@@ -94,6 +105,33 @@ export async function createWorkoutPlan(plan: WorkoutPlanInput): Promise<string>
   } catch (err) {
     throw new WorkoutPlanServiceError(
       err instanceof Error ? err.message : 'Failed to save the workout plan.',
+    );
+  }
+}
+
+/**
+ * Saves several plans in one atomic write and returns their ids, in order.
+ *
+ * All or nothing, on purpose: for a set of plans created together (an AI
+ * week, say) a half-saved result — Push and Pull written, Legs lost to a
+ * dropped connection — is worse than none, because the user cannot tell
+ * what is missing. A batch commits every plan or none of them.
+ */
+export async function createWorkoutPlans(plans: WorkoutPlanInput[]): Promise<string[]> {
+  if (plans.length === 0) return [];
+  const userId = getCurrentUserId();
+  try {
+    const batch = writeBatch(db);
+    const ids = plans.map((plan) => {
+      const ref = doc(collection(db, PLANS_COLLECTION));
+      batch.set(ref, { ...plan, userId, createdAt: serverTimestamp() });
+      return ref.id;
+    });
+    await batch.commit();
+    return ids;
+  } catch (err) {
+    throw new WorkoutPlanServiceError(
+      err instanceof Error ? err.message : 'Failed to save the workout plans.',
     );
   }
 }

@@ -9,7 +9,8 @@ import {
   sumItemNutrition,
   type MealPlan,
 } from '../../Services/mealPlanService';
-import { describeSession, type SessionPhase } from '../../Services/sessionSchedule';
+import { describeSession, sessionPhase, type SessionPhase } from '../../Services/sessionSchedule';
+import { useNow } from '../../Hooks/useNow';
 import { themedStyles } from '../../Theme/ThemeContext';
 
 interface MealCard {
@@ -26,6 +27,9 @@ interface MealLogCardProps {
   dayCards: MealCard[];
   hasLogsForDay: boolean;
   isToday: boolean;
+  /** The selected date is entirely after today — nothing on it has
+      happened yet, so no card can be logged regardless of its time. */
+  isFutureDay: boolean;
   loggingPlanId: string | null;
   estimatingIds: string[];
   onLogMeal: (plan: MealPlan) => void;
@@ -50,12 +54,14 @@ export const MealLogsCard: React.FC<MealLogCardProps> = ({
   dayCards,
   hasLogsForDay,
   isToday,
+  isFutureDay,
   loggingPlanId,
   estimatingIds,
   onLogMeal,
   onEditMeal,
   onFocusItem,
 }) => {
+  const now = useNow();
   return (
     <View style={styles.mealsSection}>
       <View style={styles.mealsHeaderRow}>
@@ -82,7 +88,17 @@ export const MealLogsCard: React.FC<MealLogCardProps> = ({
           const { isLogged, items: shownItems, time: shownTime } = card;
           const nutrition = sumItemNutrition(shownItems);
           const isEstimating = estimatingIds.includes(card.planId);
-          const phase: SessionPhase = isLogged ? 'logged' : 'upcoming';
+          // A future day is never actionable regardless of its time; a
+          // past day is always actionable (catching up on a missed
+          // entry); today goes by the clock, same as the dashboard's
+          // slider — see sessionSchedule for the shared rule.
+          const phase: SessionPhase = isLogged
+            ? 'logged'
+            : isFutureDay
+              ? 'upcoming'
+              : !isToday
+                ? 'due'
+                : sessionPhase({ time: card.time, isLogged: false }, now);
           const canLog = phase === 'due' && !!card.plan && !isEstimating;
 
           return (
@@ -160,16 +176,25 @@ export const MealLogsCard: React.FC<MealLogCardProps> = ({
                   <>
                     <TouchableOpacity
                       activeOpacity={0.85}
-                      disabled={!card.plan || loggingPlanId === card.planId}
+                      disabled={!canLog || loggingPlanId === card.planId}
                       onPress={() => card.plan && onLogMeal(card.plan)}
+                      accessibilityLabel={
+                        phase === 'upcoming'
+                          ? `${card.name} can be logged from ${shownTime}`
+                          : `Log ${card.name}`
+                      }
                       style={[
                         styles.mealLogButton,
-                        (!card.plan || loggingPlanId === card.planId) && styles.mealLogButtonBusy,
+                        (!canLog || loggingPlanId === card.planId) && styles.mealLogButtonBusy,
                       ]}
                     >
                       <Check size={14} color={colors.white} strokeWidth={3} />
                       <Text style={styles.mealLogText}>
-                        {loggingPlanId === card.planId ? 'Saving…' : 'Log Meal'}
+                        {loggingPlanId === card.planId
+                          ? 'Saving…'
+                          : phase === 'upcoming'
+                            ? 'Not yet'
+                            : 'Log Meal'}
                       </Text>
                     </TouchableOpacity>
 

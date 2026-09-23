@@ -7,7 +7,9 @@ import { spacing } from '../../Theme/spacing';
 import EquipmentIcon, { equipmentAccent } from '../../Components/EquipmentIcon';
 import SetStepper from './SetStepper';
 import { themedStyles } from '../../Theme/ThemeContext';
-import type { SetInput } from '../../Hooks/useExerciseInputs';
+import { inputKey, type SetInput } from '../../Hooks/useExerciseInputs';
+import type { WorkoutStats } from '../../Services/workoutStats';
+import WorkoutStatsPanel from './WorkoutStatsPanel';
 
 export interface PlanExerciseRow {
   id: string;
@@ -21,12 +23,25 @@ export interface PlanExerciseRow {
 interface WorkoutPlanCardProps {
   id: string;
   planDocId: string;
+  /** The selected day's key. Set inputs are stored per day (see
+      inputKey), so the card needs it to read back what the stepper and
+      add-set buttons wrote. */
+  dateKey: string;
   title: string;
   exercises: PlanExerciseRow[];
   isLogged: boolean;
   isLogStateKnown: boolean;
   isDayLoading: boolean;
   isSaving: boolean;
+  /** True when this session cannot be logged yet — a future day, or
+      later today before its own scheduled time. Distinct from
+      `isSaving`: this is "not yet allowed", not "in flight". */
+  locked?: boolean;
+  /** Shown on the button in place of "Save Log" while `locked`, e.g.
+      "Available at 6:30 PM". */
+  lockedLabel?: string;
+  /** The saved estimate for this session, when it has one. */
+  stats?: WorkoutStats;
   expandedExerciseId: string | null;
   exerciseInputs: Record<string, SetInput[]>;
   onToggleExercise: (exerciseId: string) => void;
@@ -51,12 +66,16 @@ const ExerciseSkeleton: React.FC<{ rows: number }> = ({ rows }) => (
 export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
   id,
   planDocId,
+  dateKey,
   title,
   exercises,
   isLogged,
   isLogStateKnown,
   isDayLoading,
   isSaving,
+  locked = false,
+  lockedLabel,
+  stats,
   expandedExerciseId,
   exerciseInputs,
   onToggleExercise,
@@ -96,7 +115,7 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
       ) : (
         <View style={styles.planExerciseList}>
           {exercises.map((exercise, index) => {
-            const setInputs = exerciseInputs[`${planDocId}::${exercise.id}`] ?? [EMPTY_SET_INPUT];
+            const setInputs = exerciseInputs[inputKey(dateKey, exercise.id)] ?? [EMPTY_SET_INPUT];
             const isLast = index === exercises.length - 1;
             const isExpanded = expandedExerciseId === exercise.id;
 
@@ -196,14 +215,25 @@ export const WorkoutPlanCard: React.FC<WorkoutPlanCardProps> = ({
         </View>
       )}
 
+      {isLogged && stats && !isDayLoading ? <WorkoutStatsPanel stats={stats} /> : null}
+
       <TouchableOpacity
         activeOpacity={0.85}
-        disabled={isSaving || isDayLoading}
+        disabled={isSaving || isDayLoading || locked}
         onPress={onSaveWorkout}
-        style={[styles.saveWorkoutButton, (isSaving || isDayLoading) && styles.submitButtonDisabled]}
+        style={[
+          styles.saveWorkoutButton,
+          (isSaving || isDayLoading || locked) && styles.submitButtonDisabled,
+        ]}
       >
         <Text style={styles.saveWorkoutButtonText}>
-          {isSaving ? 'Saving…' : isLogStateKnown ? (isLogged ? 'Update Log' : 'Save Log') : 'Loading…'}
+          {isSaving
+            ? 'Saving…'
+            : locked
+              ? lockedLabel ?? 'Not yet'
+              : isLogStateKnown
+                ? (isLogged ? 'Update Log' : 'Save Log')
+                : 'Loading…'}
         </Text>
       </TouchableOpacity>
     </View>

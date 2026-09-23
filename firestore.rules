@@ -26,7 +26,7 @@ service cloud.firestore {
              // reading `resource.data` off null fails evaluation, which
              // surfaces as "Missing or insufficient permissions" rather
              // than an empty result. Every getDoc() in the app can hit
-             // this: fetchHydrationLog, fetchMealLog, fetchWorkoutLog
+             // this: fetchTelemetry, fetchMealLog, fetchWorkoutLog
              // and savePlannedOccurrence all read a document that may
              // not have been written yet. There is nothing to leak in a
              // document that does not exist, so allow it.
@@ -79,19 +79,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // One doc per (user, date) — hydration is not tied to a plan, so
-    // the id has no plan segment.
+    // One doc per (user, date), holding that day's dashboard metrics:
+    // water, steps, calories burned, sleep and body weight. Not tied to
+    // a plan, so the id has no plan segment.
     //
     // Deliberately the simplest rule in this file. It does NOT pin the
     // document id the way the two log collections do: that pin is
-    // defence-in-depth, not correctness, and it was the only condition
-    // unique to hydration while this collection was being denied. The
-    // ownership checks below are what actually protect the data.
+    // defence-in-depth, not correctness. The ownership checks below are
+    // what actually protect the data.
     //
     // `resource == null` covers a read or a first write of a document
     // that does not exist yet — which is every new day, since the
-    // tracker reads before anything has been drunk.
-    match /hydrationLogs/{logId} {
+    // dashboard reads before anything has been recorded.
+    match /telemetry/{dayId} {
       allow read: if isSignedIn() &&
                      (resource == null ||
                       resource.data.userId == request.auth.uid);
@@ -100,6 +100,24 @@ service cloud.firestore {
                       (resource == null ||
                        resource.data.userId == request.auth.uid) &&
                       request.resource.data.userId == request.auth.uid;
+    }
+
+    // SUPERSEDED by /telemetry, which now holds water alongside the rest
+    // of the day. Kept readable so a user's existing water history can be
+    // carried forward the first time they open one of those days — see
+    // readLegacyWater in telemetryService.
+    //
+    // Writes are off: nothing in the app writes here any more, and a
+    // write would strand data in a collection that is on its way out.
+    //
+    // SAFE TO DELETE, together with readLegacyWater and the collection
+    // itself, once no user has unmigrated days worth keeping.
+    match /hydrationLogs/{logId} {
+      allow read: if isSignedIn() &&
+                     (resource == null ||
+                      resource.data.userId == request.auth.uid);
+
+      allow write: if false;
     }
 
     // Onboarding profile — the document id IS the uid (see

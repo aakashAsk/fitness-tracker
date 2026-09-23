@@ -35,6 +35,10 @@ yarn-error.*
 .env*.local
 !.env.example
 
+# Firebase Admin service account keys — never commit
+serviceAccountKey*.json
+*-firebase-adminsdk-*.json
+
 # typescript
 *.tsbuildinfo
 

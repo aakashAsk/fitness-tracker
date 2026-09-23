@@ -13,6 +13,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -21,8 +23,23 @@ import {
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import { getCurrentUserId } from './userService';
+import { cacheInvalidate, cacheKey, cachePeek, cachedFetch } from './dataCache';
+import { toWorkoutStats, type WorkoutStats } from './workoutStats';
 
 const LOGS_COLLECTION = 'workoutLogs';
+const OCCURRENCES_CACHE = 'occurrences';
+const WORKOUT_LOGS_RANGE_CACHE = 'workoutLogsRange';
+
+/** Drops one date's cached occurrences — called by every write below that
+ * changes what fetchOccurrencesForDate would return for that date.
+ *
+ * Also drops every cached RANGE for this user (see telemetryService's
+ * invalidateTelemetry: a range cache key is the whole start/end pair, so
+ * there is no cheap way to tell which cached ranges cover this date). */
+function invalidateOccurrences(userId: string, date: string): void {
+  cacheInvalidate(cacheKey(OCCURRENCES_CACHE, userId, date));
+  cacheInvalidate(cacheKey(WORKOUT_LOGS_RANGE_CACHE, userId, ''));
+}
 
 export interface ExerciseSetEntry {
   reps: number;
@@ -68,12 +85,26 @@ export interface WorkoutLogInput {
    * a completed session by omission.
    */
   state: WorkoutLogState;
+  /**
+   * The estimated benefit numbers for exactly these sets (see
+   * workoutStats), stored on the same document so a save writes the
+   * numbers and the sets they describe together — they cannot drift
+   * apart. Pass null when nothing was performed, which clears any
+   * earlier estimate; leave it undefined to keep whatever is stored.
+   */
+  stats?: WorkoutStats | null;
 }
 
-export interface WorkoutLog extends WorkoutLogInput {
+export interface WorkoutLog extends Omit<WorkoutLogInput, 'stats'> {
   id: string;
   userId: string;
   updatedAt: Date | null;
+  /** Absent on logs written before stats existed, and on rows that only
+      carry a timer or a one-day exercise edit. */
+  stats?: WorkoutStats;
+  /** Total time spent, from the dashboard's start/end timer. Absent when
+      the session was never timed. */
+  durationSeconds?: number;
 }
 
 export class WorkoutLogServiceError extends Error {
@@ -117,6 +148,7 @@ function toExerciseLogEntry(raw: Record<string, unknown>): ExerciseLogEntry {
 }
 
 function toWorkoutLog(id: string, data: Record<string, unknown>): WorkoutLog {
+  const stats = toWorkoutStats(data.stats);
   return {
     id,
     userId: (data.userId as string) ?? '',
@@ -133,6 +165,8 @@ function toWorkoutLog(id: string, data: Record<string, unknown>): WorkoutLog {
     // user's entire training history as never performed.
     state: data.state === 'planned' ? 'planned' : 'completed',
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    ...(typeof data.durationSeconds === 'number' ? { durationSeconds: data.durationSeconds } : {}),
+    ...(stats ? { stats } : {}),
   };
 }
 
@@ -153,19 +187,60 @@ export function todayDateKey(): string {
   return toDateKey(new Date());
 }
 
-/** Saves (or overwrites) the set/rep/weight log for one plan on one day. */
-export async function saveWorkoutLog(input: WorkoutLogInput): Promise<void> {
+/**
+ * Adds a timed session to one plan's log for one day and marks it
+ * completed. Time accumulates (`increment`), so two sessions of the same
+ * plan on one day add up. Only the duration and state are written, so
+ * any sets already logged for the day are left exactly as they are; on a
+ * day with no log yet the document is created with no exercises.
+ */
+export async function logWorkoutSessionTime(input: {
+  planId: string;
+  planName: string;
+  date: string;
+  seconds: number;
+}): Promise<void> {
   const userId = getCurrentUserId();
   try {
     await setDoc(
       doc(db, LOGS_COLLECTION, logDocId(userId, input.planId, input.date)),
       {
-        ...input,
+        userId,
+        planId: input.planId,
+        planName: input.planName,
+        date: input.date,
+        state: 'completed',
+        durationSeconds: increment(Math.max(0, Math.round(input.seconds))),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    invalidateOccurrences(userId, input.date);
+  } catch (err) {
+    throw new WorkoutLogServiceError(
+      err instanceof Error ? err.message : 'Failed to log the workout time.',
+    );
+  }
+}
+
+/** Saves (or overwrites) the set/rep/weight log for one plan on one day. */
+export async function saveWorkoutLog(input: WorkoutLogInput): Promise<void> {
+  const userId = getCurrentUserId();
+  // Split out so an omitted `stats` is left off the write entirely —
+  // Firestore rejects an explicit undefined, and null would wipe it.
+  const { stats, ...rest } = input;
+  try {
+    await setDoc(
+      doc(db, LOGS_COLLECTION, logDocId(userId, input.planId, input.date)),
+      {
+        ...rest,
+        ...(stats !== undefined ? { stats } : {}),
         userId,
         updatedAt: serverTimestamp(),
       },
       { merge: true },
     );
+    invalidateOccurrences(userId, input.date);
   } catch (err) {
     throw new WorkoutLogServiceError(
       err instanceof Error ? err.message : 'Failed to save the workout log.',
@@ -224,6 +299,7 @@ export async function savePlannedOccurrence(input: {
       },
       { merge: true },
     );
+    invalidateOccurrences(userId, input.date);
   } catch (err) {
     throw new WorkoutLogServiceError(
       err instanceof Error ? err.message : 'Failed to save the change for this day.',
@@ -241,12 +317,34 @@ export async function savePlannedOccurrence(input: {
  * from Mon to Tue stops producing a Monday event even though that
  * Monday's row still exists. The day view unions the two.
  *
- * Both clauses are equality filters, which Firestore serves from
- * single-field indexes — no composite index needed, unlike an equality
- * plus an `orderBy`/range.
+ * Served from memory when the date was read recently (see dataCache) —
+ * the dashboard's sections and the Workout tab all ask for the same day.
+ * `force` reads for real; every write above drops the date's entry.
  */
-export async function fetchOccurrencesForDate(date: string): Promise<WorkoutLog[]> {
+export function fetchOccurrencesForDate(
+  date: string,
+  options?: { force?: boolean },
+): Promise<WorkoutLog[]> {
   const userId = getCurrentUserId();
+  return cachedFetch(
+    cacheKey(OCCURRENCES_CACHE, userId, date),
+    () => loadOccurrencesForDate(userId, date),
+    options,
+  );
+}
+
+/** The date's occurrences if they were read recently, without a read —
+ * `undefined` when not cached. */
+export function peekOccurrencesForDate(date: string): WorkoutLog[] | undefined {
+  return cachePeek<WorkoutLog[]>(cacheKey(OCCURRENCES_CACHE, getCurrentUserId(), date))?.value;
+}
+
+/**
+ * The uncached read. Both clauses are equality filters, which Firestore
+ * serves from single-field indexes — no composite index needed, unlike
+ * an equality plus an `orderBy`/range.
+ */
+async function loadOccurrencesForDate(userId: string, date: string): Promise<WorkoutLog[]> {
   try {
     const q = query(
       collection(db, LOGS_COLLECTION),
@@ -304,6 +402,50 @@ export async function fetchWorkoutLogsForUser(): Promise<WorkoutLog[]> {
   } catch (err) {
     throw new WorkoutLogServiceError(
       err instanceof Error ? err.message : 'Failed to load previous workout logs.',
+    );
+  }
+}
+
+/**
+ * Every workout log between two dates (inclusive), oldest first.
+ *
+ * For dashboard widgets that need several days of training history at
+ * once — the net-calories chart, week-over-week burn — rather than one
+ * plan/day at a time. Mirrors fetchMealLogsForRange in telemetryService's
+ * sibling file exactly, down to the composite index it needs (see
+ * firestore.indexes.json).
+ */
+export function fetchWorkoutLogsForRange(
+  startDate: string,
+  endDate: string,
+  options?: { force?: boolean },
+): Promise<WorkoutLog[]> {
+  const userId = getCurrentUserId();
+  return cachedFetch(
+    cacheKey(WORKOUT_LOGS_RANGE_CACHE, userId, `${startDate}_${endDate}`),
+    () => loadWorkoutLogsForRange(userId, startDate, endDate),
+    options,
+  );
+}
+
+async function loadWorkoutLogsForRange(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<WorkoutLog[]> {
+  try {
+    const q = query(
+      collection(db, LOGS_COLLECTION),
+      where('userId', '==', userId),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'asc'),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => toWorkoutLog(d.id, d.data()));
+  } catch (err) {
+    throw new WorkoutLogServiceError(
+      err instanceof Error ? err.message : 'Failed to load your workout history.',
     );
   }
 }

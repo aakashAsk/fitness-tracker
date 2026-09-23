@@ -13,6 +13,7 @@ import { ScheduleTimeSelector } from './ScheduleTimeSelector';
 import { SessionReminder } from './SessionReminder';
 import { AIOptimizationBanner } from './AIOptimizationBanner';
 import { themedStyles } from '../../Theme/ThemeContext';
+import { useFeatureFlag } from '../../FeatureFlags';
 
 interface PlanBuilderProps {
   onEditRoutineProfile: () => void;
@@ -43,6 +44,8 @@ interface PlanBuilderProps {
 }
 
 export const PlanBuilder: React.FC<PlanBuilderProps> = (props) => {
+  const pushDisabled = useFeatureFlag('disabledPushNotification');
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -83,12 +86,14 @@ export const PlanBuilder: React.FC<PlanBuilderProps> = (props) => {
         onSessionDurationChange={props.onSessionDurationChange}
       />
 
-      <SessionReminder
-        enabled={props.sessionReminder}
-        onToggle={props.onToggleSessionReminder}
-        offset={props.reminderOffset}
-        onOffsetChange={props.onReminderOffsetChange}
-      />
+      {pushDisabled ? null : (
+        <SessionReminder
+          enabled={props.sessionReminder}
+          onToggle={props.onToggleSessionReminder}
+          offset={props.reminderOffset}
+          onOffsetChange={props.onReminderOffsetChange}
+        />
+      )}
 
       <AIOptimizationBanner
         sessionDuration={props.sessionDuration}

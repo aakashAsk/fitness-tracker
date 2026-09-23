@@ -7,14 +7,13 @@ import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import {
   DAILY_GLASS_GOAL,
   DAILY_ML_GOAL,
-  HydrationLogServiceError,
   ML_PER_GLASS,
-  type HydrationEntry,
-} from '../../Services/hydrationLogService';
+  type WaterEntry,
+} from '../../Services/telemetryService';
 import { themedStyles } from '../../Theme/ThemeContext';
 
 interface HydrationCardProps {
-  waterEntries: HydrationEntry[];
+  waterEntries: WaterEntry[];
   waterMl: number;
   filledGlasses: number;
   canLogWater: boolean;

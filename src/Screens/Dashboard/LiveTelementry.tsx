@@ -4,25 +4,31 @@ import Svg, { Circle } from 'react-native-svg';
 import {
     ArrowRight,
     BedDouble,
-    Bell,
     Clock,
     Droplet,
     Flame,
     Footprints,
     Moon,
+    Pencil,
     Weight,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
-import UserAvatar from '../../Components/UserAvatar';
 import ProgressRing from '../../Components/ProgressRing';
 import { SkeletonBlock } from '../../Components/Skeleton';
+import { useDialog } from '../../Components/Dialog';
 import { themedStyles } from '../../Theme/ThemeContext';
 import { useDailySteps } from '../../Hooks/useDailySteps';
 import { DAILY_BURN_GOAL, DAILY_STEP_GOAL } from '../../Services/stepService';
-import { useDailyHydration } from '../../Hooks/useDailyHydration';
+import { useDailyTelemetry } from '../../Hooks/useDailyTelemetry';
+import { useRecordTelemetry } from '../../Hooks/useRecordTelemetry';
 import { useDayMeals } from '../../Hooks/useDayMeals';
+import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
 import { useGreeting } from '../../Hooks/useGreeting';
 import { useAppSelector } from '../../Store/hooks';
+import CaloriesBurnCard from './CaloriesBurnCard';
+import UpcomingEventsSection from './UpcomingEventsSection';
+import WeightEntryModal from './WeightEntryModal';
+import { useDashboardReady } from './DashboardLoadGate';
 import { selectDerivedTargets, selectUserProfile } from '../../Store/userProfileSlice';
 import { useLastNightSleep } from '../../Hooks/useLastNightSleep';
 import {
@@ -31,24 +37,25 @@ import {
     type SleepStatus,
 } from '../../Services/healthConnectSleep';
 import { openHealthConnectSettings } from '../../Services/healthConnectSteps';
+import { saveDailyWeight, TelemetryServiceError } from '../../Services/telemetryService';
+import { todayDateKey } from '../../Services/workoutLogService';
 
 export interface DashboardOverviewProps {
     // The greeting's wording and date come from the clock, and the name
     // from the signed-in user — see useGreeting — so neither is passed in.
-    /** Opens the Profile tab — the top-bar avatar is the entry point. */
-    onProfilePress?: () => void;
+    // The brand/notifications/avatar top bar now lives in App.tsx's
+    // shared AppTopBar, rendered above every tab — not here.
     // Calories burned is derived from the pedometer, and its trend pill
     // now shows progress against DAILY_BURN_GOAL — neither is passed in.
-    // Water intake is read from Firestore by the card itself — see
-    // useDailyHydration — so there is nothing to pass in.
+    // Water intake and body weight are read from today's telemetry row by
+    // the card itself — see useDailyTelemetry — so neither is passed in.
     // Calorie budget and macros are read from today's meal logs and the
     // profile's derived targets by the card itself — see useDayMeals and
     // selectDerivedTargets — so neither is passed in either.
-    bodyWeightKg?: number;
-    bodyWeightDeltaKg?: number;
+    // Body weight comes from today's telemetry row, or the onboarding
+    // profile when there has been no weigh-in — so it is not passed in.
     weeklyAvgKcal?: number;
     monthlyGoalPercent?: number;
-    onNotificationsPress?: () => void;
 }
 
 const WEEK_ACTIVITY = [
@@ -99,12 +106,8 @@ const METRIC_RING_SIZE = 78;
 const METRIC_RING_STROKE = 8;
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
-    onProfilePress,
-    bodyWeightKg = 68.4,
-    bodyWeightDeltaKg = -0.4,
     weeklyAvgKcal = 485,
     monthlyGoalPercent = 89,
-    onNotificationsPress,
 }) => {
     // "Good morning" is the clock's business, not a caller's, and the
     // name is whatever the user gave at onboarding. A profile written
@@ -118,6 +121,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     // the source of truth, and nothing upstream has a better number.
     const stepData = useDailySteps();
     const stepsUnknown = stepData.loading || stepData.source === 'unavailable';
+    // Each source below tells the dashboard's load gate when it has
+    // answered, so the skeleton stays up until all of them have.
+    // An unavailable pedometer still counts as answered — it is the
+    // reading that landed, and the tile explains why it is empty.
+    useDashboardReady('steps', !stepData.loading);
     const stepGoalPercent = Math.round(stepData.goalProgress * 100);
     // A bare "no sensor" gave no way to tell an emulator from a refused
     // permission, so the card names the actual blocker instead.
@@ -130,24 +138,52 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     ? 'phone only'
                     : `of ${DAILY_STEP_GOAL.toLocaleString()}`;
 
-    // Water, like steps, comes from storage rather than props: the
-    // Nutrition tab's hydration tracker is the only thing that writes it,
-    // and Firestore is the shared source of truth between the two.
-    const hydration = useDailyHydration();
-    const waterUnknown = hydration.loading || hydration.error !== null;
+    // Today's stored row — water, and a weigh-in if there has been one.
+    // Firestore is the shared source of truth between this card and the
+    // Nutrition tab's hydration tracker, which writes the same document.
+    const telemetry = useDailyTelemetry();
+    const waterUnknown = telemetry.loading || telemetry.error !== null;
+    // A failed read is still an answer — waterUnknown covers how it shows.
+    useDashboardReady('telemetry', !telemetry.loading);
 
-    // Calories burned are the step count's other face — the pedometer
-    // reading converted at a fixed kcal-per-step — so the ring fills
-    // against the burn equivalent of the step goal.
-    const caloriesBurned = stepData.caloriesBurned;
+    // The pedometer reading converted at a fixed kcal-per-step. Kept
+    // separate from the tile's combined total below: this is the only
+    // figure written into today's telemetry row (see useRecordTelemetry
+    // below), because useNetCalories sums step-derived telemetry and
+    // workout-derived stats from two different places — writing the
+    // combined total here would double-count workouts on that chart.
+    const stepCaloriesBurned = stepData.caloriesBurned;
+
+    // Today's completed workouts, for the calories they report burning.
+    // Same source the Workout tab's own summaries read from, so this
+    // figure can never disagree with what a session card shows.
+    const today = React.useMemo(() => new Date(), []);
+    const dayWorkouts = useDayWorkoutEvents(today);
+    const workoutCaloriesBurned = React.useMemo(
+        () =>
+            Array.from(dayWorkouts.statsByPlanId.values()).reduce(
+                (sum, stats) => sum + stats.caloriesBurned,
+                0,
+            ),
+        [dayWorkouts.statsByPlanId],
+    );
+
+    // The Calories Burned tile is the day's total activity, not just
+    // steps — a pedometer reading plus whatever today's workouts logged.
+    const caloriesBurned = stepCaloriesBurned + workoutCaloriesBurned;
     const burnProgress = Math.min(caloriesBurned / DAILY_BURN_GOAL, 1);
     const burnGoalPercent = Math.round((caloriesBurned / DAILY_BURN_GOAL) * 100);
+    // Loading only while BOTH sources are still unanswered — a workout
+    // total is real information even before the pedometer answers, and
+    // vice versa, so neither alone should keep the tile on a placeholder.
+    const burnUnknown = stepsUnknown && !dayWorkouts.hasOccurrencesForDay;
 
     // Sleep comes from Health Connect, written there by a watch or sleep
     // app — this app never measures it. Every non-'ok' status gets its
     // own line, because "no data" means something quite different when
     // the cause is a missing permission than when nothing recorded sleep.
     const sleep = useLastNightSleep();
+    useDashboardReady('sleep', !sleep.loading);
     const sleepSummary = sleep.loading ? null : sleep.summary;
     const sleepMessage = sleep.loading
         ? 'Checking Health Connect…'
@@ -164,14 +200,74 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     ? { label: 'Retry reading sleep', onPress: sleep.refresh }
                     : null;
 
+    // Everything the device just told us, written into today's telemetry
+    // row. Values are passed as undefined until their source has actually
+    // answered — a pedometer that has not reported is not a zero-step day,
+    // and writing it as one would overwrite a real count.
+    useRecordTelemetry(
+        {
+            steps: stepsUnknown ? undefined : stepData.steps,
+            caloriesBurned: stepsUnknown ? undefined : stepCaloriesBurned,
+            sleep: sleep.loading
+                ? undefined
+                : sleepSummary
+                  ? {
+                        asleepMinutes: sleepSummary.asleepMinutes,
+                        inBedMinutes: sleepSummary.inBedMinutes,
+                        start: sleepSummary.start.toISOString(),
+                        end: sleepSummary.end.toISOString(),
+                        stages: sleepSummary.stages,
+                    }
+                  : null,
+        },
+        // Nothing is written until the day's own row has been read, or the
+        // first write would race the read and the screen could show a
+        // stale document it just overwrote.
+        !telemetry.loading,
+    );
+
+    // The weight tile shows the latest weigh-in on today's row, falling
+    // back to the weight captured at onboarding — which is the only one
+    // the app has until a weigh-in is recorded.
+    const weightKg = telemetry.weightKg ?? profile?.weightKg ?? null;
+
+    // Logging today's weigh-in from the tile's pencil icon.
+    const dialog = useDialog();
+    const [showWeightModal, setShowWeightModal] = React.useState(false);
+    const [savingWeight, setSavingWeight] = React.useState(false);
+
+    const handleSaveWeight = async (nextWeightKg: number) => {
+        setSavingWeight(true);
+        try {
+            await saveDailyWeight(todayDateKey(), nextWeightKg);
+            telemetry.refresh();
+            setShowWeightModal(false);
+        } catch (error) {
+            dialog.show({
+                title: 'Could not save weight',
+                message:
+                    error instanceof TelemetryServiceError
+                        ? error.message
+                        : 'Something went wrong. Please try again.',
+            });
+            throw error;
+        } finally {
+            setSavingWeight(false);
+        }
+    };
+
     // Calorie budget & macros come from today's meal logs and the
     // profile's derived targets — the exact same aggregation the
     // Nutrition tab uses (see useDayMeals) — rather than from props, so
     // logging a meal there and returning Home shows the same figure.
     // The tab switch unmounts and remounts the Dashboard (README:556-560)
-    // so no cross-screen invalidation is needed.
-    const today = React.useMemo(() => new Date(), []);
+    // so no cross-screen invalidation is needed. `today` itself is
+    // declared above, alongside the workout totals that share it.
     const { hasLogsForDay, totals: nutritionTotals } = useDayMeals(today);
+    // Only the meal logs are awaited here: the profile's targets are
+    // already in the store — the app does not reach the dashboard until
+    // the profile has loaded.
+    useDashboardReady('calorie-budget', hasLogsForDay);
     const targets = useAppSelector(selectDerivedTargets);
     const calorieBudgetLoading = !hasLogsForDay || !targets;
     const calorieBudgetTotal = targets?.calorieTarget ?? 0;
@@ -214,39 +310,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
     return (
         <View style={styles.wrapper}>
-            {/* Top app bar */}
-            <View style={styles.topBar}>
-                <View style={styles.brandRow}>
-                    <View style={styles.brandMark}>
-                        <Flame size={16} color={colors.white} strokeWidth={2.6} />
-                    </View>
-                    <View>
-                        <Text style={styles.brandTitle}>PulseFit</Text>
-                        <Text style={styles.brandSubtitle}>Dashboard</Text>
-                    </View>
-                </View>
-                <View style={styles.topBarActions}>
-                    <TouchableOpacity
-                        style={styles.iconButton}
-                        activeOpacity={0.7}
-                        onPress={onNotificationsPress}
-                    >
-                        <Bell size={20} color={colors.textSecondary} strokeWidth={2.2} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={onProfilePress}
-                        accessibilityRole="button"
-                        accessibilityLabel="Open your profile"
-                    >
-                        <UserAvatar size={32} />
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {/* Greeting row — the avatar lives in the top bar and the
-                streak moved out, so the name has the full width and no
-                longer needs to truncate. */}
+            {/* Greeting row — the avatar lives in the shared top bar
+                (App.tsx's AppTopBar) and the streak moved out, so the
+                name has the full width and no longer needs to truncate. */}
             <View style={styles.greetingRow}>
                 <View style={styles.greetingTitleRow}>
                     <Text style={styles.greetingTitle}>
@@ -260,6 +326,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <Text style={styles.dateText}>{dateLabel}</Text>
                 </View>
             </View>
+
+            {/* Today's unlogged workouts and meals, each with a start/end timer */}
+            <UpcomingEventsSection />
+
+            {/* Weekly calories chart — static placeholder data for now */}
+            <CaloriesBurnCard />
 
             {/* Metric snapshot grid */}
             <View style={styles.metricGrid}>
@@ -280,7 +352,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                             ]}
                         >
                             <Text style={[styles.metricTrendText, { color: colors.secondary }]}>
-                                {stepsUnknown ? '—' : `${burnGoalPercent}% Goal`}
+                                {burnUnknown ? '0% Goal' : `${burnGoalPercent}% Goal`}
                             </Text>
                         </View>
                     </View>
@@ -288,9 +360,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <ProgressRing
                         size={METRIC_RING_SIZE}
                         strokeWidth={METRIC_RING_STROKE}
-                        progress={stepsUnknown ? 0 : burnProgress}
+                        progress={burnUnknown ? 0 : burnProgress}
                         accent={colors.secondary}
-                        value={stepsUnknown ? '—' : caloriesBurned.toLocaleString()}
+                        value={burnUnknown ? '0' : caloriesBurned.toLocaleString()}
                         caption={`/ ${DAILY_BURN_GOAL.toLocaleString()} kcal`}
                     />
                 </View>
@@ -312,7 +384,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                             ]}
                         >
                             <Text style={[styles.metricTrendText, { color: colors.primary }]}>
-                                {waterUnknown ? '—' : `${hydration.goalPercent}% Goal`}
+                                {waterUnknown ? '0% Goal' : `${telemetry.goalPercent}% Goal`}
                             </Text>
                         </View>
                     </View>
@@ -320,10 +392,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <ProgressRing
                         size={METRIC_RING_SIZE}
                         strokeWidth={METRIC_RING_STROKE}
-                        progress={hydration.progress}
+                        progress={telemetry.progress}
                         accent={colors.primary}
-                        value={waterUnknown ? '—' : hydration.ml.toLocaleString()}
-                        caption={`/ ${hydration.goalMl.toLocaleString()} ml`}
+                        value={waterUnknown ? '0' : telemetry.ml.toLocaleString()}
+                        caption={`/ ${telemetry.goalMl.toLocaleString()} ml`}
                     />
                 </View>
 
@@ -332,21 +404,37 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         <View style={[styles.metricIconCircle, { backgroundColor: colors.surfaceContainer }]}>
                             <Weight size={18} color={colors.textPrimary} strokeWidth={2.2} />
                         </View>
-                        <View
-                            style={[
-                                styles.metricTrendPill,
-                                { backgroundColor: withOpacity(colors.primary, 0.12) },
-                            ]}
-                        >
-                            <Text style={[styles.metricTrendText, { color: colors.primary }]}>
-                                {bodyWeightDeltaKg > 0 ? '+' : ''}
-                                {bodyWeightDeltaKg} kg
-                            </Text>
+                        <View style={styles.metricHeaderRight}>
+                            <View
+                                style={[
+                                    styles.metricTrendPill,
+                                    { backgroundColor: withOpacity(colors.primary, 0.12) },
+                                ]}
+                            >
+                                <Text style={[styles.metricTrendText, { color: colors.primary }]}>
+                                    {/* No history widget reads this yet — it
+                                        just says where today's number came
+                                        from, a real weigh-in or the value
+                                        set at onboarding. */}
+                                    {telemetry.weightKg !== null ? 'Today' : 'Profile'}
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                accessibilityLabel="Log today's weight"
+                                activeOpacity={0.7}
+                                hitSlop={6}
+                                onPress={() => setShowWeightModal(true)}
+                                style={styles.weightEditButton}
+                            >
+                                <Pencil size={12} color={colors.textSecondary} strokeWidth={2.4} />
+                            </TouchableOpacity>
                         </View>
                     </View>
                     <Text style={styles.metricLabel}>Body Weight</Text>
                     <View style={styles.metricValueRow}>
-                        <Text style={styles.metricValue}>{bodyWeightKg}</Text>
+                        <Text style={styles.metricValue}>
+                            {weightKg !== null ? weightKg.toFixed(1) : '0'}
+                        </Text>
                         <Text style={styles.metricUnit}>kg</Text>
                     </View>
                 </View>
@@ -384,7 +472,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <Text style={styles.metricLabel}>Steps</Text>
                     <View style={styles.metricValueRow}>
                         <Text style={styles.metricValue}>
-                            {stepsUnknown ? '—' : stepData.steps.toLocaleString()}
+                            {stepsUnknown ? '0' : stepData.steps.toLocaleString()}
                         </Text>
                         <Text style={styles.metricUnit}>{stepUnitLabel}</Text>
                     </View>
@@ -444,7 +532,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <Text style={styles.metricLabel}>Sleep</Text>
                     <View style={styles.metricValueRow}>
                         <Text style={styles.metricValue}>
-                            {sleepSummary ? formatDuration(sleepSummary.asleepMinutes) : '—'}
+                            {sleepSummary ? formatDuration(sleepSummary.asleepMinutes) : '0'}
                         </Text>
                         {sleepSummary ? <Text style={styles.metricUnit}>asleep</Text> : null}
                     </View>
@@ -625,7 +713,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                                 />
                             </Svg>
                             <View style={styles.calorieRingTextWrap}>
-                                <Text style={styles.calorieRingValue}>{kcalLeft ?? '—'}</Text>
+                                <Text style={styles.calorieRingValue}>{kcalLeft ?? '0'}</Text>
                                 <Text style={styles.calorieRingLabel}>KCAL LEFT</Text>
                             </View>
                         </View>
@@ -639,7 +727,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                                             <Text style={styles.macroLabel}>{macro.label}</Text>
                                         </View>
                                         <Text style={styles.macroValue}>
-                                            {hasCalorieData ? `${macro.grams} / ${macro.goalGrams}g` : `— / ${macro.goalGrams}g`}
+                                            {hasCalorieData ? `${macro.grams} / ${macro.goalGrams}g` : `0 / ${macro.goalGrams}g`}
                                         </Text>
                                     </View>
                                     <View style={styles.macroTrack}>
@@ -661,6 +749,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     </View>
                 )}
             </View>
+
+            {showWeightModal ? (
+                <WeightEntryModal
+                    initialWeightKg={weightKg}
+                    saving={savingWeight}
+                    onClose={() => setShowWeightModal(false)}
+                    onSave={handleSaveWeight}
+                />
+            ) : null}
         </View>
     );
 };
@@ -668,58 +765,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 const styles = themedStyles(() => ({
     wrapper: {
         gap: 20,
-    },
-    topBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 4,
-    },
-    brandRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    brandMark: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        backgroundColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    brandTitle: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        letterSpacing: -0.3,
-        lineHeight: 18,
-    },
-    brandSubtitle: {
-        fontSize: 11,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        lineHeight: 14,
-    },
-    topBarActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    iconButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    avatarBadge: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     greetingRow: {
         // A plain block now, not a row: with the avatar and streak pill
@@ -792,6 +837,19 @@ const styles = themedStyles(() => ({
         paddingHorizontal: 8,
         paddingVertical: 3,
         borderRadius: 12,
+    },
+    metricHeaderRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    weightEditButton: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surfaceContainer,
     },
     metricTrendText: {
         fontSize: 11,

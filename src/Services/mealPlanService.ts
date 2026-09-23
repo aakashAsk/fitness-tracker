@@ -23,6 +23,7 @@ import type { MealItem, MealItemNutrition, NutritionTotals } from './nutritionTo
 
 export type { MealItem, MealItemNutrition, NutritionTotals } from './nutritionTotals';
 export { sumItemNutrition } from './nutritionTotals';
+import { toMealItem } from './nutritionTotals';
 
 const MEAL_PLANS_COLLECTION = 'mealPlans';
 
@@ -91,19 +92,6 @@ export class MealPlanServiceError extends Error {
     super(message);
     this.name = 'MealPlanServiceError';
   }
-}
-
-function toMealItem(raw: unknown): MealItem {
-  const entry = (raw ?? {}) as Record<string, unknown>;
-  return {
-    name: (entry.name as string) ?? '',
-    quantity: entry.quantity == null ? '' : String(entry.quantity),
-    unit: (entry.unit as string) ?? '',
-    // Spread rather than assigned: an explicit `nutrition: undefined`
-    // key is rejected by Firestore ("Unsupported field value") the next
-    // time these items are written back, which the edit path does.
-    ...(entry.nutrition ? { nutrition: entry.nutrition as MealItemNutrition } : {}),
-  };
 }
 
 function toMealPlan(id: string, data: Record<string, unknown>): MealPlan {

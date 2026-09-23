@@ -125,8 +125,10 @@ const styles = themedStyles(() => ({
     paddingHorizontal: 12,
     fontSize: 12,
     borderRadius: radius.md,
-    backgroundColor: colors.cardBackgroud,
-    color: colors.white,
+    backgroundColor: colors.surfaceLow,
+    // colors.white is the same #FFFFFF as the light theme's card fill, so
+    // typed text vanished; onSurface follows the theme instead.
+    color: colors.onSurface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },

@@ -3,6 +3,7 @@
 // the plan library all enforce exactly the same thing — a plan promoted
 // from draft has to clear the same bar as one created live.
 import type { DayKey } from '../Screens/Workout/Types';
+import { describeMissingTarget, isRestCategory, isTargetCategory } from './planCategory';
 import { parseTimeToMinutes, type WorkoutPlan } from './workoutPlanService';
 
 /** Per-user cap on saved plans, drafts and paused ones included. */
@@ -75,7 +76,20 @@ export function describeConflict(conflict: ScheduleConflict): string {
  */
 export function describeIncompletePlan(plan: WorkoutPlan): string | null {
   if (!plan.name.trim()) return 'Give the plan a name first.';
-  if (plan.exerciseIds.length < MIN_EXERCISES) {
+  if (isRestCategory(plan.category)) {
+    // A rest day is just the days it falls on: no exercises, targets or time.
+    if (plan.days.length === 0) return 'Choose at least one rest day first.';
+    return null;
+  }
+  if (isTargetCategory(plan.category)) {
+    // These plans are planned by a distance/time target, not exercises.
+    const missing = describeMissingTarget(
+      plan.category,
+      plan.targetKm ?? undefined,
+      plan.targetMinutes ?? undefined,
+    );
+    if (missing) return missing;
+  } else if (plan.exerciseIds.length < MIN_EXERCISES) {
     return `Add at least ${MIN_EXERCISES} exercises before making this plan live.`;
   }
   if (plan.days.length === 0) return 'Choose at least one training day first.';

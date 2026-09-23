@@ -11,7 +11,12 @@
     "start:clear": "expo start --go -c",
     "build:dev": "npx eas-cli build --profile development --platform android",
     "test": "node --test src/**/__tests__/*.test.ts",
-    "seed:flags": "node scripts/seedFeatureToggles.mjs"
+    "seed:flags": "node scripts/seedFeatureToggles.mjs",
+    "upload:mealplans": "node scripts/uploadMealPlans.mjs",
+    "upload:meallogs": "node scripts/uploadMealLogs.mjs",
+    "upload:workoutplans": "node scripts/uploadWorkoutPlans.mjs",
+    "upload:workoutlogs": "node scripts/uploadWorkoutLogs.mjs",
+    "upload:telemetry": "node scripts/uploadTelemetry.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
@@ -43,6 +48,7 @@
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
     "@types/react": "~19.2.2",
+    "firebase-admin": "^14.4.0",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3"
   },

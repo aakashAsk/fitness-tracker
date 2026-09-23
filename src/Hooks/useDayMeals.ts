@@ -5,7 +5,7 @@
 // runs the exact rules the Nutrition tab does — a meal logged from
 // either place is the same write, lands in the same row, and shows as
 // logged in both.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDialog } from '../Components/Dialog';
 import type { MealPlanPayload } from '../Screens/Nutrition/NewMealPlanModal';
@@ -18,9 +18,12 @@ import {
 import {
     fetchMealLogsForDate,
     MealLogServiceError,
+    peekMealLogsForDate,
     saveMealLog,
     type MealLog,
 } from '../Services/mealLogService';
+import { subscribeToLogChanges } from '../Services/logChangeBus';
+import { minutesOfDay } from '../Services/sessionSchedule';
 import { toDateKey } from '../Services/workoutLogService';
 import { parseTimeToMinutes } from '../Services/workoutPlanService';
 import { useMealPlans } from '../Store/mealPlansSlice';
@@ -82,16 +85,32 @@ export function useDayMeals(date: Date): UseDayMealsResult {
     // What the user has actually eaten on the selected date. Fetched per
     // date rather than subscribed: unlike plans, it changes only when the
     // user logs something.
-    const [mealLogs, setMealLogs] = useState<{ dateKey: string; rows: MealLog[] }>({
-        dateKey: '',
-        rows: [],
+    // Seeded from the read cache where this date was read recently, so a
+    // screen that mounts on a known day paints its rows on the first frame.
+    const [mealLogs, setMealLogs] = useState<{ dateKey: string; rows: MealLog[] }>(() => {
+        const cachedRows = peekMealLogsForDate(dateKey);
+        return cachedRows ? { dateKey, rows: cachedRows } : { dateKey: '', rows: [] };
     });
     const hasLogsForDay = mealLogs.dateKey === dateKey;
     const [logRefreshKey, setLogRefreshKey] = useState(0);
+    // The refresh key the last read was made under — lets the effect tell
+    // "the key changed" (read for real) from "the date changed" (cache ok).
+    const handledRefreshKey = useRef(0);
+
+    // A meal logged from elsewhere (the dashboard's session timer) is
+    // invisible to this copy of the rows until it re-reads.
+    useEffect(
+        () => subscribeToLogChanges(() => setLogRefreshKey((key) => key + 1)),
+        [],
+    );
 
     useEffect(() => {
         let cancelled = false;
-        fetchMealLogsForDate(dateKey)
+        // A changed refresh key means something was logged, so it reads
+        // for real. Merely switching date does not — that may come from cache.
+        const force = handledRefreshKey.current !== logRefreshKey;
+        handledRefreshKey.current = logRefreshKey;
+        fetchMealLogsForDate(dateKey, { force })
             .then((rows) => {
                 if (!cancelled) setMealLogs({ dateKey, rows });
             })
@@ -207,6 +226,21 @@ export function useDayMeals(date: Date): UseDayMealsResult {
         const time = pending?.time ?? plan.time;
         const name = pending?.planName ?? plan.name;
         const mealType = pending?.mealType ?? plan.mealType;
+
+        // A meal cannot be logged before it happens — a future day
+        // outright, or later today before its scheduled time. This is
+        // the backstop behind the UI's own disabled state (see
+        // MealLogsCard/TodaysScheduleSlider): whatever calls logMeal,
+        // the write itself refuses to get ahead of the clock.
+        const now = new Date();
+        const todayKey = toDateKey(now);
+        if (dateKey > todayKey || (dateKey === todayKey && parseTimeToMinutes(time) > minutesOfDay(now))) {
+            dialog.show({
+                title: 'Too early to log',
+                message: `${name} isn't scheduled until ${time}${dateKey > todayKey ? ` on ${dateKey}` : ''} — come back then.`,
+            });
+            return;
+        }
 
         setLoggingPlanId(plan.id);
         try {

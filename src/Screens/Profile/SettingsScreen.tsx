@@ -27,6 +27,7 @@ import { useAppDispatch, useAppSelector } from '../../Store/hooks';
 import { selectUserProfile, userThemeModeUpdated } from '../../Store/userProfileSlice';
 import { saveUserThemeMode } from '../../Services/userProfileService';
 import type { ThemeMode } from '../../Theme/colors';
+import { useFeatureFlag } from '../../FeatureFlags';
 
 /** A row that shows a value and goes nowhere yet. */
 interface ValueRow {
@@ -55,7 +56,13 @@ interface ThemeRow {
 
 type Row = ValueRow | ToggleRow | ThemeRow;
 
-const SECTIONS: { title: string; icon: React.ComponentType<any>; rows: Row[] }[] = [
+const SECTIONS: {
+  title: string;
+  icon: React.ComponentType<any>;
+  rows: Row[];
+  /** Hidden entirely while push notifications are killed. */
+  notificationSection?: boolean;
+}[] = [
   {
     title: 'Workout & coaching',
     icon: Dumbbell,
@@ -126,6 +133,7 @@ const SECTIONS: { title: string; icon: React.ComponentType<any>; rows: Row[] }[]
   {
     title: 'Notifications & alerts',
     icon: Bell,
+    notificationSection: true,
     rows: [
       {
         kind: 'toggle',
@@ -189,6 +197,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   const flip = (key: string) =>
     setToggles(current => ({ ...current, [key]: !current[key] }));
 
+  const pushDisabled = useFeatureFlag('disabledPushNotification');
+  const visibleSections = SECTIONS.filter(
+    section => !section.notificationSection || !pushDisabled,
+  );
+
   const { mode, isDark, setModePersisted } = useTheme();
   const dispatch = useAppDispatch();
   const dialog = useDialog();
@@ -245,7 +258,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </Text>
       </View>
 
-      {SECTIONS.map(section => {
+      {visibleSections.map(section => {
         const SectionIcon = section.icon;
         return (
           <View key={section.title} style={styles.section}>

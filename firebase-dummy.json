@@ -1,0 +1,6636 @@
+[
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-03-26",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7307,
+    "caloriesBurned": 523,
+    "weightKg": 75.5,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 477,
+      "start": "2026-03-25T16:57:00.000Z",
+      "end": "2026-03-26T00:54:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 81,
+        "light": 266,
+        "awake": 58
+      }
+    },
+    "updatedAt": "2026-03-26T01:07:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-03-27",
+    "water": [
+      {
+        "ml": 750,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9714,
+    "caloriesBurned": 692,
+    "weightKg": 75.6,
+    "sleep": {
+      "asleepMinutes": 407,
+      "inBedMinutes": 460,
+      "start": "2026-03-26T17:00:00.000Z",
+      "end": "2026-03-27T00:40:00.000Z",
+      "stages": {
+        "deep": 76,
+        "rem": 77,
+        "light": 254,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-03-27T00:55:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-03-28",
+    "water": [
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 8778,
+    "caloriesBurned": 518,
+    "weightKg": 75.5,
+    "sleep": {
+      "asleepMinutes": 443,
+      "inBedMinutes": 472,
+      "start": "2026-03-27T17:31:00.000Z",
+      "end": "2026-03-28T01:23:00.000Z",
+      "stages": {
+        "deep": 79,
+        "rem": 92,
+        "light": 272,
+        "awake": 29
+      }
+    },
+    "updatedAt": "2026-03-28T01:38:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-03-29",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 300,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 3897,
+    "caloriesBurned": 195,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 431,
+      "inBedMinutes": 498,
+      "start": "2026-03-28T18:18:00.000Z",
+      "end": "2026-03-29T02:36:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 101,
+        "light": 253,
+        "awake": 67
+      }
+    },
+    "updatedAt": "2026-03-29T02:47:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-03-30",
+    "water": [
+      {
+        "ml": 1000,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 1050,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9020,
+    "caloriesBurned": 393,
+    "weightKg": 75.4,
+    "sleep": {
+      "asleepMinutes": 446,
+      "inBedMinutes": 480,
+      "start": "2026-03-29T18:12:00.000Z",
+      "end": "2026-03-30T02:12:00.000Z",
+      "stages": {
+        "deep": 94,
+        "rem": 93,
+        "light": 259,
+        "awake": 34
+      }
+    },
+    "updatedAt": "2026-03-30T02:17:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-03-31",
+    "water": [
+      {
+        "ml": 650,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "1:00 PM"
+      }
+    ],
+    "steps": 8633,
+    "caloriesBurned": 614,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 402,
+      "inBedMinutes": 473,
+      "start": "2026-03-30T17:33:00.000Z",
+      "end": "2026-03-31T01:26:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 96,
+        "light": 220,
+        "awake": 71
+      }
+    },
+    "updatedAt": "2026-03-31T01:32:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-01",
+    "water": [
+      {
+        "ml": 750,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8351,
+    "caloriesBurned": 521,
+    "weightKg": 75.7,
+    "sleep": {
+      "asleepMinutes": 398,
+      "inBedMinutes": 457,
+      "start": "2026-03-31T18:13:00.000Z",
+      "end": "2026-04-01T01:50:00.000Z",
+      "stages": {
+        "deep": 67,
+        "rem": 88,
+        "light": 243,
+        "awake": 59
+      }
+    },
+    "updatedAt": "2026-04-01T01:54:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-02",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "1:00 PM"
+      }
+    ],
+    "steps": 6643,
+    "caloriesBurned": 516,
+    "weightKg": 75.4,
+    "sleep": {
+      "asleepMinutes": 447,
+      "inBedMinutes": 487,
+      "start": "2026-04-01T17:38:00.000Z",
+      "end": "2026-04-02T01:45:00.000Z",
+      "stages": {
+        "deep": 73,
+        "rem": 83,
+        "light": 291,
+        "awake": 40
+      }
+    },
+    "updatedAt": "2026-04-02T01:51:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-03",
+    "water": [
+      {
+        "ml": 350,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 11475,
+    "caloriesBurned": 521,
+    "weightKg": 75.2,
+    "sleep": {
+      "asleepMinutes": 405,
+      "inBedMinutes": 456,
+      "start": "2026-04-02T18:50:00.000Z",
+      "end": "2026-04-03T02:26:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 78,
+        "light": 242,
+        "awake": 51
+      }
+    },
+    "updatedAt": "2026-04-03T02:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-04",
+    "water": [
+      {
+        "ml": 1250,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 1100,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 6854,
+    "caloriesBurned": 516,
+    "weightKg": 75.6,
+    "sleep": {
+      "asleepMinutes": 457,
+      "inBedMinutes": 479,
+      "start": "2026-04-03T19:18:00.000Z",
+      "end": "2026-04-04T03:17:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 101,
+        "light": 275,
+        "awake": 22
+      }
+    },
+    "updatedAt": "2026-04-04T03:27:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-05",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 250,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 4790,
+    "caloriesBurned": 235,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 437,
+      "inBedMinutes": 482,
+      "start": "2026-04-04T16:33:00.000Z",
+      "end": "2026-04-05T00:35:00.000Z",
+      "stages": {
+        "deep": 92,
+        "rem": 80,
+        "light": 265,
+        "awake": 45
+      }
+    },
+    "updatedAt": "2026-04-05T00:47:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-06",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10519,
+    "caloriesBurned": 705,
+    "weightKg": 75.4,
+    "sleep": {
+      "asleepMinutes": 425,
+      "inBedMinutes": 470,
+      "start": "2026-04-05T19:12:00.000Z",
+      "end": "2026-04-06T03:02:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 96,
+        "light": 239,
+        "awake": 45
+      }
+    },
+    "updatedAt": "2026-04-06T03:15:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-07",
+    "water": [
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8686,
+    "caloriesBurned": 621,
+    "weightKg": 75.7,
+    "sleep": {
+      "asleepMinutes": 452,
+      "inBedMinutes": 520,
+      "start": "2026-04-06T17:36:00.000Z",
+      "end": "2026-04-07T02:16:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 106,
+        "light": 266,
+        "awake": 68
+      }
+    },
+    "updatedAt": "2026-04-07T02:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-08",
+    "water": [
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 750,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10197,
+    "caloriesBurned": 617,
+    "weightKg": 75.7,
+    "sleep": {
+      "asleepMinutes": 430,
+      "inBedMinutes": 486,
+      "start": "2026-04-07T17:55:00.000Z",
+      "end": "2026-04-08T02:01:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 101,
+        "light": 251,
+        "awake": 56
+      }
+    },
+    "updatedAt": "2026-04-08T02:09:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-09",
+    "water": [
+      {
+        "ml": 700,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9912,
+    "caloriesBurned": 669,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 390,
+      "inBedMinutes": 451,
+      "start": "2026-04-08T17:04:00.000Z",
+      "end": "2026-04-09T00:35:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 75,
+        "light": 237,
+        "awake": 61
+      }
+    },
+    "updatedAt": "2026-04-09T00:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-10",
+    "water": [
+      {
+        "ml": 1150,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 1150,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 7658,
+    "caloriesBurned": 459,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 462,
+      "start": "2026-04-09T19:29:00.000Z",
+      "end": "2026-04-10T03:11:00.000Z",
+      "stages": {
+        "deep": 71,
+        "rem": 93,
+        "light": 246,
+        "awake": 52
+      }
+    },
+    "updatedAt": "2026-04-10T03:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-11",
+    "water": [
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6517,
+    "caloriesBurned": 447,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 404,
+      "inBedMinutes": 456,
+      "start": "2026-04-10T17:12:00.000Z",
+      "end": "2026-04-11T00:48:00.000Z",
+      "stages": {
+        "deep": 79,
+        "rem": 94,
+        "light": 231,
+        "awake": 52
+      }
+    },
+    "updatedAt": "2026-04-11T00:51:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-12",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 2862,
+    "caloriesBurned": 116,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 398,
+      "inBedMinutes": 462,
+      "start": "2026-04-11T17:42:00.000Z",
+      "end": "2026-04-12T01:24:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 84,
+        "light": 229,
+        "awake": 64
+      }
+    },
+    "updatedAt": "2026-04-12T01:37:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-13",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7983,
+    "caloriesBurned": 524,
+    "weightKg": 75.0,
+    "sleep": {
+      "asleepMinutes": 396,
+      "inBedMinutes": 434,
+      "start": "2026-04-12T16:43:00.000Z",
+      "end": "2026-04-12T23:57:00.000Z",
+      "stages": {
+        "deep": 63,
+        "rem": 77,
+        "light": 256,
+        "awake": 38
+      }
+    },
+    "updatedAt": "2026-04-13T00:09:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-14",
+    "water": [
+      {
+        "ml": 750,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10635,
+    "caloriesBurned": 669,
+    "weightKg": 75.6,
+    "sleep": {
+      "asleepMinutes": 420,
+      "inBedMinutes": 457,
+      "start": "2026-04-13T19:02:00.000Z",
+      "end": "2026-04-14T02:39:00.000Z",
+      "stages": {
+        "deep": 71,
+        "rem": 99,
+        "light": 250,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-04-14T02:47:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-15",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8300,
+    "caloriesBurned": 618,
+    "weightKg": 75.5,
+    "sleep": {
+      "asleepMinutes": 457,
+      "inBedMinutes": 494,
+      "start": "2026-04-14T18:07:00.000Z",
+      "end": "2026-04-15T02:21:00.000Z",
+      "stages": {
+        "deep": 88,
+        "rem": 109,
+        "light": 260,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-04-15T02:35:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-16",
+    "water": [
+      {
+        "ml": 1200,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 1100,
+        "time": "11:00 AM"
+      }
+    ],
+    "steps": 7695,
+    "caloriesBurned": 537,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 413,
+      "inBedMinutes": 460,
+      "start": "2026-04-15T16:46:00.000Z",
+      "end": "2026-04-16T00:26:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 79,
+        "light": 256,
+        "awake": 47
+      }
+    },
+    "updatedAt": "2026-04-16T00:30:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-17",
+    "water": [
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10221,
+    "caloriesBurned": 591,
+    "weightKg": 75.2,
+    "sleep": {
+      "asleepMinutes": 376,
+      "inBedMinutes": 449,
+      "start": "2026-04-16T18:06:00.000Z",
+      "end": "2026-04-17T01:35:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 87,
+        "light": 212,
+        "awake": 73
+      }
+    },
+    "updatedAt": "2026-04-17T01:50:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-18",
+    "water": [
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10391,
+    "caloriesBurned": 718,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 442,
+      "inBedMinutes": 481,
+      "start": "2026-04-17T16:53:00.000Z",
+      "end": "2026-04-18T00:54:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 86,
+        "light": 284,
+        "awake": 39
+      }
+    },
+    "updatedAt": "2026-04-18T01:06:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-19",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 800,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 3959,
+    "caloriesBurned": 163,
+    "weightKg": 75.5,
+    "sleep": {
+      "asleepMinutes": 395,
+      "inBedMinutes": 437,
+      "start": "2026-04-18T18:11:00.000Z",
+      "end": "2026-04-19T01:28:00.000Z",
+      "stages": {
+        "deep": 69,
+        "rem": 87,
+        "light": 239,
+        "awake": 42
+      }
+    },
+    "updatedAt": "2026-04-19T01:33:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-20",
+    "water": [
+      {
+        "ml": 800,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 800,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 900,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 10898,
+    "caloriesBurned": 647,
+    "weightKg": 75.5,
+    "sleep": {
+      "asleepMinutes": 440,
+      "inBedMinutes": 493,
+      "start": "2026-04-19T19:11:00.000Z",
+      "end": "2026-04-20T03:24:00.000Z",
+      "stages": {
+        "deep": 71,
+        "rem": 99,
+        "light": 270,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-04-20T03:34:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-21",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7109,
+    "caloriesBurned": 564,
+    "weightKg": 75.5,
+    "sleep": {
+      "asleepMinutes": 415,
+      "inBedMinutes": 464,
+      "start": "2026-04-20T18:23:00.000Z",
+      "end": "2026-04-21T02:07:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 95,
+        "light": 248,
+        "awake": 49
+      }
+    },
+    "updatedAt": "2026-04-21T02:12:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-22",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7014,
+    "caloriesBurned": 498,
+    "weightKg": 75.0,
+    "sleep": {
+      "asleepMinutes": 403,
+      "inBedMinutes": 476,
+      "start": "2026-04-21T17:37:00.000Z",
+      "end": "2026-04-22T01:33:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 75,
+        "light": 251,
+        "awake": 73
+      }
+    },
+    "updatedAt": "2026-04-22T01:47:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-23",
+    "water": [
+      {
+        "ml": 800,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 850,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7784,
+    "caloriesBurned": 502,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 458,
+      "inBedMinutes": 502,
+      "start": "2026-04-22T17:32:00.000Z",
+      "end": "2026-04-23T01:54:00.000Z",
+      "stages": {
+        "deep": 95,
+        "rem": 101,
+        "light": 262,
+        "awake": 44
+      }
+    },
+    "updatedAt": "2026-04-23T02:05:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-24",
+    "water": [
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 11167,
+    "caloriesBurned": 733,
+    "weightKg": 75.4,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 472,
+      "start": "2026-04-23T17:33:00.000Z",
+      "end": "2026-04-24T01:25:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 80,
+        "light": 253,
+        "awake": 62
+      }
+    },
+    "updatedAt": "2026-04-24T01:28:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-25",
+    "water": [
+      {
+        "ml": 1100,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 1000,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 8256,
+    "caloriesBurned": 537,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 450,
+      "start": "2026-04-24T19:14:00.000Z",
+      "end": "2026-04-25T02:44:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 94,
+        "light": 233,
+        "awake": 40
+      }
+    },
+    "updatedAt": "2026-04-25T02:47:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-26",
+    "water": [
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 5985,
+    "caloriesBurned": 285,
+    "weightKg": 75.2,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 461,
+      "start": "2026-04-25T17:30:00.000Z",
+      "end": "2026-04-26T01:11:00.000Z",
+      "stages": {
+        "deep": 70,
+        "rem": 77,
+        "light": 263,
+        "awake": 51
+      }
+    },
+    "updatedAt": "2026-04-26T01:23:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-27",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9299,
+    "caloriesBurned": 630,
+    "weightKg": 75.0,
+    "sleep": {
+      "asleepMinutes": 387,
+      "inBedMinutes": 412,
+      "start": "2026-04-26T17:26:00.000Z",
+      "end": "2026-04-27T00:18:00.000Z",
+      "stages": {
+        "deep": 65,
+        "rem": 85,
+        "light": 237,
+        "awake": 25
+      }
+    },
+    "updatedAt": "2026-04-27T00:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-28",
+    "water": [
+      {
+        "ml": 750,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 750,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 850,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8416,
+    "caloriesBurned": 550,
+    "weightKg": 74.7,
+    "sleep": {
+      "asleepMinutes": 418,
+      "inBedMinutes": 444,
+      "start": "2026-04-27T18:11:00.000Z",
+      "end": "2026-04-28T01:35:00.000Z",
+      "stages": {
+        "deep": 87,
+        "rem": 99,
+        "light": 232,
+        "awake": 26
+      }
+    },
+    "updatedAt": "2026-04-28T01:48:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-29",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10795,
+    "caloriesBurned": 481,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 413,
+      "inBedMinutes": 479,
+      "start": "2026-04-28T17:02:00.000Z",
+      "end": "2026-04-29T01:01:00.000Z",
+      "stages": {
+        "deep": 67,
+        "rem": 82,
+        "light": 264,
+        "awake": 66
+      }
+    },
+    "updatedAt": "2026-04-29T01:12:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-04-30",
+    "water": [
+      {
+        "ml": 1000,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 1050,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8224,
+    "caloriesBurned": 608,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 386,
+      "inBedMinutes": 423,
+      "start": "2026-04-29T17:38:00.000Z",
+      "end": "2026-04-30T00:41:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 75,
+        "light": 229,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-04-30T00:51:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-01",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      }
+    ],
+    "steps": 8834,
+    "caloriesBurned": 571,
+    "weightKg": 74.8,
+    "sleep": {
+      "asleepMinutes": 381,
+      "inBedMinutes": 436,
+      "start": "2026-04-30T18:44:00.000Z",
+      "end": "2026-05-01T02:00:00.000Z",
+      "stages": {
+        "deep": 64,
+        "rem": 81,
+        "light": 236,
+        "awake": 55
+      }
+    },
+    "updatedAt": "2026-05-01T02:15:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-02",
+    "water": [
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8028,
+    "caloriesBurned": 515,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 415,
+      "inBedMinutes": 436,
+      "start": "2026-05-01T16:49:00.000Z",
+      "end": "2026-05-02T00:05:00.000Z",
+      "stages": {
+        "deep": 84,
+        "rem": 92,
+        "light": 239,
+        "awake": 21
+      }
+    },
+    "updatedAt": "2026-05-02T00:12:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-03",
+    "water": [
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 3718,
+    "caloriesBurned": 182,
+    "weightKg": 75.3,
+    "sleep": {
+      "asleepMinutes": 471,
+      "inBedMinutes": 490,
+      "start": "2026-05-02T19:01:00.000Z",
+      "end": "2026-05-03T03:11:00.000Z",
+      "stages": {
+        "deep": 101,
+        "rem": 87,
+        "light": 283,
+        "awake": 19
+      }
+    },
+    "updatedAt": "2026-05-03T03:15:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-04",
+    "water": [
+      {
+        "ml": 1350,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 1250,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 11694,
+    "caloriesBurned": 673,
+    "weightKg": 75.0,
+    "sleep": {
+      "asleepMinutes": 382,
+      "inBedMinutes": 446,
+      "start": "2026-05-03T18:01:00.000Z",
+      "end": "2026-05-04T01:27:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 88,
+        "light": 211,
+        "awake": 64
+      }
+    },
+    "updatedAt": "2026-05-04T01:40:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-05",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8868,
+    "caloriesBurned": 568,
+    "weightKg": 75.2,
+    "sleep": {
+      "asleepMinutes": 427,
+      "inBedMinutes": 484,
+      "start": "2026-05-04T16:59:00.000Z",
+      "end": "2026-05-05T01:03:00.000Z",
+      "stages": {
+        "deep": 91,
+        "rem": 93,
+        "light": 243,
+        "awake": 57
+      }
+    },
+    "updatedAt": "2026-05-05T01:10:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-06",
+    "water": [
+      {
+        "ml": 750,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 800,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 800,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10078,
+    "caloriesBurned": 686,
+    "weightKg": 74.7,
+    "sleep": {
+      "asleepMinutes": 435,
+      "inBedMinutes": 511,
+      "start": "2026-05-05T16:36:00.000Z",
+      "end": "2026-05-06T01:07:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 103,
+        "light": 249,
+        "awake": 76
+      }
+    },
+    "updatedAt": "2026-05-06T01:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-07",
+    "water": [
+      {
+        "ml": 350,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 300,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7922,
+    "caloriesBurned": 603,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 453,
+      "inBedMinutes": 506,
+      "start": "2026-05-06T17:10:00.000Z",
+      "end": "2026-05-07T01:36:00.000Z",
+      "stages": {
+        "deep": 98,
+        "rem": 102,
+        "light": 253,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-05-07T01:44:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-08",
+    "water": [
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 11101,
+    "caloriesBurned": 663,
+    "weightKg": 74.5,
+    "sleep": {
+      "asleepMinutes": 426,
+      "inBedMinutes": 463,
+      "start": "2026-05-07T17:51:00.000Z",
+      "end": "2026-05-08T01:34:00.000Z",
+      "stages": {
+        "deep": 69,
+        "rem": 85,
+        "light": 272,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-05-08T01:44:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-09",
+    "water": [
+      {
+        "ml": 850,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 850,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9536,
+    "caloriesBurned": 623,
+    "weightKg": 74.6,
+    "sleep": {
+      "asleepMinutes": 420,
+      "inBedMinutes": 463,
+      "start": "2026-05-08T19:08:00.000Z",
+      "end": "2026-05-09T02:51:00.000Z",
+      "stages": {
+        "deep": 88,
+        "rem": 87,
+        "light": 245,
+        "awake": 43
+      }
+    },
+    "updatedAt": "2026-05-09T02:55:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-10",
+    "water": [
+      {
+        "ml": 650,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 4255,
+    "caloriesBurned": 184,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 414,
+      "inBedMinutes": 459,
+      "start": "2026-05-09T17:11:00.000Z",
+      "end": "2026-05-10T00:50:00.000Z",
+      "stages": {
+        "deep": 75,
+        "rem": 77,
+        "light": 262,
+        "awake": 45
+      }
+    },
+    "updatedAt": "2026-05-10T01:00:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-11",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 9336,
+    "caloriesBurned": 649,
+    "weightKg": 74.7,
+    "sleep": {
+      "asleepMinutes": 437,
+      "inBedMinutes": 505,
+      "start": "2026-05-10T16:59:00.000Z",
+      "end": "2026-05-11T01:24:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 87,
+        "light": 268,
+        "awake": 68
+      }
+    },
+    "updatedAt": "2026-05-11T01:32:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-12",
+    "water": [
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 300,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 350,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9259,
+    "caloriesBurned": 547,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 399,
+      "inBedMinutes": 426,
+      "start": "2026-05-11T18:26:00.000Z",
+      "end": "2026-05-12T01:32:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 80,
+        "light": 237,
+        "awake": 27
+      }
+    },
+    "updatedAt": "2026-05-12T01:46:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-13",
+    "water": [
+      {
+        "ml": 850,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 800,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 7608,
+    "caloriesBurned": 542,
+    "weightKg": 74.5,
+    "sleep": {
+      "asleepMinutes": 457,
+      "inBedMinutes": 509,
+      "start": "2026-05-12T18:46:00.000Z",
+      "end": "2026-05-13T03:15:00.000Z",
+      "stages": {
+        "deep": 84,
+        "rem": 92,
+        "light": 281,
+        "awake": 52
+      }
+    },
+    "updatedAt": "2026-05-13T03:18:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-14",
+    "water": [
+      {
+        "ml": 650,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8085,
+    "caloriesBurned": 584,
+    "weightKg": 74.8,
+    "sleep": {
+      "asleepMinutes": 445,
+      "inBedMinutes": 502,
+      "start": "2026-05-13T16:40:00.000Z",
+      "end": "2026-05-14T01:02:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 101,
+        "light": 267,
+        "awake": 57
+      }
+    },
+    "updatedAt": "2026-05-14T01:14:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-15",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 450,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8929,
+    "caloriesBurned": 575,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 414,
+      "inBedMinutes": 475,
+      "start": "2026-05-14T16:31:00.000Z",
+      "end": "2026-05-15T00:26:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 90,
+        "light": 246,
+        "awake": 61
+      }
+    },
+    "updatedAt": "2026-05-15T00:36:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-16",
+    "water": [
+      {
+        "ml": 1250,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 1100,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8223,
+    "caloriesBurned": 366,
+    "weightKg": 75.1,
+    "sleep": {
+      "asleepMinutes": 427,
+      "inBedMinutes": 470,
+      "start": "2026-05-15T16:38:00.000Z",
+      "end": "2026-05-16T00:28:00.000Z",
+      "stages": {
+        "deep": 76,
+        "rem": 81,
+        "light": 270,
+        "awake": 43
+      }
+    },
+    "updatedAt": "2026-05-16T00:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-17",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 2670,
+    "caloriesBurned": 121,
+    "weightKg": 74.5,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 445,
+      "start": "2026-05-16T17:34:00.000Z",
+      "end": "2026-05-17T00:59:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 93,
+        "light": 240,
+        "awake": 35
+      }
+    },
+    "updatedAt": "2026-05-17T01:08:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-18",
+    "water": [
+      {
+        "ml": 650,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 700,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9320,
+    "caloriesBurned": 591,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 426,
+      "inBedMinutes": 501,
+      "start": "2026-05-17T18:44:00.000Z",
+      "end": "2026-05-18T03:05:00.000Z",
+      "stages": {
+        "deep": 69,
+        "rem": 93,
+        "light": 264,
+        "awake": 75
+      }
+    },
+    "updatedAt": "2026-05-18T03:14:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-19",
+    "water": [
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8320,
+    "caloriesBurned": 522,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 433,
+      "inBedMinutes": 487,
+      "start": "2026-05-18T17:45:00.000Z",
+      "end": "2026-05-19T01:52:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 92,
+        "light": 263,
+        "awake": 54
+      }
+    },
+    "updatedAt": "2026-05-19T02:02:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-20",
+    "water": [
+      {
+        "ml": 1350,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 1250,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8101,
+    "caloriesBurned": 558,
+    "weightKg": 74.7,
+    "sleep": {
+      "asleepMinutes": 386,
+      "inBedMinutes": 440,
+      "start": "2026-05-19T18:57:00.000Z",
+      "end": "2026-05-20T02:17:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 81,
+        "light": 233,
+        "awake": 54
+      }
+    },
+    "updatedAt": "2026-05-20T02:25:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-21",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 9095,
+    "caloriesBurned": 533,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 440,
+      "inBedMinutes": 505,
+      "start": "2026-05-20T17:59:00.000Z",
+      "end": "2026-05-21T02:24:00.000Z",
+      "stages": {
+        "deep": 88,
+        "rem": 80,
+        "light": 272,
+        "awake": 65
+      }
+    },
+    "updatedAt": "2026-05-21T02:37:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-22",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7715,
+    "caloriesBurned": 341,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 489,
+      "start": "2026-05-21T19:24:00.000Z",
+      "end": "2026-05-22T03:33:00.000Z",
+      "stages": {
+        "deep": 89,
+        "rem": 95,
+        "light": 235,
+        "awake": 70
+      }
+    },
+    "updatedAt": "2026-05-22T03:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-23",
+    "water": [
+      {
+        "ml": 800,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9985,
+    "caloriesBurned": 651,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 425,
+      "inBedMinutes": 479,
+      "start": "2026-05-22T17:58:00.000Z",
+      "end": "2026-05-23T01:57:00.000Z",
+      "stages": {
+        "deep": 84,
+        "rem": 76,
+        "light": 265,
+        "awake": 54
+      }
+    },
+    "updatedAt": "2026-05-23T02:00:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-24",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 6283,
+    "caloriesBurned": 292,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 401,
+      "inBedMinutes": 449,
+      "start": "2026-05-23T17:56:00.000Z",
+      "end": "2026-05-24T01:25:00.000Z",
+      "stages": {
+        "deep": 64,
+        "rem": 74,
+        "light": 263,
+        "awake": 48
+      }
+    },
+    "updatedAt": "2026-05-24T01:36:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-25",
+    "water": [
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 300,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7397,
+    "caloriesBurned": 321,
+    "weightKg": 74.8,
+    "sleep": {
+      "asleepMinutes": 415,
+      "inBedMinutes": 493,
+      "start": "2026-05-24T18:46:00.000Z",
+      "end": "2026-05-25T02:59:00.000Z",
+      "stages": {
+        "deep": 75,
+        "rem": 84,
+        "light": 256,
+        "awake": 78
+      }
+    },
+    "updatedAt": "2026-05-25T03:13:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-26",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10427,
+    "caloriesBurned": 689,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 427,
+      "inBedMinutes": 471,
+      "start": "2026-05-25T17:24:00.000Z",
+      "end": "2026-05-26T01:15:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 96,
+        "light": 251,
+        "awake": 44
+      }
+    },
+    "updatedAt": "2026-05-26T01:22:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-27",
+    "water": [
+      {
+        "ml": 900,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 850,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 850,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 6771,
+    "caloriesBurned": 515,
+    "weightKg": 74.8,
+    "sleep": {
+      "asleepMinutes": 387,
+      "inBedMinutes": 453,
+      "start": "2026-05-26T16:59:00.000Z",
+      "end": "2026-05-27T00:32:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 86,
+        "light": 235,
+        "awake": 66
+      }
+    },
+    "updatedAt": "2026-05-27T00:44:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-28",
+    "water": [
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9690,
+    "caloriesBurned": 582,
+    "weightKg": 74.9,
+    "sleep": {
+      "asleepMinutes": 404,
+      "inBedMinutes": 463,
+      "start": "2026-05-27T17:34:00.000Z",
+      "end": "2026-05-28T01:17:00.000Z",
+      "stages": {
+        "deep": 87,
+        "rem": 77,
+        "light": 240,
+        "awake": 59
+      }
+    },
+    "updatedAt": "2026-05-28T01:32:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-29",
+    "water": [
+      {
+        "ml": 850,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 750,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 750,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9543,
+    "caloriesBurned": 636,
+    "weightKg": 74.8,
+    "sleep": {
+      "asleepMinutes": 472,
+      "inBedMinutes": 511,
+      "start": "2026-05-28T16:35:00.000Z",
+      "end": "2026-05-29T01:06:00.000Z",
+      "stages": {
+        "deep": 98,
+        "rem": 112,
+        "light": 262,
+        "awake": 39
+      }
+    },
+    "updatedAt": "2026-05-29T01:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-30",
+    "water": [
+      {
+        "ml": 350,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9229,
+    "caloriesBurned": 617,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 445,
+      "inBedMinutes": 477,
+      "start": "2026-05-29T17:23:00.000Z",
+      "end": "2026-05-30T01:20:00.000Z",
+      "stages": {
+        "deep": 87,
+        "rem": 104,
+        "light": 254,
+        "awake": 32
+      }
+    },
+    "updatedAt": "2026-05-30T01:25:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-05-31",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 4417,
+    "caloriesBurned": 196,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 380,
+      "inBedMinutes": 431,
+      "start": "2026-05-30T16:38:00.000Z",
+      "end": "2026-05-30T23:49:00.000Z",
+      "stages": {
+        "deep": 65,
+        "rem": 89,
+        "light": 226,
+        "awake": 51
+      }
+    },
+    "updatedAt": "2026-05-30T23:53:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-01",
+    "water": [
+      {
+        "ml": 800,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 800,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8276,
+    "caloriesBurned": 621,
+    "weightKg": 74.2,
+    "sleep": {
+      "asleepMinutes": 431,
+      "inBedMinutes": 494,
+      "start": "2026-05-31T19:12:00.000Z",
+      "end": "2026-06-01T03:26:00.000Z",
+      "stages": {
+        "deep": 74,
+        "rem": 90,
+        "light": 267,
+        "awake": 63
+      }
+    },
+    "updatedAt": "2026-06-01T03:40:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-02",
+    "water": [
+      {
+        "ml": 350,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 250,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10770,
+    "caloriesBurned": 708,
+    "weightKg": 74.5,
+    "sleep": {
+      "asleepMinutes": 449,
+      "inBedMinutes": 486,
+      "start": "2026-06-01T18:16:00.000Z",
+      "end": "2026-06-02T02:22:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 89,
+        "light": 274,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-06-02T02:32:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-03",
+    "water": [
+      {
+        "ml": 1100,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 1200,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 5935,
+    "caloriesBurned": 492,
+    "weightKg": 74.2,
+    "sleep": {
+      "asleepMinutes": 449,
+      "inBedMinutes": 489,
+      "start": "2026-06-02T16:34:00.000Z",
+      "end": "2026-06-03T00:43:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 91,
+        "light": 268,
+        "awake": 40
+      }
+    },
+    "updatedAt": "2026-06-03T00:48:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-04",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7819,
+    "caloriesBurned": 605,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 467,
+      "start": "2026-06-03T17:01:00.000Z",
+      "end": "2026-06-04T00:48:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 77,
+        "light": 261,
+        "awake": 48
+      }
+    },
+    "updatedAt": "2026-06-04T00:55:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-05",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8544,
+    "caloriesBurned": 600,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 407,
+      "inBedMinutes": 475,
+      "start": "2026-06-04T17:29:00.000Z",
+      "end": "2026-06-05T01:24:00.000Z",
+      "stages": {
+        "deep": 89,
+        "rem": 73,
+        "light": 245,
+        "awake": 68
+      }
+    },
+    "updatedAt": "2026-06-05T01:27:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-06",
+    "water": [
+      {
+        "ml": 700,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 800,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8979,
+    "caloriesBurned": 548,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 431,
+      "inBedMinutes": 453,
+      "start": "2026-06-05T18:12:00.000Z",
+      "end": "2026-06-06T01:45:00.000Z",
+      "stages": {
+        "deep": 87,
+        "rem": 99,
+        "light": 245,
+        "awake": 22
+      }
+    },
+    "updatedAt": "2026-06-06T01:58:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-07",
+    "water": [
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 700,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 4721,
+    "caloriesBurned": 195,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 432,
+      "inBedMinutes": 468,
+      "start": "2026-06-06T19:07:00.000Z",
+      "end": "2026-06-07T02:55:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 93,
+        "light": 254,
+        "awake": 36
+      }
+    },
+    "updatedAt": "2026-06-07T03:02:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-08",
+    "water": [
+      {
+        "ml": 850,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 850,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 800,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 9193,
+    "caloriesBurned": 674,
+    "weightKg": 74.6,
+    "sleep": {
+      "asleepMinutes": 421,
+      "inBedMinutes": 493,
+      "start": "2026-06-07T19:28:00.000Z",
+      "end": "2026-06-08T03:41:00.000Z",
+      "stages": {
+        "deep": 87,
+        "rem": 78,
+        "light": 256,
+        "awake": 72
+      }
+    },
+    "updatedAt": "2026-06-08T03:49:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-09",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7990,
+    "caloriesBurned": 472,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 372,
+      "inBedMinutes": 442,
+      "start": "2026-06-08T17:25:00.000Z",
+      "end": "2026-06-09T00:47:00.000Z",
+      "stages": {
+        "deep": 62,
+        "rem": 78,
+        "light": 232,
+        "awake": 70
+      }
+    },
+    "updatedAt": "2026-06-09T00:55:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-10",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8005,
+    "caloriesBurned": 505,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 425,
+      "inBedMinutes": 484,
+      "start": "2026-06-09T16:48:00.000Z",
+      "end": "2026-06-10T00:52:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 80,
+        "light": 255,
+        "awake": 59
+      }
+    },
+    "updatedAt": "2026-06-10T01:00:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-11",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 8168,
+    "caloriesBurned": 513,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 431,
+      "inBedMinutes": 461,
+      "start": "2026-06-10T19:20:00.000Z",
+      "end": "2026-06-11T03:01:00.000Z",
+      "stages": {
+        "deep": 73,
+        "rem": 99,
+        "light": 259,
+        "awake": 30
+      }
+    },
+    "updatedAt": "2026-06-11T03:13:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-12",
+    "water": [
+      {
+        "ml": 1150,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 1050,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7581,
+    "caloriesBurned": 510,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 463,
+      "inBedMinutes": 505,
+      "start": "2026-06-11T16:30:00.000Z",
+      "end": "2026-06-12T00:55:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 104,
+        "light": 274,
+        "awake": 42
+      }
+    },
+    "updatedAt": "2026-06-12T01:04:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-13",
+    "water": [
+      {
+        "ml": 800,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 750,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 850,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7890,
+    "caloriesBurned": 566,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 437,
+      "start": "2026-06-12T18:52:00.000Z",
+      "end": "2026-06-13T02:09:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 77,
+        "light": 270,
+        "awake": 18
+      }
+    },
+    "updatedAt": "2026-06-13T02:13:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-14",
+    "water": [
+      {
+        "ml": 950,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 1050,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6740,
+    "caloriesBurned": 321,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 440,
+      "inBedMinutes": 476,
+      "start": "2026-06-13T17:36:00.000Z",
+      "end": "2026-06-14T01:32:00.000Z",
+      "stages": {
+        "deep": 91,
+        "rem": 104,
+        "light": 245,
+        "awake": 36
+      }
+    },
+    "updatedAt": "2026-06-14T01:43:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-15",
+    "water": [
+      {
+        "ml": 750,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 850,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 850,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8081,
+    "caloriesBurned": 510,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 396,
+      "inBedMinutes": 446,
+      "start": "2026-06-14T18:06:00.000Z",
+      "end": "2026-06-15T01:32:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 71,
+        "light": 242,
+        "awake": 50
+      }
+    },
+    "updatedAt": "2026-06-15T01:34:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-16",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9283,
+    "caloriesBurned": 567,
+    "weightKg": 74.2,
+    "sleep": {
+      "asleepMinutes": 383,
+      "inBedMinutes": 442,
+      "start": "2026-06-15T16:52:00.000Z",
+      "end": "2026-06-16T00:14:00.000Z",
+      "stages": {
+        "deep": 74,
+        "rem": 83,
+        "light": 226,
+        "awake": 59
+      }
+    },
+    "updatedAt": "2026-06-16T00:25:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-17",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 6850,
+    "caloriesBurned": 540,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 432,
+      "inBedMinutes": 487,
+      "start": "2026-06-16T16:31:00.000Z",
+      "end": "2026-06-17T00:38:00.000Z",
+      "stages": {
+        "deep": 88,
+        "rem": 93,
+        "light": 251,
+        "awake": 55
+      }
+    },
+    "updatedAt": "2026-06-17T00:43:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-18",
+    "water": [
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10635,
+    "caloriesBurned": 688,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 439,
+      "inBedMinutes": 495,
+      "start": "2026-06-17T17:07:00.000Z",
+      "end": "2026-06-18T01:22:00.000Z",
+      "stages": {
+        "deep": 93,
+        "rem": 98,
+        "light": 248,
+        "awake": 56
+      }
+    },
+    "updatedAt": "2026-06-18T01:31:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-19",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7650,
+    "caloriesBurned": 357,
+    "weightKg": 74.5,
+    "sleep": {
+      "asleepMinutes": 403,
+      "inBedMinutes": 458,
+      "start": "2026-06-18T18:47:00.000Z",
+      "end": "2026-06-19T02:25:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 84,
+        "light": 237,
+        "awake": 55
+      }
+    },
+    "updatedAt": "2026-06-19T02:28:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-20",
+    "water": [
+      {
+        "ml": 700,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 10764,
+    "caloriesBurned": 748,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 384,
+      "inBedMinutes": 448,
+      "start": "2026-06-19T18:19:00.000Z",
+      "end": "2026-06-20T01:47:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 87,
+        "light": 215,
+        "awake": 64
+      }
+    },
+    "updatedAt": "2026-06-20T01:58:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-21",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 300,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 5569,
+    "caloriesBurned": 247,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 412,
+      "inBedMinutes": 467,
+      "start": "2026-06-20T17:42:00.000Z",
+      "end": "2026-06-21T01:29:00.000Z",
+      "stages": {
+        "deep": 70,
+        "rem": 81,
+        "light": 261,
+        "awake": 55
+      }
+    },
+    "updatedAt": "2026-06-21T01:40:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-22",
+    "water": [
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 8989,
+    "caloriesBurned": 640,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 465,
+      "start": "2026-06-21T19:22:00.000Z",
+      "end": "2026-06-22T03:07:00.000Z",
+      "stages": {
+        "deep": 71,
+        "rem": 96,
+        "light": 252,
+        "awake": 46
+      }
+    },
+    "updatedAt": "2026-06-22T03:12:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-23",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8259,
+    "caloriesBurned": 578,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 398,
+      "inBedMinutes": 432,
+      "start": "2026-06-22T18:39:00.000Z",
+      "end": "2026-06-23T01:51:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 76,
+        "light": 256,
+        "awake": 34
+      }
+    },
+    "updatedAt": "2026-06-23T01:56:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-24",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 9088,
+    "caloriesBurned": 607,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 403,
+      "inBedMinutes": 473,
+      "start": "2026-06-23T18:25:00.000Z",
+      "end": "2026-06-24T02:18:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 87,
+        "light": 234,
+        "awake": 70
+      }
+    },
+    "updatedAt": "2026-06-24T02:22:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-25",
+    "water": [
+      {
+        "ml": 800,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "11:00 AM"
+      }
+    ],
+    "steps": 8894,
+    "caloriesBurned": 647,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 422,
+      "inBedMinutes": 494,
+      "start": "2026-06-24T16:48:00.000Z",
+      "end": "2026-06-25T01:02:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 87,
+        "light": 250,
+        "awake": 72
+      }
+    },
+    "updatedAt": "2026-06-25T01:10:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-26",
+    "water": [
+      {
+        "ml": 800,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 800,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 800,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10052,
+    "caloriesBurned": 621,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 397,
+      "inBedMinutes": 461,
+      "start": "2026-06-25T16:55:00.000Z",
+      "end": "2026-06-26T00:36:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 74,
+        "light": 257,
+        "awake": 64
+      }
+    },
+    "updatedAt": "2026-06-26T00:48:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-27",
+    "water": [
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 850,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 850,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 6573,
+    "caloriesBurned": 537,
+    "weightKg": 74.4,
+    "sleep": {
+      "asleepMinutes": 447,
+      "inBedMinutes": 489,
+      "start": "2026-06-26T16:36:00.000Z",
+      "end": "2026-06-27T00:45:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 99,
+        "light": 268,
+        "awake": 42
+      }
+    },
+    "updatedAt": "2026-06-27T00:51:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-28",
+    "water": [
+      {
+        "ml": 400,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 4734,
+    "caloriesBurned": 201,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 454,
+      "inBedMinutes": 477,
+      "start": "2026-06-27T17:50:00.000Z",
+      "end": "2026-06-28T01:47:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 82,
+        "light": 292,
+        "awake": 23
+      }
+    },
+    "updatedAt": "2026-06-28T01:52:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-29",
+    "water": [
+      {
+        "ml": 900,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 900,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 800,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 7459,
+    "caloriesBurned": 585,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 418,
+      "inBedMinutes": 488,
+      "start": "2026-06-28T18:20:00.000Z",
+      "end": "2026-06-29T02:28:00.000Z",
+      "stages": {
+        "deep": 71,
+        "rem": 77,
+        "light": 270,
+        "awake": 70
+      }
+    },
+    "updatedAt": "2026-06-29T02:37:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-06-30",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10284,
+    "caloriesBurned": 655,
+    "weightKg": 74.3,
+    "sleep": {
+      "asleepMinutes": 437,
+      "inBedMinutes": 459,
+      "start": "2026-06-29T17:11:00.000Z",
+      "end": "2026-06-30T00:50:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 79,
+        "light": 276,
+        "awake": 22
+      }
+    },
+    "updatedAt": "2026-06-30T01:03:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-01",
+    "water": [
+      {
+        "ml": 850,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 800,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8593,
+    "caloriesBurned": 586,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 402,
+      "inBedMinutes": 452,
+      "start": "2026-06-30T16:31:00.000Z",
+      "end": "2026-07-01T00:03:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 78,
+        "light": 247,
+        "awake": 50
+      }
+    },
+    "updatedAt": "2026-07-01T00:16:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-02",
+    "water": [
+      {
+        "ml": 1200,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 1200,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10091,
+    "caloriesBurned": 695,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 398,
+      "inBedMinutes": 471,
+      "start": "2026-07-01T18:08:00.000Z",
+      "end": "2026-07-02T01:59:00.000Z",
+      "stages": {
+        "deep": 73,
+        "rem": 74,
+        "light": 251,
+        "awake": 73
+      }
+    },
+    "updatedAt": "2026-07-02T02:03:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-03",
+    "water": [
+      {
+        "ml": 950,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 1050,
+        "time": "1:00 PM"
+      }
+    ],
+    "steps": 8836,
+    "caloriesBurned": 654,
+    "weightKg": 74.2,
+    "sleep": {
+      "asleepMinutes": 451,
+      "inBedMinutes": 490,
+      "start": "2026-07-02T18:56:00.000Z",
+      "end": "2026-07-03T03:06:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 81,
+        "light": 284,
+        "awake": 39
+      }
+    },
+    "updatedAt": "2026-07-03T03:12:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-04",
+    "water": [
+      {
+        "ml": 850,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 800,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 750,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9702,
+    "caloriesBurned": 420,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 442,
+      "inBedMinutes": 488,
+      "start": "2026-07-03T19:05:00.000Z",
+      "end": "2026-07-04T03:13:00.000Z",
+      "stages": {
+        "deep": 96,
+        "rem": 84,
+        "light": 262,
+        "awake": 46
+      }
+    },
+    "updatedAt": "2026-07-04T03:17:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-05",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 3383,
+    "caloriesBurned": 171,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 424,
+      "inBedMinutes": 484,
+      "start": "2026-07-04T19:05:00.000Z",
+      "end": "2026-07-05T03:09:00.000Z",
+      "stages": {
+        "deep": 68,
+        "rem": 79,
+        "light": 277,
+        "awake": 60
+      }
+    },
+    "updatedAt": "2026-07-05T03:14:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-06",
+    "water": [
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8545,
+    "caloriesBurned": 612,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 402,
+      "inBedMinutes": 454,
+      "start": "2026-07-05T18:53:00.000Z",
+      "end": "2026-07-06T02:27:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 87,
+        "light": 249,
+        "awake": 52
+      }
+    },
+    "updatedAt": "2026-07-06T02:29:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-07",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7730,
+    "caloriesBurned": 515,
+    "weightKg": 73.7,
+    "sleep": {
+      "asleepMinutes": 403,
+      "inBedMinutes": 451,
+      "start": "2026-07-06T17:19:00.000Z",
+      "end": "2026-07-07T00:50:00.000Z",
+      "stages": {
+        "deep": 84,
+        "rem": 76,
+        "light": 243,
+        "awake": 48
+      }
+    },
+    "updatedAt": "2026-07-07T01:03:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-08",
+    "water": [
+      {
+        "ml": 700,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 10588,
+    "caloriesBurned": 636,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 447,
+      "inBedMinutes": 482,
+      "start": "2026-07-07T17:12:00.000Z",
+      "end": "2026-07-08T01:14:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 80,
+        "light": 277,
+        "awake": 35
+      }
+    },
+    "updatedAt": "2026-07-08T01:26:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-09",
+    "water": [
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8816,
+    "caloriesBurned": 526,
+    "weightKg": 74.2,
+    "sleep": {
+      "asleepMinutes": 347,
+      "inBedMinutes": 418,
+      "start": "2026-07-08T16:49:00.000Z",
+      "end": "2026-07-08T23:47:00.000Z",
+      "stages": {
+        "deep": 65,
+        "rem": 70,
+        "light": 212,
+        "awake": 71
+      }
+    },
+    "updatedAt": "2026-07-08T23:54:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-10",
+    "water": [
+      {
+        "ml": 1100,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 1000,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8889,
+    "caloriesBurned": 519,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 433,
+      "inBedMinutes": 482,
+      "start": "2026-07-09T17:36:00.000Z",
+      "end": "2026-07-10T01:38:00.000Z",
+      "stages": {
+        "deep": 93,
+        "rem": 92,
+        "light": 248,
+        "awake": 49
+      }
+    },
+    "updatedAt": "2026-07-10T01:48:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-11",
+    "water": [
+      {
+        "ml": 700,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9695,
+    "caloriesBurned": 638,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 440,
+      "inBedMinutes": 473,
+      "start": "2026-07-10T18:28:00.000Z",
+      "end": "2026-07-11T02:21:00.000Z",
+      "stages": {
+        "deep": 76,
+        "rem": 104,
+        "light": 260,
+        "awake": 33
+      }
+    },
+    "updatedAt": "2026-07-11T02:32:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-12",
+    "water": [
+      {
+        "ml": 750,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 750,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 900,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6760,
+    "caloriesBurned": 314,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 428,
+      "inBedMinutes": 458,
+      "start": "2026-07-11T17:43:00.000Z",
+      "end": "2026-07-12T01:21:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 90,
+        "light": 248,
+        "awake": 30
+      }
+    },
+    "updatedAt": "2026-07-12T01:24:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-13",
+    "water": [
+      {
+        "ml": 400,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9600,
+    "caloriesBurned": 585,
+    "weightKg": 73.7,
+    "sleep": {
+      "asleepMinutes": 393,
+      "inBedMinutes": 437,
+      "start": "2026-07-12T18:42:00.000Z",
+      "end": "2026-07-13T01:59:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 83,
+        "light": 227,
+        "awake": 44
+      }
+    },
+    "updatedAt": "2026-07-13T02:11:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-14",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 5844,
+    "caloriesBurned": 470,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 382,
+      "inBedMinutes": 458,
+      "start": "2026-07-13T17:21:00.000Z",
+      "end": "2026-07-14T00:59:00.000Z",
+      "stages": {
+        "deep": 65,
+        "rem": 74,
+        "light": 243,
+        "awake": 76
+      }
+    },
+    "updatedAt": "2026-07-14T01:04:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-15",
+    "water": [
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 8335,
+    "caloriesBurned": 382,
+    "weightKg": 74.1,
+    "sleep": {
+      "asleepMinutes": 458,
+      "inBedMinutes": 495,
+      "start": "2026-07-14T16:52:00.000Z",
+      "end": "2026-07-15T01:07:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 109,
+        "light": 269,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-07-15T01:14:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-16",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 250,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8387,
+    "caloriesBurned": 541,
+    "weightKg": 73.6,
+    "sleep": {
+      "asleepMinutes": 402,
+      "inBedMinutes": 470,
+      "start": "2026-07-15T19:01:00.000Z",
+      "end": "2026-07-16T02:51:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 84,
+        "light": 237,
+        "awake": 68
+      }
+    },
+    "updatedAt": "2026-07-16T03:03:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-17",
+    "water": [
+      {
+        "ml": 1400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 1200,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7021,
+    "caloriesBurned": 333,
+    "weightKg": 73.9,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 484,
+      "start": "2026-07-16T18:48:00.000Z",
+      "end": "2026-07-17T02:52:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 89,
+        "light": 235,
+        "awake": 74
+      }
+    },
+    "updatedAt": "2026-07-17T02:59:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-18",
+    "water": [
+      {
+        "ml": 800,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 900,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10721,
+    "caloriesBurned": 633,
+    "weightKg": 73.7,
+    "sleep": {
+      "asleepMinutes": 409,
+      "inBedMinutes": 465,
+      "start": "2026-07-17T18:19:00.000Z",
+      "end": "2026-07-18T02:04:00.000Z",
+      "stages": {
+        "deep": 73,
+        "rem": 95,
+        "light": 241,
+        "awake": 56
+      }
+    },
+    "updatedAt": "2026-07-18T02:09:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-19",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 350,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6008,
+    "caloriesBurned": 283,
+    "weightKg": 73.6,
+    "sleep": {
+      "asleepMinutes": 415,
+      "inBedMinutes": 437,
+      "start": "2026-07-18T17:08:00.000Z",
+      "end": "2026-07-19T00:25:00.000Z",
+      "stages": {
+        "deep": 87,
+        "rem": 88,
+        "light": 240,
+        "awake": 22
+      }
+    },
+    "updatedAt": "2026-07-19T00:36:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-20",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 350,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 6561,
+    "caloriesBurned": 551,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 423,
+      "inBedMinutes": 477,
+      "start": "2026-07-19T18:00:00.000Z",
+      "end": "2026-07-20T01:57:00.000Z",
+      "stages": {
+        "deep": 68,
+        "rem": 94,
+        "light": 261,
+        "awake": 54
+      }
+    },
+    "updatedAt": "2026-07-20T02:12:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-21",
+    "water": [
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 250,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 350,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 6752,
+    "caloriesBurned": 497,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 413,
+      "inBedMinutes": 466,
+      "start": "2026-07-20T18:14:00.000Z",
+      "end": "2026-07-21T02:00:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 83,
+        "light": 247,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-07-21T02:04:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-22",
+    "water": [
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 800,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 7277,
+    "caloriesBurned": 540,
+    "weightKg": 74.0,
+    "sleep": {
+      "asleepMinutes": 387,
+      "inBedMinutes": 462,
+      "start": "2026-07-21T17:00:00.000Z",
+      "end": "2026-07-22T00:42:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 85,
+        "light": 219,
+        "awake": 75
+      }
+    },
+    "updatedAt": "2026-07-22T00:46:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-23",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9312,
+    "caloriesBurned": 437,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 392,
+      "inBedMinutes": 423,
+      "start": "2026-07-22T18:25:00.000Z",
+      "end": "2026-07-23T01:28:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 79,
+        "light": 228,
+        "awake": 31
+      }
+    },
+    "updatedAt": "2026-07-23T01:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-24",
+    "water": [
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8149,
+    "caloriesBurned": 371,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 433,
+      "inBedMinutes": 484,
+      "start": "2026-07-23T18:21:00.000Z",
+      "end": "2026-07-24T02:25:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 78,
+        "light": 275,
+        "awake": 51
+      }
+    },
+    "updatedAt": "2026-07-24T02:34:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-25",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 9816,
+    "caloriesBurned": 670,
+    "weightKg": 73.9,
+    "sleep": {
+      "asleepMinutes": 452,
+      "inBedMinutes": 489,
+      "start": "2026-07-24T18:54:00.000Z",
+      "end": "2026-07-25T03:03:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 82,
+        "light": 289,
+        "awake": 37
+      }
+    },
+    "updatedAt": "2026-07-25T03:08:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-26",
+    "water": [
+      {
+        "ml": 400,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 5319,
+    "caloriesBurned": 226,
+    "weightKg": 73.9,
+    "sleep": {
+      "asleepMinutes": 386,
+      "inBedMinutes": 444,
+      "start": "2026-07-25T18:20:00.000Z",
+      "end": "2026-07-26T01:44:00.000Z",
+      "stages": {
+        "deep": 79,
+        "rem": 73,
+        "light": 234,
+        "awake": 58
+      }
+    },
+    "updatedAt": "2026-07-26T01:51:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-27",
+    "water": [
+      {
+        "ml": 400,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      }
+    ],
+    "steps": 9127,
+    "caloriesBurned": 576,
+    "weightKg": 73.9,
+    "sleep": {
+      "asleepMinutes": 366,
+      "inBedMinutes": 419,
+      "start": "2026-07-26T17:05:00.000Z",
+      "end": "2026-07-27T00:04:00.000Z",
+      "stages": {
+        "deep": 76,
+        "rem": 83,
+        "light": 207,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-07-27T00:16:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-28",
+    "water": [
+      {
+        "ml": 600,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 10824,
+    "caloriesBurned": 647,
+    "weightKg": 73.7,
+    "sleep": {
+      "asleepMinutes": 405,
+      "inBedMinutes": 444,
+      "start": "2026-07-27T16:52:00.000Z",
+      "end": "2026-07-28T00:16:00.000Z",
+      "stages": {
+        "deep": 77,
+        "rem": 76,
+        "light": 252,
+        "awake": 39
+      }
+    },
+    "updatedAt": "2026-07-28T00:26:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-29",
+    "water": [
+      {
+        "ml": 900,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 900,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 800,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8577,
+    "caloriesBurned": 384,
+    "weightKg": 73.7,
+    "sleep": {
+      "asleepMinutes": 435,
+      "inBedMinutes": 488,
+      "start": "2026-07-28T17:09:00.000Z",
+      "end": "2026-07-29T01:17:00.000Z",
+      "stages": {
+        "deep": 79,
+        "rem": 102,
+        "light": 254,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-07-29T01:28:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-30",
+    "water": [
+      {
+        "ml": 900,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 900,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 900,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8922,
+    "caloriesBurned": 614,
+    "weightKg": 73.7,
+    "sleep": {
+      "asleepMinutes": 413,
+      "inBedMinutes": 466,
+      "start": "2026-07-29T17:04:00.000Z",
+      "end": "2026-07-30T00:50:00.000Z",
+      "stages": {
+        "deep": 67,
+        "rem": 91,
+        "light": 255,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-07-30T01:01:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-07-31",
+    "water": [
+      {
+        "ml": 750,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 850,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9080,
+    "caloriesBurned": 618,
+    "weightKg": 73.8,
+    "sleep": {
+      "asleepMinutes": 413,
+      "inBedMinutes": 478,
+      "start": "2026-07-30T17:34:00.000Z",
+      "end": "2026-07-31T01:32:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 85,
+        "light": 243,
+        "awake": 65
+      }
+    },
+    "updatedAt": "2026-07-31T01:36:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-01",
+    "water": [
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 8678,
+    "caloriesBurned": 524,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 424,
+      "inBedMinutes": 467,
+      "start": "2026-07-31T17:00:00.000Z",
+      "end": "2026-08-01T00:47:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 85,
+        "light": 267,
+        "awake": 43
+      }
+    },
+    "updatedAt": "2026-08-01T00:52:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-02",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 5839,
+    "caloriesBurned": 271,
+    "weightKg": 73.3,
+    "sleep": {
+      "asleepMinutes": 446,
+      "inBedMinutes": 467,
+      "start": "2026-08-01T16:40:00.000Z",
+      "end": "2026-08-02T00:27:00.000Z",
+      "stages": {
+        "deep": 79,
+        "rem": 92,
+        "light": 275,
+        "awake": 21
+      }
+    },
+    "updatedAt": "2026-08-02T00:38:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-03",
+    "water": [
+      {
+        "ml": 1300,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 1250,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9632,
+    "caloriesBurned": 658,
+    "weightKg": 73.4,
+    "sleep": {
+      "asleepMinutes": 451,
+      "inBedMinutes": 494,
+      "start": "2026-08-02T18:27:00.000Z",
+      "end": "2026-08-03T02:41:00.000Z",
+      "stages": {
+        "deep": 95,
+        "rem": 89,
+        "light": 267,
+        "awake": 43
+      }
+    },
+    "updatedAt": "2026-08-03T02:43:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-04",
+    "water": [
+      {
+        "ml": 800,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 750,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 7187,
+    "caloriesBurned": 576,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 436,
+      "inBedMinutes": 466,
+      "start": "2026-08-03T19:27:00.000Z",
+      "end": "2026-08-04T03:13:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 87,
+        "light": 259,
+        "awake": 30
+      }
+    },
+    "updatedAt": "2026-08-04T03:24:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-05",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6111,
+    "caloriesBurned": 543,
+    "weightKg": 73.6,
+    "sleep": {
+      "asleepMinutes": 372,
+      "inBedMinutes": 437,
+      "start": "2026-08-04T19:09:00.000Z",
+      "end": "2026-08-05T02:26:00.000Z",
+      "stages": {
+        "deep": 70,
+        "rem": 87,
+        "light": 215,
+        "awake": 65
+      }
+    },
+    "updatedAt": "2026-08-05T02:34:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-06",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7673,
+    "caloriesBurned": 559,
+    "weightKg": 73.4,
+    "sleep": {
+      "asleepMinutes": 393,
+      "inBedMinutes": 456,
+      "start": "2026-08-05T17:02:00.000Z",
+      "end": "2026-08-06T00:38:00.000Z",
+      "stages": {
+        "deep": 70,
+        "rem": 75,
+        "light": 248,
+        "awake": 63
+      }
+    },
+    "updatedAt": "2026-08-06T00:42:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-07",
+    "water": [
+      {
+        "ml": 900,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 850,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 850,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 9889,
+    "caloriesBurned": 653,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 443,
+      "inBedMinutes": 484,
+      "start": "2026-08-06T17:13:00.000Z",
+      "end": "2026-08-07T01:17:00.000Z",
+      "stages": {
+        "deep": 94,
+        "rem": 85,
+        "light": 264,
+        "awake": 41
+      }
+    },
+    "updatedAt": "2026-08-07T01:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-08",
+    "water": [
+      {
+        "ml": 550,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 8380,
+    "caloriesBurned": 509,
+    "weightKg": 73.3,
+    "sleep": {
+      "asleepMinutes": 443,
+      "inBedMinutes": 503,
+      "start": "2026-08-07T17:10:00.000Z",
+      "end": "2026-08-08T01:33:00.000Z",
+      "stages": {
+        "deep": 91,
+        "rem": 90,
+        "light": 262,
+        "awake": 60
+      }
+    },
+    "updatedAt": "2026-08-08T01:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-09",
+    "water": [
+      {
+        "ml": 350,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 250,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 300,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 3280,
+    "caloriesBurned": 159,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 441,
+      "inBedMinutes": 468,
+      "start": "2026-08-08T17:23:00.000Z",
+      "end": "2026-08-09T01:11:00.000Z",
+      "stages": {
+        "deep": 94,
+        "rem": 97,
+        "light": 250,
+        "awake": 27
+      }
+    },
+    "updatedAt": "2026-08-09T01:18:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-10",
+    "water": [
+      {
+        "ml": 650,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 800,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 11174,
+    "caloriesBurned": 634,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 436,
+      "inBedMinutes": 484,
+      "start": "2026-08-09T16:59:00.000Z",
+      "end": "2026-08-10T01:03:00.000Z",
+      "stages": {
+        "deep": 95,
+        "rem": 78,
+        "light": 263,
+        "awake": 48
+      }
+    },
+    "updatedAt": "2026-08-10T01:06:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-11",
+    "water": [
+      {
+        "ml": 800,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 900,
+        "time": "11:00 AM"
+      }
+    ],
+    "steps": 10200,
+    "caloriesBurned": 448,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 406,
+      "inBedMinutes": 462,
+      "start": "2026-08-10T17:22:00.000Z",
+      "end": "2026-08-11T01:04:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 95,
+        "light": 233,
+        "awake": 56
+      }
+    },
+    "updatedAt": "2026-08-11T01:17:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-12",
+    "water": [
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 350,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8994,
+    "caloriesBurned": 510,
+    "weightKg": 73.0,
+    "sleep": {
+      "asleepMinutes": 436,
+      "inBedMinutes": 481,
+      "start": "2026-08-11T16:30:00.000Z",
+      "end": "2026-08-12T00:31:00.000Z",
+      "stages": {
+        "deep": 91,
+        "rem": 102,
+        "light": 243,
+        "awake": 45
+      }
+    },
+    "updatedAt": "2026-08-12T00:35:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-13",
+    "water": [
+      {
+        "ml": 450,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10029,
+    "caloriesBurned": 450,
+    "weightKg": 73.6,
+    "sleep": {
+      "asleepMinutes": 421,
+      "inBedMinutes": 450,
+      "start": "2026-08-12T17:23:00.000Z",
+      "end": "2026-08-13T00:53:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 85,
+        "light": 250,
+        "awake": 29
+      }
+    },
+    "updatedAt": "2026-08-13T01:07:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-14",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 750,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10651,
+    "caloriesBurned": 652,
+    "weightKg": 73.4,
+    "sleep": {
+      "asleepMinutes": 401,
+      "inBedMinutes": 462,
+      "start": "2026-08-13T18:26:00.000Z",
+      "end": "2026-08-14T02:08:00.000Z",
+      "stages": {
+        "deep": 70,
+        "rem": 84,
+        "light": 247,
+        "awake": 61
+      }
+    },
+    "updatedAt": "2026-08-14T02:16:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-15",
+    "water": [
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 750,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 750,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 10704,
+    "caloriesBurned": 722,
+    "weightKg": 73.0,
+    "sleep": {
+      "asleepMinutes": 388,
+      "inBedMinutes": 441,
+      "start": "2026-08-14T19:07:00.000Z",
+      "end": "2026-08-15T02:28:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 85,
+        "light": 237,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-08-15T02:39:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-16",
+    "water": [
+      {
+        "ml": 1000,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 950,
+        "time": "3:30 PM"
+      }
+    ],
+    "steps": 4021,
+    "caloriesBurned": 166,
+    "weightKg": 73.3,
+    "sleep": {
+      "asleepMinutes": 455,
+      "inBedMinutes": 476,
+      "start": "2026-08-15T17:08:00.000Z",
+      "end": "2026-08-16T01:04:00.000Z",
+      "stages": {
+        "deep": 96,
+        "rem": 103,
+        "light": 256,
+        "awake": 21
+      }
+    },
+    "updatedAt": "2026-08-16T01:18:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-17",
+    "water": [
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 12051,
+    "caloriesBurned": 774,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 388,
+      "inBedMinutes": 414,
+      "start": "2026-08-16T18:31:00.000Z",
+      "end": "2026-08-17T01:25:00.000Z",
+      "stages": {
+        "deep": 75,
+        "rem": 74,
+        "light": 239,
+        "awake": 26
+      }
+    },
+    "updatedAt": "2026-08-17T01:35:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-18",
+    "water": [
+      {
+        "ml": 1200,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 1250,
+        "time": "1:00 PM"
+      }
+    ],
+    "steps": 10508,
+    "caloriesBurned": 464,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 418,
+      "inBedMinutes": 476,
+      "start": "2026-08-17T19:25:00.000Z",
+      "end": "2026-08-18T03:21:00.000Z",
+      "stages": {
+        "deep": 89,
+        "rem": 78,
+        "light": 251,
+        "awake": 58
+      }
+    },
+    "updatedAt": "2026-08-18T03:34:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-19",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 700,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 9398,
+    "caloriesBurned": 554,
+    "weightKg": 73.5,
+    "sleep": {
+      "asleepMinutes": 389,
+      "inBedMinutes": 437,
+      "start": "2026-08-18T17:35:00.000Z",
+      "end": "2026-08-19T00:52:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 71,
+        "light": 238,
+        "awake": 48
+      }
+    },
+    "updatedAt": "2026-08-19T00:55:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-20",
+    "water": [
+      {
+        "ml": 750,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 700,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8988,
+    "caloriesBurned": 601,
+    "weightKg": 73.1,
+    "sleep": {
+      "asleepMinutes": 369,
+      "inBedMinutes": 424,
+      "start": "2026-08-19T17:51:00.000Z",
+      "end": "2026-08-20T00:55:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 82,
+        "light": 221,
+        "awake": 55
+      }
+    },
+    "updatedAt": "2026-08-20T01:07:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-21",
+    "water": [
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 350,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10268,
+    "caloriesBurned": 678,
+    "weightKg": 73.0,
+    "sleep": {
+      "asleepMinutes": 441,
+      "inBedMinutes": 489,
+      "start": "2026-08-20T19:00:00.000Z",
+      "end": "2026-08-21T03:09:00.000Z",
+      "stages": {
+        "deep": 73,
+        "rem": 92,
+        "light": 276,
+        "awake": 48
+      }
+    },
+    "updatedAt": "2026-08-21T03:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-22",
+    "water": [
+      {
+        "ml": 1150,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 1050,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7147,
+    "caloriesBurned": 511,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 426,
+      "inBedMinutes": 453,
+      "start": "2026-08-21T17:44:00.000Z",
+      "end": "2026-08-22T01:17:00.000Z",
+      "stages": {
+        "deep": 85,
+        "rem": 79,
+        "light": 262,
+        "awake": 27
+      }
+    },
+    "updatedAt": "2026-08-22T01:25:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-23",
+    "water": [
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 5358,
+    "caloriesBurned": 236,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 442,
+      "inBedMinutes": 476,
+      "start": "2026-08-22T16:43:00.000Z",
+      "end": "2026-08-23T00:39:00.000Z",
+      "stages": {
+        "deep": 91,
+        "rem": 91,
+        "light": 260,
+        "awake": 34
+      }
+    },
+    "updatedAt": "2026-08-23T00:43:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-24",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 800,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 10480,
+    "caloriesBurned": 650,
+    "weightKg": 73.4,
+    "sleep": {
+      "asleepMinutes": 461,
+      "inBedMinutes": 496,
+      "start": "2026-08-23T17:58:00.000Z",
+      "end": "2026-08-24T02:14:00.000Z",
+      "stages": {
+        "deep": 99,
+        "rem": 95,
+        "light": 267,
+        "awake": 35
+      }
+    },
+    "updatedAt": "2026-08-24T02:29:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-25",
+    "water": [
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 700,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10032,
+    "caloriesBurned": 647,
+    "weightKg": 73.1,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 462,
+      "start": "2026-08-24T16:57:00.000Z",
+      "end": "2026-08-25T00:39:00.000Z",
+      "stages": {
+        "deep": 88,
+        "rem": 98,
+        "light": 233,
+        "awake": 43
+      }
+    },
+    "updatedAt": "2026-08-25T00:46:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-26",
+    "water": [
+      {
+        "ml": 700,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10447,
+    "caloriesBurned": 681,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 469,
+      "start": "2026-08-25T17:25:00.000Z",
+      "end": "2026-08-26T01:14:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 98,
+        "light": 240,
+        "awake": 50
+      }
+    },
+    "updatedAt": "2026-08-26T01:26:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-27",
+    "water": [
+      {
+        "ml": 400,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 300,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6655,
+    "caloriesBurned": 445,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 405,
+      "inBedMinutes": 428,
+      "start": "2026-08-26T16:32:00.000Z",
+      "end": "2026-08-26T23:40:00.000Z",
+      "stages": {
+        "deep": 65,
+        "rem": 85,
+        "light": 255,
+        "awake": 23
+      }
+    },
+    "updatedAt": "2026-08-26T23:52:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-28",
+    "water": [
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 450,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8647,
+    "caloriesBurned": 511,
+    "weightKg": 73.0,
+    "sleep": {
+      "asleepMinutes": 432,
+      "inBedMinutes": 483,
+      "start": "2026-08-27T19:17:00.000Z",
+      "end": "2026-08-28T03:20:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 88,
+        "light": 263,
+        "awake": 51
+      }
+    },
+    "updatedAt": "2026-08-28T03:32:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-29",
+    "water": [
+      {
+        "ml": 350,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 300,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 6820,
+    "caloriesBurned": 290,
+    "weightKg": 73.3,
+    "sleep": {
+      "asleepMinutes": 376,
+      "inBedMinutes": 430,
+      "start": "2026-08-28T18:33:00.000Z",
+      "end": "2026-08-29T01:43:00.000Z",
+      "stages": {
+        "deep": 61,
+        "rem": 69,
+        "light": 246,
+        "awake": 54
+      }
+    },
+    "updatedAt": "2026-08-29T01:57:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-30",
+    "water": [
+      {
+        "ml": 750,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 750,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 800,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 5606,
+    "caloriesBurned": 248,
+    "weightKg": 72.7,
+    "sleep": {
+      "asleepMinutes": 408,
+      "inBedMinutes": 451,
+      "start": "2026-08-29T18:36:00.000Z",
+      "end": "2026-08-30T02:07:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 78,
+        "light": 249,
+        "awake": 43
+      }
+    },
+    "updatedAt": "2026-08-30T02:20:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-08-31",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8423,
+    "caloriesBurned": 584,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 445,
+      "inBedMinutes": 514,
+      "start": "2026-08-30T17:56:00.000Z",
+      "end": "2026-08-31T02:30:00.000Z",
+      "stages": {
+        "deep": 90,
+        "rem": 102,
+        "light": 253,
+        "awake": 69
+      }
+    },
+    "updatedAt": "2026-08-31T02:36:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-01",
+    "water": [
+      {
+        "ml": 850,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 850,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 800,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8711,
+    "caloriesBurned": 608,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 396,
+      "inBedMinutes": 458,
+      "start": "2026-08-31T17:31:00.000Z",
+      "end": "2026-09-01T01:09:00.000Z",
+      "stages": {
+        "deep": 69,
+        "rem": 92,
+        "light": 235,
+        "awake": 62
+      }
+    },
+    "updatedAt": "2026-09-01T01:19:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-02",
+    "water": [
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8814,
+    "caloriesBurned": 603,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 450,
+      "inBedMinutes": 489,
+      "start": "2026-09-01T19:11:00.000Z",
+      "end": "2026-09-02T03:20:00.000Z",
+      "stages": {
+        "deep": 75,
+        "rem": 86,
+        "light": 289,
+        "awake": 39
+      }
+    },
+    "updatedAt": "2026-09-02T03:23:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-03",
+    "water": [
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 10243,
+    "caloriesBurned": 617,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 419,
+      "inBedMinutes": 464,
+      "start": "2026-09-02T16:46:00.000Z",
+      "end": "2026-09-03T00:30:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 87,
+        "light": 249,
+        "awake": 45
+      }
+    },
+    "updatedAt": "2026-09-03T00:44:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-04",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 7996,
+    "caloriesBurned": 516,
+    "weightKg": 72.6,
+    "sleep": {
+      "asleepMinutes": 394,
+      "inBedMinutes": 424,
+      "start": "2026-09-03T17:17:00.000Z",
+      "end": "2026-09-04T00:21:00.000Z",
+      "stages": {
+        "deep": 67,
+        "rem": 77,
+        "light": 250,
+        "awake": 30
+      }
+    },
+    "updatedAt": "2026-09-04T00:30:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-05",
+    "water": [
+      {
+        "ml": 450,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 9987,
+    "caloriesBurned": 665,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 364,
+      "inBedMinutes": 398,
+      "start": "2026-09-04T17:23:00.000Z",
+      "end": "2026-09-05T00:01:00.000Z",
+      "stages": {
+        "deep": 61,
+        "rem": 83,
+        "light": 220,
+        "awake": 34
+      }
+    },
+    "updatedAt": "2026-09-05T00:06:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-06",
+    "water": [
+      {
+        "ml": 400,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 4596,
+    "caloriesBurned": 217,
+    "weightKg": 73.2,
+    "sleep": {
+      "asleepMinutes": 424,
+      "inBedMinutes": 450,
+      "start": "2026-09-05T16:51:00.000Z",
+      "end": "2026-09-06T00:21:00.000Z",
+      "stages": {
+        "deep": 83,
+        "rem": 78,
+        "light": 263,
+        "awake": 26
+      }
+    },
+    "updatedAt": "2026-09-06T00:29:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-07",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 700,
+        "time": "11:00 AM"
+      }
+    ],
+    "steps": 6336,
+    "caloriesBurned": 418,
+    "weightKg": 73.1,
+    "sleep": {
+      "asleepMinutes": 390,
+      "inBedMinutes": 451,
+      "start": "2026-09-06T18:07:00.000Z",
+      "end": "2026-09-07T01:38:00.000Z",
+      "stages": {
+        "deep": 71,
+        "rem": 83,
+        "light": 236,
+        "awake": 61
+      }
+    },
+    "updatedAt": "2026-09-07T01:48:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-08",
+    "water": [
+      {
+        "ml": 350,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 350,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 350,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7159,
+    "caloriesBurned": 587,
+    "weightKg": 72.6,
+    "sleep": {
+      "asleepMinutes": 410,
+      "inBedMinutes": 448,
+      "start": "2026-09-07T18:45:00.000Z",
+      "end": "2026-09-08T02:13:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 76,
+        "light": 253,
+        "awake": 38
+      }
+    },
+    "updatedAt": "2026-09-08T02:21:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-09",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 450,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 350,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 11458,
+    "caloriesBurned": 750,
+    "weightKg": 72.6,
+    "sleep": {
+      "asleepMinutes": 413,
+      "inBedMinutes": 459,
+      "start": "2026-09-08T17:02:00.000Z",
+      "end": "2026-09-09T00:41:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 80,
+        "light": 267,
+        "awake": 46
+      }
+    },
+    "updatedAt": "2026-09-09T00:44:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-10",
+    "water": [
+      {
+        "ml": 500,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 7473,
+    "caloriesBurned": 461,
+    "weightKg": 72.7,
+    "sleep": {
+      "asleepMinutes": 395,
+      "inBedMinutes": 431,
+      "start": "2026-09-09T18:19:00.000Z",
+      "end": "2026-09-10T01:30:00.000Z",
+      "stages": {
+        "deep": 73,
+        "rem": 80,
+        "light": 242,
+        "awake": 36
+      }
+    },
+    "updatedAt": "2026-09-10T01:38:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-11",
+    "water": [
+      {
+        "ml": 650,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8116,
+    "caloriesBurned": 617,
+    "weightKg": 73.0,
+    "sleep": {
+      "asleepMinutes": 397,
+      "inBedMinutes": 444,
+      "start": "2026-09-10T16:42:00.000Z",
+      "end": "2026-09-11T00:06:00.000Z",
+      "stages": {
+        "deep": 70,
+        "rem": 88,
+        "light": 239,
+        "awake": 47
+      }
+    },
+    "updatedAt": "2026-09-11T00:10:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-12",
+    "water": [
+      {
+        "ml": 650,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10604,
+    "caloriesBurned": 646,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 448,
+      "inBedMinutes": 492,
+      "start": "2026-09-11T19:21:00.000Z",
+      "end": "2026-09-12T03:33:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 104,
+        "light": 272,
+        "awake": 44
+      }
+    },
+    "updatedAt": "2026-09-12T03:48:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-13",
+    "water": [
+      {
+        "ml": 450,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 400,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 5173,
+    "caloriesBurned": 228,
+    "weightKg": 72.7,
+    "sleep": {
+      "asleepMinutes": 453,
+      "inBedMinutes": 469,
+      "start": "2026-09-12T16:47:00.000Z",
+      "end": "2026-09-13T00:36:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 106,
+        "light": 261,
+        "awake": 16
+      }
+    },
+    "updatedAt": "2026-09-13T00:41:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-14",
+    "water": [
+      {
+        "ml": 600,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 10061,
+    "caloriesBurned": 690,
+    "weightKg": 73.1,
+    "sleep": {
+      "asleepMinutes": 409,
+      "inBedMinutes": 481,
+      "start": "2026-09-13T17:53:00.000Z",
+      "end": "2026-09-14T01:54:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 77,
+        "light": 266,
+        "awake": 72
+      }
+    },
+    "updatedAt": "2026-09-14T02:08:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-15",
+    "water": [
+      {
+        "ml": 650,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 700,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 750,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8070,
+    "caloriesBurned": 606,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 417,
+      "inBedMinutes": 452,
+      "start": "2026-09-14T17:26:00.000Z",
+      "end": "2026-09-15T00:58:00.000Z",
+      "stages": {
+        "deep": 80,
+        "rem": 84,
+        "light": 253,
+        "awake": 35
+      }
+    },
+    "updatedAt": "2026-09-15T01:11:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-16",
+    "water": [
+      {
+        "ml": 1000,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 1050,
+        "time": "11:00 AM"
+      }
+    ],
+    "steps": 10617,
+    "caloriesBurned": 644,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 452,
+      "inBedMinutes": 485,
+      "start": "2026-09-15T19:00:00.000Z",
+      "end": "2026-09-16T03:05:00.000Z",
+      "stages": {
+        "deep": 86,
+        "rem": 97,
+        "light": 269,
+        "awake": 33
+      }
+    },
+    "updatedAt": "2026-09-16T03:13:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-17",
+    "water": [
+      {
+        "ml": 1100,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 1100,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 8291,
+    "caloriesBurned": 548,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 448,
+      "inBedMinutes": 486,
+      "start": "2026-09-16T18:24:00.000Z",
+      "end": "2026-09-17T02:30:00.000Z",
+      "stages": {
+        "deep": 78,
+        "rem": 88,
+        "light": 282,
+        "awake": 38
+      }
+    },
+    "updatedAt": "2026-09-17T02:45:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-18",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 550,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "7:00 PM"
+      }
+    ],
+    "steps": 6586,
+    "caloriesBurned": 481,
+    "weightKg": 72.6,
+    "sleep": {
+      "asleepMinutes": 407,
+      "inBedMinutes": 479,
+      "start": "2026-09-17T17:52:00.000Z",
+      "end": "2026-09-18T01:51:00.000Z",
+      "stages": {
+        "deep": 72,
+        "rem": 94,
+        "light": 241,
+        "awake": 72
+      }
+    },
+    "updatedAt": "2026-09-18T02:05:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-19",
+    "water": [
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "1:00 PM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 10797,
+    "caloriesBurned": 668,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 456,
+      "inBedMinutes": 486,
+      "start": "2026-09-18T17:14:00.000Z",
+      "end": "2026-09-19T01:20:00.000Z",
+      "stages": {
+        "deep": 84,
+        "rem": 85,
+        "light": 287,
+        "awake": 30
+      }
+    },
+    "updatedAt": "2026-09-19T01:33:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-20",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 450,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 500,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 5367,
+    "caloriesBurned": 234,
+    "weightKg": 72.4,
+    "sleep": {
+      "asleepMinutes": 434,
+      "inBedMinutes": 483,
+      "start": "2026-09-19T16:53:00.000Z",
+      "end": "2026-09-20T00:56:00.000Z",
+      "stages": {
+        "deep": 74,
+        "rem": 91,
+        "light": 269,
+        "awake": 49
+      }
+    },
+    "updatedAt": "2026-09-20T01:01:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-21",
+    "water": [
+      {
+        "ml": 700,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 600,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 9093,
+    "caloriesBurned": 583,
+    "weightKg": 72.5,
+    "sleep": {
+      "asleepMinutes": 375,
+      "inBedMinutes": 413,
+      "start": "2026-09-20T16:32:00.000Z",
+      "end": "2026-09-20T23:25:00.000Z",
+      "stages": {
+        "deep": 63,
+        "rem": 82,
+        "light": 230,
+        "awake": 38
+      }
+    },
+    "updatedAt": "2026-09-20T23:28:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-22",
+    "water": [
+      {
+        "ml": 500,
+        "time": "7:30 AM"
+      },
+      {
+        "ml": 500,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 400,
+        "time": "3:30 PM"
+      },
+      {
+        "ml": 550,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 400,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 7408,
+    "caloriesBurned": 586,
+    "weightKg": 72.5,
+    "sleep": {
+      "asleepMinutes": 392,
+      "inBedMinutes": 445,
+      "start": "2026-09-21T19:12:00.000Z",
+      "end": "2026-09-22T02:37:00.000Z",
+      "stages": {
+        "deep": 81,
+        "rem": 79,
+        "light": 232,
+        "awake": 53
+      }
+    },
+    "updatedAt": "2026-09-22T02:51:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-23",
+    "water": [
+      {
+        "ml": 600,
+        "time": "9:00 AM"
+      },
+      {
+        "ml": 650,
+        "time": "5:00 PM"
+      },
+      {
+        "ml": 600,
+        "time": "7:00 PM"
+      },
+      {
+        "ml": 650,
+        "time": "9:00 PM"
+      }
+    ],
+    "steps": 8078,
+    "caloriesBurned": 485,
+    "weightKg": 72.9,
+    "sleep": {
+      "asleepMinutes": 457,
+      "inBedMinutes": 526,
+      "start": "2026-09-22T17:15:00.000Z",
+      "end": "2026-09-23T02:01:00.000Z",
+      "stages": {
+        "deep": 82,
+        "rem": 90,
+        "light": 285,
+        "awake": 69
+      }
+    },
+    "updatedAt": "2026-09-23T02:09:00.000Z"
+  },
+  {
+    "userId": "s2EJcAYlOGh5LHIwCyNga8gkLBV2",
+    "date": "2026-09-24",
+    "water": [
+      {
+        "ml": 1050,
+        "time": "11:00 AM"
+      },
+      {
+        "ml": 1150,
+        "time": "5:00 PM"
+      }
+    ],
+    "steps": 8474,
+    "caloriesBurned": 610,
+    "weightKg": 72.4,
+    "sleep": {
+      "asleepMinutes": 404,
+      "inBedMinutes": 436,
+      "start": "2026-09-23T17:28:00.000Z",
+      "end": "2026-09-24T00:44:00.000Z",
+      "stages": {
+        "deep": 66,
+        "rem": 88,
+        "light": 250,
+        "awake": 32
+      }
+    },
+    "updatedAt": "2026-09-24T00:56:00.000Z"
+  }
+]

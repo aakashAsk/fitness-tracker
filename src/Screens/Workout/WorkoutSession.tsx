@@ -15,19 +15,28 @@ import { colors, withOpacity } from '../../Theme/colors';
 import { spacing, radius } from '../../Theme/spacing';
 import NewPlanModal, { NewPlanPayload } from './NewPlanModal';
 import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
+import { useNow } from '../../Hooks/useNow';
 import { useScrollToItem } from '../../Hooks/useScrollToItem';
 import { useExerciseInputs, inputKey, EMPTY_SET_INPUT } from '../../Hooks/useExerciseInputs';
 import { EquipmentIcon } from '../../Components/EquipmentIcon';
 import WorkoutDateStrip from './WorkoutDateStrip';
 import PlanLibrary from './PlanLibrary';
 import WorkoutProgressCard from './WorkoutProgressCard';
+import WorkoutSkeleton from './WorkoutSkeleton';
+import ScreenLoadGate from '../../Components/ScreenLoadGate';
+import { useWorkoutPlansLoading } from '../../Store/workoutPlansSlice';
+import WorkoutPlanEngineCard from './WorkoutPlanEngineCard';
+import { FeatureGate } from '../../FeatureFlags';
+import { useAiDraftPlans } from '../../Hooks/useAiDraftPlans';
 import WorkoutPlanCard from './WorkoutPlanCard';
 import {
     createWorkoutPlan,
+    parseTimeToMinutes,
     updateWorkoutPlan,
     WorkoutPlanServiceError,
     type WorkoutPlan,
 } from '../../Services/workoutPlanService';
+import { minutesOfDay } from '../../Services/sessionSchedule';
 import {
     fetchExerciseLogLookup,
     savedEntryKey,
@@ -48,6 +57,12 @@ import {
     fetchExercisesBulk,
     isWeightedEquipment,
 } from '../../Services/exerciseService';
+import {
+    estimateWorkoutStats,
+    formatRecovery,
+    type ExerciseMeta,
+} from '../../Services/workoutStats';
+import { useUserProfile } from '../../Store/userProfileSlice';
 import { useDialog } from '../../Components/Dialog';
 import { themedStyles } from '../../Theme/ThemeContext';
 import ExerciseLibrary from './ExerciseLibrary';
@@ -89,6 +104,9 @@ interface PlanExerciseRow {
     // Drives both the icon and its colour — see EquipmentIcon. Null
     // while the exercise API has yet to resolve this id.
     equipment: string | null;
+    // Muscles and mechanic, for the benefit estimate on save. Null until
+    // the exercise API has resolved this id.
+    exerciseMeta: ExerciseMeta | null;
 }
 
 interface PlanCard {
@@ -100,6 +118,9 @@ interface PlanCard {
     planDocId: string;
     title: string;
     exercises: PlanExerciseRow[];
+    /** e.g. "6:30 PM" — when this session is scheduled, so it cannot be
+        logged before its own time on the selected day. */
+    time: string;
 }
 
 // Placeholder rows shown while a newly selected day resolves its
@@ -130,10 +151,16 @@ export interface WorkoutSessionProps {
 
 export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onFocusHandled }) => {
     const dialog = useDialog();
+    // The AI plan button: generates a week from the user's profile and
+    // saves it as drafts. Called up here with the other hooks, ahead of
+    // this component's early returns for the exercise browser.
+    const { generate: generateAiPlans, isGenerating: isGeneratingAiPlans } = useAiDraftPlans();
+    // Body weight for the calorie estimate. Null before the profile loads
+    // (or with no profile), which the estimate treats as a default weight.
+    const profile = useUserProfile();
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const [activeFilter, setActiveFilter] = useState('Push');
-    const [showNewPlanModal, setShowNewPlanModal] = useState(false);
-    const [isSavingPlan, setIsSavingPlan] = useState(false);
+    const [showNewPlanModal, setShowNewPlanModal] = useState(false);    const [isSavingPlan, setIsSavingPlan] = useState(false);
 
     const { exerciseInputs, setExerciseInputs, getSetInputs, stepSetInput, addSet, removeSet, setAllInputs } = useExerciseInputs({
         selectedDate,
@@ -153,6 +180,10 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     const isToday = selectedDateKey === todayDateKey();
     // Nothing can be logged for a day that hasn't happened yet.
     const isFutureDay = selectedDateKey > todayDateKey();
+    // Live clock, so a session due later today unlocks on its own —
+    // without it the card would stay disabled until something else
+    // re-rendered the screen.
+    const now = useNow();
 
     // The selected date's workouts — plan rules plus that date's own
     // occurrences. Shared with the dashboard's Today's Workout card (see
@@ -161,6 +192,7 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
         workoutPlans,
         dayEvents,
         hasOccurrencesForDay,
+        statsByPlanId,
         refreshKey: occurrenceRefreshKey,
         refresh: refreshOccurrences,
     } = useDayWorkoutEvents(selectedDate);
@@ -206,6 +238,7 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
             id: event.id,
             planDocId: event.sourceId,
             title: event.title,
+            time: event.time,
             exercises: event.exerciseIds.map((id) => {
                 const details = exerciseCache[id];
                 const meta = details
@@ -218,6 +251,14 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                     meta,
                     isWeighted: isWeightedEquipment(details?.equipment),
                     equipment: details?.equipment ?? null,
+                    exerciseMeta: details
+                        ? {
+                              primaryMuscles: details.primaryMuscles,
+                              secondaryMuscles: details.secondaryMuscles,
+                              mechanic: details.mechanic,
+                              category: details.category,
+                          }
+                        : null,
                 };
             }),
         }));
@@ -324,6 +365,11 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     // the day to finish loading so it scrolls to the real card, not to a
     // skeleton that is about to change height.
     const isFocusReady = !isDayLoading && hasOccurrencesForDay;
+    // Everything the first paint needs: the plan store's first snapshot and
+    // the selected day's occurrences and logs. An empty plan list means
+    // nothing until the first snapshot lands.
+    const plansLoading = useWorkoutPlansLoading();
+    const isScreenReady = !plansLoading && hasOccurrencesForDay && !isDayLoading;
     const focus = useScrollToItem(focusPlanId, isFocusReady, onFocusHandled);
 
     useEffect(() => {
@@ -460,34 +506,62 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     // the plan's full exercise list for that day.
     const handleSaveWorkout = async (plan: PlanCard) => {
         const dateKey = toDateKey(selectedDate);
+
+        // A session cannot be logged before it happens — a future day
+        // outright, or later today before its own scheduled time. This
+        // is the backstop behind the card's own disabled state (see
+        // `locked` below): whatever triggers this, the write itself
+        // refuses to get ahead of the clock.
+        if (isFutureDay || (isToday && parseTimeToMinutes(plan.time) > minutesOfDay(new Date()))) {
+            dialog.show({
+                title: 'Too early to log',
+                message: `${plan.title} isn't scheduled until ${plan.time}${isFutureDay ? ` on ${dateKey}` : ''} — come back then.`,
+            });
+            return;
+        }
+
         setSavingPlanId(plan.id);
         try {
+            // `plan.exercises` comes from the merged day events, so on a
+            // day with its own override this is that day's edited list —
+            // not the plan's. Building it from the plan would write the
+            // plan's exercises straight back over the user's per-day edit
+            // on the next save.
+            const exercises = plan.exercises.map((exercise) => ({
+                exerciseId: exercise.exerciseId,
+                name: exercise.name,
+                sets: (exerciseInputs[inputKey(dateKey, exercise.id)] ?? [EMPTY_SET_INPUT]).map(
+                    (set) => ({
+                        reps: parseInt(set.reps, 10) || 0,
+                        // Forced to 0 where there is no weight field
+                        // to see: the carry-forward prefill fills
+                        // every exercise from history, so a
+                        // bodyweight movement can hold a stale kg
+                        // value the user was never shown and has no
+                        // way to clear.
+                        weight: exercise.isWeighted ? parseFloat(set.weight) || 0 : 0,
+                    }),
+                ),
+            }));
+
+            // Estimated from exactly the sets being saved. Null when the
+            // user saved without entering anything, which also clears an
+            // earlier estimate that the new (empty) sets no longer back.
+            const stats = estimateWorkoutStats({
+                bodyWeightKg: profile?.weightKg,
+                exercises: exercises.map((entry, index) => ({
+                    sets: entry.sets,
+                    meta: plan.exercises[index].exerciseMeta,
+                })),
+            });
+
             await saveWorkoutLog({
                 planId: plan.planDocId,
                 planName: plan.title,
                 date: dateKey,
                 state: 'completed',
-                // `plan.exercises` comes from the merged day events, so
-                // on a day with its own override this is that day's
-                // edited list — not the plan's. Building it from the
-                // plan would write the plan's exercises straight back
-                // over the user's per-day edit on the next save.
-                exercises: plan.exercises.map((exercise) => ({
-                    exerciseId: exercise.exerciseId,
-                    name: exercise.name,
-                    sets: (exerciseInputs[inputKey(dateKey, exercise.id)] ?? [EMPTY_SET_INPUT]).map(
-                        (set) => ({
-                            reps: parseInt(set.reps, 10) || 0,
-                            // Forced to 0 where there is no weight field
-                            // to see: the carry-forward prefill fills
-                            // every exercise from history, so a
-                            // bodyweight movement can hold a stale kg
-                            // value the user was never shown and has no
-                            // way to clear.
-                            weight: exercise.isWeighted ? parseFloat(set.weight) || 0 : 0,
-                        }),
-                    ),
-                })),
+                exercises,
+                stats,
             });
             const wasAlreadyLogged = loggedPlanIds.has(plan.id);
             setLoggedPlanIds((prev) => new Set(prev).add(plan.id));
@@ -496,7 +570,9 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
             refreshOccurrences();
             dialog.show({
                 title: wasAlreadyLogged ? 'Updated' : 'Saved',
-                message: `${plan.title} logged for ${dateKey}.`,
+                message: stats
+                    ? `${plan.title} logged for ${dateKey}.\n\n≈ ${stats.caloriesBurned} kcal burned · ${stats.volumeKg} kg lifted · ~${formatRecovery(stats.recoveryHours)} to recover`
+                    : `${plan.title} logged for ${dateKey}.`,
             });
         } catch (error) {
             dialog.show({
@@ -552,6 +628,11 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                 days: payload.days,
                 time: payload.time,
                 status,
+                ...(payload.category ? { category: payload.category } : {}),
+                ...(payload.targetKm !== undefined ? { targetKm: payload.targetKm } : {}),
+                ...(payload.targetMinutes !== undefined
+                    ? { targetMinutes: payload.targetMinutes }
+                    : {}),
             });
             setShowNewPlanModal(false);
         } catch (error) {
@@ -620,6 +701,9 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                         : (planDoc?.exerciseIds ?? []),
                 days: planDoc?.days ?? [],
                 time: planDoc?.time ?? '',
+                category: planDoc?.category,
+                targetKm: planDoc?.targetKm ?? undefined,
+                targetMinutes: planDoc?.targetMinutes ?? undefined,
             },
         });
     };
@@ -638,6 +722,9 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                 exerciseIds: planDoc.exerciseIds,
                 days: planDoc.days,
                 time: planDoc.time,
+                category: planDoc.category,
+                targetKm: planDoc.targetKm ?? undefined,
+                targetMinutes: planDoc.targetMinutes ?? undefined,
             },
         });
     };
@@ -738,6 +825,11 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
                     exerciseIds: payload.exerciseIds,
                     days: payload.days,
                     time: payload.time,
+                    // null clears a target left over from switching back
+                    // to an exercise-based category.
+                    category: payload.category ?? 'workout',
+                    targetKm: payload.targetKm ?? null,
+                    targetMinutes: payload.targetMinutes ?? null,
                 });
             }
             setEditingPlan(null);
@@ -783,166 +875,205 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
         >
-            {/* Header */}
-            <View style={styles.headerRow}>
-                <View style={styles.headerTextBlock}>
-                    <View style={styles.headerTitleRow}>
-                        <Text style={styles.headerTitle}>
-                            {hasWorkoutToday ? dayEvents[0].title : 'Rest Day'}
-                        </Text>
-                        <Flame size={18} color={colors.secondary} strokeWidth={2.4} />
-                    </View>
-                    <Text style={styles.headerSubtitle}>
-                        {hasWorkoutToday
-                            ? dayEvents[0].muscles.length > 0
-                                ? `Targeting ${dayEvents[0].muscles.join(', ')}`
-                                : `${totalExerciseCount} exercises scheduled`
-                            : 'No workout scheduled for this day'}
-                    </Text>
-                </View>
-            </View>
-
-
-            {/* Progress across every logged session — sets, reps and
-                weight rolled up per day. Not tied to the selected date,
-                so it has data to draw whenever the user has trained. */}
-            <WorkoutProgressCard refreshKey={occurrenceRefreshKey} />
-
-            {/* Section title */}
-            <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionTitleRow}>
-                    <Text style={styles.sectionTitle}>Workout Plan</Text>
-                    <View style={styles.exerciseCountPill}>
-                        <Text style={styles.exerciseCountText}>
-                            {totalExerciseCount} Exercises
+            {/* First load of the session: a page-shaped skeleton stands in until
+                the plans and the selected day have loaded, then the real screen
+                replaces it in one step. The gate carries the spacing scrollContent
+                used to apply between these sections directly. */}
+            <ScreenLoadGate
+                screenKey="workout"
+                ready={isScreenReady}
+                skeleton={<WorkoutSkeleton />}
+                style={styles.stack}
+            >
+                {/* Header */}
+                <View style={styles.headerRow}>
+                    <View style={styles.headerTextBlock}>
+                        <View style={styles.headerTitleRow}>
+                            <Text style={styles.headerTitle}>
+                                {hasWorkoutToday ? dayEvents[0].title : 'Rest Day'}
+                            </Text>
+                            <Flame size={18} color={colors.secondary} strokeWidth={2.4} />
+                        </View>
+                        <Text style={styles.headerSubtitle}>
+                            {hasWorkoutToday
+                                ? dayEvents[0].muscles.length > 0
+                                    ? `Targeting ${dayEvents[0].muscles.join(', ')}`
+                                    : `${totalExerciseCount} exercises scheduled`
+                                : 'No workout scheduled for this day'}
                         </Text>
                     </View>
                 </View>
 
-                {/* Jump back to the current date — sits in the header
-                    row's empty right slot. The strip spans two months
-                    either side of today, so it is easy to scroll a long
-                    way off and tedious to swipe back. Disabled rather
-                    than hidden when today is already selected, so the
-                    heading row doesn't reflow as you scrub dates. */}
-                <TouchableOpacity
-                    accessibilityLabel="Jump to today"
-                    activeOpacity={0.8}
-                    disabled={isToday}
-                    onPress={() => setSelectedDate(new Date())}
-                    style={[styles.todayButton, isToday && styles.todayButtonDisabled]}
-                >
-                    <CalendarDays size={12} color={colors.primary} strokeWidth={2.6} />
-                    <Text style={styles.todayButtonText}>Today</Text>
-                </TouchableOpacity>
-            </View>
 
-            {/* Date strip */}
-            <View style={styles.dateStripWrapper}>
-                <WorkoutDateStrip
-                    selectedDate={selectedDate}
-                    onSelectDate={setSelectedDate}
-                    screenHorizontalPadding={spacing.screenHorizontalPadding}
-                />
-            </View>
+                {/* Progress across every logged session — sets, reps and
+                    weight rolled up per day. Not tied to the selected date,
+                    so it has data to draw whenever the user has trained. */}
+                <WorkoutProgressCard refreshKey={occurrenceRefreshKey} />
 
-            {!hasWorkoutToday ? (
-                <View style={styles.card}>
-                    <Text style={styles.emptyStateTitle}>No workout scheduled</Text>
-                    <Text style={styles.emptyStateSubtitle}>
-                        Nothing's planned for this day yet — tap "Add Workout Plan" below to
-                        schedule one.
-                    </Text>
-                </View>
-            ) : (
-                planCards.map((plan) => {
-                    const isLogStateKnown = !isDayLoading;
-                    const isLogged = isLogStateKnown && loggedPlanIds.has(plan.id);
+                {/* One-tap AI plan: builds a week from the user's profile and
+                    saves every plan as a draft. Behind the same flag as the
+                    dashboard's AI advert, so switching that off hides both. */}
+                <FeatureGate flag="enabledAddForSubscription">
+                    <WorkoutPlanEngineCard
+                        onPress={generateAiPlans}
+                        loading={isGeneratingAiPlans}
+                    />
+                </FeatureGate>
 
-                    return (
-                        <WorkoutPlanCard
-                            key={plan.id}
-                            id={plan.id}
-                            planDocId={plan.planDocId}
-                            title={plan.title}
-                            exercises={plan.exercises}
-                            isLogged={isLogged}
-                            isLogStateKnown={isLogStateKnown}
-                            isDayLoading={isDayLoading}
-                            isSaving={savingPlanId === plan.id || isFutureDay}
-                            expandedExerciseId={expandedExerciseId}
-                            exerciseInputs={exerciseInputs}
-                            onToggleExercise={toggleExerciseExpanded}
-                            onEditPlan={() => openPlanEditor(plan)}
-                            onSaveWorkout={() => handleSaveWorkout(plan)}
-                            onStepSetInput={stepSetInput}
-                            onAddSet={addSet}
-                            onRemoveSet={removeSet}
-                            onFocusLayout={focus.onItemLayout(plan.planDocId)}
-                        />
-                    );
-                })
-            )}
-
-            {/* Every plan the user owns, regardless of date — always
-                rendered, unlike the cards above, which only cover what
-                is scheduled on the selected day. */}
-            <PlanLibrary onEditPlan={openPlanEditorFromLibrary} />
-
-            {/* Shortcut into the exercise library. Shows the day's own
-                planned exercises where there are any — see
-                featuredExercises above for the fallback. */}
-            {featuredExercises.length > 0 ? (
-                <View style={styles.browseSection}>
-                    <View style={styles.browseHeader}>
-                        <Text style={styles.browseTitle}>
-                            {plannedExerciseIds.length > 0 ? "Today's Exercises" : 'Exercises'}
-                        </Text>
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            onPress={() => setBrowsing(true)}
-                            accessibilityRole="button"
-                            accessibilityLabel="View all exercises"
-                            style={styles.browseAllButton}
-                        >
-                            <Text style={styles.browseAllText}>View All</Text>
-                            <ChevronRight size={13} color={colors.primary} strokeWidth={2.6} />
-                        </TouchableOpacity>
+                {/* Section title */}
+                <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionTitleRow}>
+                        <Text style={styles.sectionTitle}>Workout Plan</Text>
+                        <View style={styles.exerciseCountPill}>
+                            <Text style={styles.exerciseCountText}>
+                                {totalExerciseCount} Exercises
+                            </Text>
+                        </View>
                     </View>
 
-                    <View style={styles.browseList}>
-                        {featuredExercises.map((item) => (
+                    {/* Jump back to the current date — sits in the header
+                        row's empty right slot. The strip spans two months
+                        either side of today, so it is easy to scroll a long
+                        way off and tedious to swipe back. Disabled rather
+                        than hidden when today is already selected, so the
+                        heading row doesn't reflow as you scrub dates. */}
+                    <TouchableOpacity
+                        accessibilityLabel="Jump to today"
+                        activeOpacity={0.8}
+                        disabled={isToday}
+                        onPress={() => setSelectedDate(new Date())}
+                        style={[styles.todayButton, isToday && styles.todayButtonDisabled]}
+                    >
+                        <CalendarDays size={12} color={colors.primary} strokeWidth={2.6} />
+                        <Text style={styles.todayButtonText}>Today</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Date strip */}
+                <View style={styles.dateStripWrapper}>
+                    <WorkoutDateStrip
+                        selectedDate={selectedDate}
+                        onSelectDate={setSelectedDate}
+                        screenHorizontalPadding={spacing.screenHorizontalPadding}
+                    />
+                </View>
+
+                {!hasWorkoutToday ? (
+                    <View style={styles.card}>
+                        <Text style={styles.emptyStateTitle}>No workout scheduled</Text>
+                        <Text style={styles.emptyStateSubtitle}>
+                            Nothing's planned for this day yet — tap "Add Workout Plan" below to
+                            schedule one.
+                        </Text>
+                    </View>
+                ) : (
+                    planCards.map((plan) => {
+                        const isLogStateKnown = !isDayLoading;
+                        const isLogged = isLogStateKnown && loggedPlanIds.has(plan.id);
+                        // Same rule as the meal cards and the dashboard
+                        // slider: a future day is never loggable, and
+                        // today goes by the clock against the plan's own
+                        // time.
+                        const notYetTime =
+                            !isLogged &&
+                            isToday &&
+                            parseTimeToMinutes(plan.time) > minutesOfDay(now);
+                        const locked = !isLogged && (isFutureDay || notYetTime);
+                        const lockedLabel = isFutureDay
+                            ? 'Not yet — future day'
+                            : notYetTime
+                              ? `Available at ${plan.time}`
+                              : undefined;
+
+                        return (
+                            <WorkoutPlanCard
+                                key={plan.id}
+                                id={plan.id}
+                                planDocId={plan.planDocId}
+                                dateKey={selectedDateKey}
+                                title={plan.title}
+                                exercises={plan.exercises}
+                                isLogged={isLogged}
+                                isLogStateKnown={isLogStateKnown}
+                                isDayLoading={isDayLoading}
+                                isSaving={savingPlanId === plan.id}
+                                locked={locked}
+                                lockedLabel={lockedLabel}
+                                stats={statsByPlanId.get(plan.planDocId)}
+                                expandedExerciseId={expandedExerciseId}
+                                exerciseInputs={exerciseInputs}
+                                onToggleExercise={toggleExerciseExpanded}
+                                onEditPlan={() => openPlanEditor(plan)}
+                                onSaveWorkout={() => handleSaveWorkout(plan)}
+                                onStepSetInput={stepSetInput}
+                                onAddSet={addSet}
+                                onRemoveSet={removeSet}
+                                onFocusLayout={focus.onItemLayout(plan.planDocId)}
+                            />
+                        );
+                    })
+                )}
+
+                {/* Every plan the user owns, regardless of date — always
+                    rendered, unlike the cards above, which only cover what
+                    is scheduled on the selected day. */}
+                <PlanLibrary onEditPlan={openPlanEditorFromLibrary} />
+
+                {/* Shortcut into the exercise library. Shows the day's own
+                    planned exercises where there are any — see
+                    featuredExercises above for the fallback. */}
+                {featuredExercises.length > 0 ? (
+                    <View style={styles.browseSection}>
+                        <View style={styles.browseHeader}>
+                            <Text style={styles.browseTitle}>
+                                {plannedExerciseIds.length > 0 ? "Today's Exercises" : 'Exercises'}
+                            </Text>
                             <TouchableOpacity
-                                key={item.id}
-                                activeOpacity={0.85}
-                                onPress={() => setDetailExercise(item.exercise)}
-                                // A planned exercise whose record has not
-                                // resolved yet has nothing to show on the
-                                // detail screen, so it stays inert rather
-                                // than opening a blank one.
-                                disabled={!item.exercise}
+                                activeOpacity={0.8}
+                                onPress={() => setBrowsing(true)}
                                 accessibilityRole="button"
-                                accessibilityLabel={item.name}
-                                style={styles.browseRow}
+                                accessibilityLabel="View all exercises"
+                                style={styles.browseAllButton}
                             >
-                                <View style={styles.browseIcon}>
-                                    <EquipmentIcon equipment={item.equipment} size={17} />
-                                </View>
-                                <Text style={styles.browseRowText} numberOfLines={1}>
-                                    {item.name}
-                                </Text>
-                                <ChevronRight
-                                    size={15}
-                                    color={colors.textMuted}
-                                    strokeWidth={2.4}
-                                />
+                                <Text style={styles.browseAllText}>View All</Text>
+                                <ChevronRight size={13} color={colors.primary} strokeWidth={2.6} />
                             </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-            ) : null}
+                        </View>
 
-            <View style={styles.fabSpacer} />
+                        <View style={styles.browseList}>
+                            {featuredExercises.map((item) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    activeOpacity={0.85}
+                                    onPress={() => setDetailExercise(item.exercise)}
+                                    // A planned exercise whose record has not
+                                    // resolved yet has nothing to show on the
+                                    // detail screen, so it stays inert rather
+                                    // than opening a blank one.
+                                    disabled={!item.exercise}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={item.name}
+                                    style={styles.browseRow}
+                                >
+                                    <View style={styles.browseIcon}>
+                                        <EquipmentIcon equipment={item.equipment} size={17} />
+                                    </View>
+                                    <Text style={styles.browseRowText} numberOfLines={1}>
+                                        {item.name}
+                                    </Text>
+                                    <ChevronRight
+                                        size={15}
+                                        color={colors.textMuted}
+                                        strokeWidth={2.4}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                ) : null}
+
+                <View style={styles.fabSpacer} />
+            </ScreenLoadGate>
         </ScrollView>
 
         <TouchableOpacity
@@ -957,6 +1088,7 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
 
         {showNewPlanModal ? (
             <NewPlanModal
+                fullScreen
                 onClose={() => setShowNewPlanModal(false)}
                 onCreate={handleCreatePlan}
                 onSaveDraft={handleSaveDraft}
@@ -982,6 +1114,9 @@ const styles = themedStyles(() => ({
     },
     scrollContent: {
         paddingBottom: 32,
+    },
+    // Spacing between the sections, carried by the load gate's wrapper.
+    stack: {
         gap: 16,
     },
     fab: {
@@ -1048,8 +1183,8 @@ const styles = themedStyles(() => ({
     },
     dateStripWrapper: {
         // No horizontal padding here — WorkoutDateStrip applies
-        // screenHorizontalPadding itself via its contentContainerStyle, and
-        // sizes its tiles assuming that is the only inset.
+        // screenHorizontalPadding itself, via marginHorizontal on its own
+        // root View, and sizes its tiles from its own measured width.
     },
     filterRow: {
         gap: 8,

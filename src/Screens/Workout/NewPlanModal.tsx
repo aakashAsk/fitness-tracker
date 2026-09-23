@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -10,20 +10,23 @@ import {
   Pressable,
   ScrollView,
   TextInput,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   } from 'react-native';
 import {
   X,
   Search,
   SlidersHorizontal,
-  ChevronDown,
   Check,
   Plus,
   ArrowRight,
   Bookmark,
   Info,
   Clock,
-  CalendarCheck,
+  ChevronLeft,
   Dumbbell,
+  Minus,
+  Zap,
   ListFilter,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +35,17 @@ import { colors, withOpacity } from '../../Theme/colors';
 import TimeDial from '../../Components/TimeDial';
 import { radius } from '../../Theme/spacing';
 import { DayKey } from './Types';
+import {
+  describeMissingTarget,
+  isRestCategory,
+  isTargetCategory,
+  MAX_TARGET_KM,
+  MAX_TARGET_MINUTES,
+  parseTarget,
+  PLAN_CATEGORIES,
+  usesDistanceTarget,
+  type PlanCategory,
+} from '../../Services/planCategory';
 import { DAY_ORDER, todayDayKey } from './Data';
 import {
   Exercise,
@@ -48,6 +62,11 @@ export interface NewPlanPayload {
   days: DayKey[];
   /** e.g. "6:30 PM" — the same time slot every selected weekday. */
   time: string;
+  /** Absent on plans saved before categories existed, which read as 'workout'. */
+  category?: PlanCategory;
+  /** Cardio, cycling and walking plans only. */
+  targetKm?: number;
+  targetMinutes?: number;
 }
 
 interface NewPlanModalProps {
@@ -72,6 +91,12 @@ interface NewPlanModalProps {
   /** "YYYY-MM-DD" of the single day being edited, shown in the header so
    * it is unambiguous that the change is scoped to that date. */
   singleDateLabel?: string;
+  /**
+   * Fills the whole display like a screen instead of rising from the
+   * bottom as a sheet: no backdrop, grabber or rounded top, and the body
+   * takes all the height between the header and the footer.
+   */
+  fullScreen?: boolean;
 }
 
 /** Splits a stored "6:30 PM" time back into the dial's three parts. */
@@ -112,7 +137,7 @@ const PlanNameField = React.memo(({ value, onChangeText }: PlanNameFieldProps) =
   return (
     <View style={styles.inputWrap}>
       <View style={styles.inputLeadingIcon} pointerEvents="none">
-        <Dumbbell size={17} color={colors.textMuted} strokeWidth={2.2} />
+        <Zap size={17} color={colors.primary} strokeWidth={2.2} />
       </View>
       <TextInput
         value={value}
@@ -151,6 +176,94 @@ const MUSCLE_CHIPS = ["biceps", "forearms", "chest", "triceps", "shoulders", "lo
   "quadriceps",
   "traps"];
 
+/** Rows added each time the exercise list is scrolled near its end. */
+const EXERCISE_PAGE_SIZE = 12;
+/** How close to the end of the list (dp) to load the next page — about
+    two rows early, so the next page is in place before the user reaches it. */
+const EXERCISE_PAGE_TRIGGER = 240;
+
+interface ExerciseRowProps {
+  exercise: Exercise;
+  checked: boolean;
+  onToggle: (id: string) => void;
+  onInfo: (exercise: Exercise) => void;
+}
+
+/**
+ * One row of the exercise picker.
+ *
+ * Memoized, with stable callbacks passed in, so ticking one exercise
+ * re-renders that row and not every row already on screen — each of which
+ * holds a thumbnail image.
+ */
+const ExerciseRow = memo<ExerciseRowProps>(({ exercise: ex, checked, onToggle, onInfo }) => {
+  const meta = [ex.primaryMuscles[0], ex.equipment].filter(Boolean).join(' • ');
+
+  return (
+    <Pressable
+      onPress={() => onToggle(ex.id)}
+      style={[styles.exerciseRow, checked ? styles.exerciseRowChecked : styles.exerciseRowIdle]}
+    >
+      <View style={styles.exerciseThumb}>
+        {ex.images[0] ? (
+          <Image
+            source={{ uri: getExerciseImageUrl(ex.images[0]) }}
+            style={styles.exerciseThumbImage}
+            resizeMode="cover"
+            // The source is an 850×567 JPEG shown in a 60dp box. 'resize'
+            // makes Android decode it at the displayed size instead of
+            // full size — the default keeps the full bitmap in memory,
+            // about 2 MB per row.
+            resizeMethod="resize"
+          />
+        ) : (
+          <Dumbbell size={22} color={colors.textMuted} strokeWidth={2} />
+        )}
+        {ex.mechanic ? (
+          <View style={styles.exerciseThumbTag}>
+            <Text style={styles.exerciseThumbTagText}>{ex.mechanic}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.exerciseTextWrap}>
+        <Text style={styles.exerciseName} numberOfLines={1}>
+          {ex.name}
+        </Text>
+        {meta ? (
+          <Text style={styles.exerciseMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
+        <View style={styles.exerciseLevelPill}>
+          <Text style={styles.exerciseLevelText}>{ex.level}</Text>
+        </View>
+      </View>
+
+      <View style={styles.exerciseRight}>
+        <Pressable
+          accessibilityLabel={`More info about ${ex.name}`}
+          hitSlop={8}
+          onPress={() => onInfo(ex)}
+          style={styles.roundBtn}
+        >
+          <Info size={15} color={colors.primary} strokeWidth={2.4} />
+        </Pressable>
+        <View
+          style={[styles.roundBtn, checked && styles.roundBtnRemove]}
+          accessibilityLabel={checked ? 'Selected' : 'Not selected'}
+        >
+          {checked ? (
+            <Minus size={16} color={colors.secondary} strokeWidth={2.6} />
+          ) : (
+            <Plus size={16} color={colors.textSecondary} strokeWidth={2.6} />
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
 export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   onClose,
   onCreate,
@@ -158,6 +271,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   initialPlan,
   exercisesOnly = false,
   singleDateLabel,
+  fullScreen = false,
 }) => {
   const isEditing = !!initialPlan;
 
@@ -172,7 +286,22 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   }, []);
   const initialTime = parsePlanTime(initialPlan?.time);
 
-  const [name, setName] = useState(initialPlan?.name ?? 'Hypertrophy Push & Delts');
+  const [name, setName] = useState(initialPlan?.name ?? '');
+  const [category, setCategory] = useState<PlanCategory>(initialPlan?.category ?? 'workout');
+  const [targetKm, setTargetKm] = useState(
+    initialPlan?.targetKm !== undefined ? String(initialPlan.targetKm) : '',
+  );
+  const [targetMinutes, setTargetMinutes] = useState(
+    initialPlan?.targetMinutes !== undefined ? String(initialPlan.targetMinutes) : '',
+  );
+  // Cardio, cycling and walking are planned by distance and time, not by
+  // an exercise list. Editing a single day only ever changes exercises.
+  const isTarget = !exercisesOnly && isTargetCategory(category);
+  // Swimming is planned by time in the pool alone — no distance.
+  const showDistance = isTarget && usesDistanceTarget(category);
+  // A rest / recovery day is only the days it falls on: no time,
+  // exercises or targets.
+  const isRest = !exercisesOnly && isRestCategory(category);
   const [muscles, setMuscles] = useState<string[]>(initialPlan?.muscles ?? []);
   const [exerciseIds, setExerciseIds] = useState<string[]>(initialPlan?.exerciseIds ?? []);
   // A new plan starts on today's weekday — the day the user is almost
@@ -187,6 +316,8 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   const [timeMinute, setTimeMinute] = useState(initialTime.minute);
   const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>(initialTime.period);
   const formattedTime = `${timeHour}:${String(timeMinute).padStart(2, '0')} ${timePeriod}`;
+  // The dial only takes space once the user asks to change the time.
+  const [timeOpen, setTimeOpen] = useState(false);
 
   // How much of the screen the keyboard currently covers. Tracked
   // explicitly rather than via KeyboardAvoidingView: inside a Modal on
@@ -232,8 +363,17 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   // never push its top off the screen. Correct whether or not the
   // window itself resized: either way the sheet plus its lift comes to
   // the measured height minus the gap.
-  const sheetSizing =
-    overlayHeight > 0
+  const sheetSizing = fullScreen
+    ? // A screen fills the window: only the keyboard lift and the status
+      // bar inset are needed, and no measured cap.
+      {
+        flex: 1,
+        marginBottom: keyboardHeight,
+        paddingTop: insets.top,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+      }
+    : overlayHeight > 0
       ? {
           marginBottom: keyboardHeight,
           // Top inset keeps a tall sheet clear of the status bar; the
@@ -325,10 +465,15 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     });
   };
 
-  const toggleExercise = (id: string) =>
-    setExerciseIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  // Stable identity (functional update, no captured state) so the memoized
+  // exercise rows below are not re-rendered by every unrelated state change.
+  const toggleExercise = useCallback(
+    (id: string) =>
+      setExerciseIds((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      ),
+    [],
+  );
 
   // Selected chips float to the front (in the order they were picked),
   // unselected ones keep their original order after that.
@@ -410,6 +555,35 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleExercises, exerciseSearch]);
 
+  // The list is rendered a page at a time, growing as the user scrolls,
+  // rather than all at once. A muscle has 84–148 exercises and the sheet
+  // opens with three muscles picked, so the whole list is 300+ rows — and
+  // each row carries a network thumbnail (an 850×567 JPEG). Mounting them
+  // all at once meant hundreds of simultaneous downloads and decodes, which
+  // is what made the sheet hang while scrolling.
+  const [shownCount, setShownCount] = useState(EXERCISE_PAGE_SIZE);
+  const filteredCountRef = useRef(0);
+  filteredCountRef.current = filteredExercises.length;
+
+  // A new list or a new search starts over from the first page.
+  useEffect(() => {
+    setShownCount(EXERCISE_PAGE_SIZE);
+  }, [filteredExercises]);
+
+  const shownExercises = useMemo(
+    () => filteredExercises.slice(0, shownCount),
+    [filteredExercises, shownCount],
+  );
+
+  const onExerciseListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const remaining = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    if (remaining > EXERCISE_PAGE_TRIGGER) return;
+    // Clamped to the list length, so once everything is shown this sets the
+    // value it already has and React skips the render.
+    setShownCount((count) => Math.min(count + EXERCISE_PAGE_SIZE, filteredCountRef.current));
+  }, []);
+
   // The exercises an edited plan arrived with. They are exempt from the
   // pruning below: on the first pass `loadingMuscles` is still empty, so
   // nothing reads as loading yet while `combinedExercises` is also still
@@ -438,12 +612,19 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     [days],
   );
 
+  const parsedKm = showDistance ? parseTarget(targetKm, MAX_TARGET_KM) : undefined;
+  const parsedMinutes = isTarget ? parseTarget(targetMinutes, MAX_TARGET_MINUTES) : undefined;
+
   const payload: NewPlanPayload = {
     name,
-    muscles,
-    exerciseIds,
+    muscles: isTarget || isRest ? [] : muscles,
+    exerciseIds: isTarget || isRest ? [] : exerciseIds,
     days: activeDays,
-    time: formattedTime,
+    time: isRest ? '' : formattedTime,
+    // A single-day edit passes the category through untouched.
+    ...(exercisesOnly ? {} : { category }),
+    ...(parsedKm !== undefined ? { targetKm: parsedKm } : {}),
+    ...(parsedMinutes !== undefined ? { targetMinutes: parsedMinutes } : {}),
   };
 
   const handleCreate = () => {
@@ -456,7 +637,13 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
       setFormError(exercisesOnly ? 'Please enter a session name.' : 'Please enter a plan name.');
       return;
     }
-    if (exerciseIds.length < 3) {
+    if (isTarget) {
+      const missing = describeMissingTarget(category, parsedKm, parsedMinutes);
+      if (missing) {
+        setFormError(missing);
+        return;
+      }
+    } else if (!isRest && exerciseIds.length < 3) {
       setFormError('Select at least 3 exercises.');
       return;
     }
@@ -481,6 +668,9 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
     onSaveDraft(payload);
   };
 
+  // Muscle and exercise pickers: not for rest days or distance/time plans.
+  const showPickers = !isRest && !isTarget;
+
   return (
     <>
     <Modal
@@ -498,51 +688,58 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
         style={styles.overlay}
         onLayout={(event) => setOverlayHeight(event.nativeEvent.layout.height)}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        {fullScreen ? null : <Pressable style={styles.backdrop} onPress={onClose} />}
 
         <View style={[styles.sheet, sheetSizing]}>
-          {/* Drag pill */}
-          <View style={styles.dragBar}>
-            <View style={styles.dragPill} />
-          </View>
+          {/* Drag pill — a sheet affordance, meaningless on a screen */}
+          {fullScreen ? null : (
+            <View style={styles.dragBar}>
+              <View style={styles.dragPill} />
+            </View>
+          )}
 
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.headerTextWrap}>
-              <View style={styles.headerTitleRow}>
-                <View style={styles.glowDot} />
-                <Text style={styles.headerTitle}>
-                  {exercisesOnly
-                    ? 'Edit This Day'
-                    : isEditing
-                      ? 'Edit Workout Plan'
-                      : 'New Workout Plan'}
-                </Text>
-              </View>
-              <Text style={styles.headerSubtitle}>
-                {exercisesOnly
-                  ? singleDateLabel
-                    ? `Changes apply to ${singleDateLabel} only — the plan stays as it is`
-                    : 'Changes apply to this day only — the plan stays as it is'
-                  : isEditing
-                    ? 'Update the routine — changes apply everywhere it is scheduled'
-                    : 'Set up your precision routine in seconds'}
-              </Text>
-            </View>
             <Pressable
-              accessibilityLabel="Close sheet"
+              accessibilityLabel={fullScreen ? 'Go back' : 'Close sheet'}
               hitSlop={8}
               onPress={onClose}
               style={styles.closeBtn}
             >
-              <X size={20} color={colors.onSurfaceVariant} />
+              {fullScreen ? (
+                <ChevronLeft size={22} color={colors.onSurfaceVariant} strokeWidth={2.4} />
+              ) : (
+                <X size={20} color={colors.onSurfaceVariant} />
+              )}
             </Pressable>
+            <View style={styles.headerTextWrap}>
+              <View style={styles.headerTitleRow}>
+                <View style={styles.glowDot} />
+                <Text style={styles.headerKicker}>ROUTINE BUILDER</Text>
+              </View>
+              <Text style={styles.headerTitle}>
+                {exercisesOnly
+                  ? 'Edit This Day'
+                  : isEditing
+                    ? 'Edit Workout Plan'
+                    : 'Create Workout Plan'}
+              </Text>
+              {exercisesOnly || isEditing ? (
+                <Text style={styles.headerSubtitle}>
+                  {exercisesOnly
+                    ? singleDateLabel
+                      ? `Changes apply to ${singleDateLabel} only — the plan stays as it is`
+                      : 'Changes apply to this day only — the plan stays as it is'
+                    : 'Update the routine — changes apply everywhere it is scheduled'}
+                </Text>
+              ) : null}
+            </View>
           </View>
 
           {/* Scrollable body */}
           <ScrollView
             ref={bodyRef}
-            style={styles.body}
+            style={fullScreen ? styles.bodyFill : styles.body}
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -563,32 +760,100 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
               <PlanNameField value={name} onChangeText={setName} />
             </View>
 
-            {/* SECTION 2: TARGET MUSCLE GROUP */}
-            <View style={styles.fieldLoose}>
-              <View style={styles.labelRow}>
-                <Text style={styles.labelCaps}>TARGET MUSCLE GROUP</Text>
-              </View>
-
-              <Pressable style={styles.selectorField}>
-                <View style={styles.selectorLeft}>
-                  <View style={styles.selectorSwatch} />
-                  <Text style={styles.selectorValue} numberOfLines={1}>
-                    Target Muscles
-                  </Text>
-                  {muscles.length > 0 ? (
-                    <View style={styles.selectorBadge}>
-                      <Text style={styles.selectorBadgeText}>
-                        {muscles.length} Selected
+            {/* CATEGORY — chips like the nutrition tab's meal types. Not
+                shown when editing a single day: a date cannot change
+                what kind of plan it belongs to. */}
+            {exercisesOnly ? null : (
+            <View style={styles.field}>
+              <Text style={styles.labelCaps}>CATEGORY</Text>
+              <View style={styles.categoryWrap}>
+                {PLAN_CATEGORIES.map((option) => {
+                  const selected = option.key === category;
+                  return (
+                    <Pressable
+                      key={option.key}
+                      onPress={() => setCategory(option.key)}
+                      style={[styles.categoryChip, selected && styles.categoryChipActive]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[styles.categoryChipText, selected && styles.categoryChipTextActive]}
+                      >
+                        {option.label}
                       </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            )}
+
+            {/* Cardio / cycling / walking: distance and time targets in
+                place of the muscle and exercise pickers. */}
+            {isTarget && !isRest ? (
+              <View style={styles.field}>
+                <Text style={styles.labelCaps}>TARGETS</Text>
+                <View style={styles.targetRow}>
+                  {showDistance ? (
+                    <View style={styles.targetField}>
+                      <Text style={styles.targetLabel}>Target distance</Text>
+                      <View style={styles.targetInputWrap}>
+                        <TextInput
+                          value={targetKm}
+                          onChangeText={setTargetKm}
+                          keyboardType="decimal-pad"
+                          placeholder="5"
+                          placeholderTextColor={colors.textMuted}
+                          maxLength={6}
+                          style={styles.targetInput}
+                        />
+                        <Text style={styles.targetUnit}>km</Text>
+                      </View>
                     </View>
                   ) : null}
+                  <View style={styles.targetField}>
+                    <Text style={styles.targetLabel}>
+                      {category === 'swimming' ? 'Time in the pool' : 'Target time'}
+                    </Text>
+                    <View style={styles.targetInputWrap}>
+                      <TextInput
+                        value={targetMinutes}
+                        onChangeText={setTargetMinutes}
+                        keyboardType="decimal-pad"
+                        placeholder="30"
+                        placeholderTextColor={colors.textMuted}
+                        maxLength={6}
+                        style={styles.targetInput}
+                      />
+                      <Text style={styles.targetUnit}>min</Text>
+                    </View>
+                  </View>
                 </View>
-                <ChevronDown size={18} color={colors.onSurfaceVariant} />
-              </Pressable>
+              </View>
+            ) : null}
 
+            {/* SECTION 2: TARGET MUSCLE FOCUS */}
+            {showPickers ? (
+            <View style={styles.fieldLoose}>
+              <View style={styles.labelRow}>
+                <View style={styles.labelStack}>
+                  <Text style={styles.labelCaps}>TARGET MUSCLE FOCUS</Text>
+                  <Text style={styles.labelHint}>
+                    Select 1 or more to auto-filter recommendations
+                  </Text>
+                </View>
+                <Text style={styles.selectedCountText}>{muscles.length} Selected</Text>
+              </View>
+
+              {/* One swipeable row rather than a wrapped grid: the list is
+                  long, and selected chips float to the front so they stay
+                  in view. */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                style={styles.chipScroll}
                 contentContainerStyle={styles.chipRow}
               >
                 {orderedMuscleChips.map((m) => {
@@ -599,6 +864,11 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                         onPress={() => toggleMuscle(m)}
                         style={[styles.chip, selected ? styles.chipActive : styles.chipIdle]}
                       >
+                        {selected ? (
+                          <View style={styles.chipDot} />
+                        ) : (
+                          <Plus size={12} color={colors.textMuted} strokeWidth={2.6} />
+                        )}
                         <Text
                           style={[
                             styles.chipText,
@@ -608,18 +878,88 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                           {m}
                         </Text>
                         {selected ? (
-                          <X size={11} color={colors.textMuted} strokeWidth={2.6} />
-                        ) : (
-                          <Plus size={11} color={colors.primary} strokeWidth={2.8} />
-                        )}
+                          <Check size={13} color={colors.primary} strokeWidth={3} />
+                        ) : null}
                       </Pressable>
                     </Animated.View>
                   );
                 })}
               </ScrollView>
             </View>
+            ) : null}
 
-            {/* SECTION 3: SELECT EXERCISES */}
+            {/* SECTIONS 3 & 3b: WEEKLY SCHEDULE — hidden when only this
+                date's exercise list is being changed, since the recurring
+                schedule is not what is being edited then. */}
+            {exercisesOnly ? null : (
+            <View style={styles.scheduleCard}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelCaps}>
+                  {isRest ? 'REST DAYS' : 'WEEKLY SCHEDULE'}
+                </Text>
+                <Text style={styles.daysCountText}>{activeDays.length} days/week</Text>
+              </View>
+
+              <View style={styles.dayGrid}>
+                {DAY_ORDER.map((d) => {
+                  const active = days[d];
+                  return (
+                    <Pressable
+                      key={d}
+                      onPress={() => toggleDay(d)}
+                      accessibilityLabel={d}
+                      accessibilityState={{ selected: active }}
+                      style={[
+                        styles.dayPill,
+                        active ? styles.dayPillActive : styles.dayPillIdle,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayPillText,
+                          active ? styles.dayPillTextActive : styles.dayPillTextIdle,
+                        ]}
+                      >
+                        {d.slice(0, 1)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Session time — applies to every selected day above. A
+                  rest day has no time. */}
+              {isRest ? null : (
+              <>
+                <View style={styles.timeRow}>
+                  <View style={styles.timeLabelWrap}>
+                    <Clock size={16} color={colors.secondary} strokeWidth={2.2} />
+                    <Text style={styles.timeLabel}>
+                      Preferred Time: <Text style={styles.timeValue}>{formattedTime}</Text>
+                    </Text>
+                  </View>
+                  <Pressable hitSlop={8} onPress={() => setTimeOpen((open) => !open)}>
+                    <Text style={styles.changeText}>{timeOpen ? 'Done' : 'Change'}</Text>
+                  </Pressable>
+                </View>
+
+                {timeOpen ? (
+                  <TimeDial
+                    value={{ hour: timeHour, minute: timeMinute, period: timePeriod }}
+                    onChange={(next) => {
+                      setTimeHour(next.hour);
+                      setTimeMinute(next.minute);
+                      setTimePeriod(next.period);
+                    }}
+                  />
+                ) : null}
+              </>
+              )}
+            </View>
+            )}
+
+            {/* SECTION 4: CURATED MOVEMENTS */}
+            {showPickers ? (
             <View
               style={styles.fieldLoose}
               onLayout={(event) => {
@@ -627,16 +967,16 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
               }}
             >
               <View style={styles.labelRow}>
-                <View style={styles.labelWithBadge}>
-                  <Text style={styles.labelCaps}>SELECT EXERCISES</Text>
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>
-                      {exerciseIds.length} SELECTED
-                    </Text>
-                  </View>
+                <View style={styles.labelStack}>
+                  <Text style={styles.sectionTitle}>Curated Movements</Text>
+                  <Text style={styles.sectionSub}>{exerciseIds.length} selected</Text>
                 </View>
-                <Pressable hitSlop={6} onPress={() => setExerciseIds([])}>
-                  <Text style={styles.clearAllText}>Clear all</Text>
+                <Pressable
+                  hitSlop={6}
+                  onPress={() => setExerciseIds([])}
+                  style={styles.clearPill}
+                >
+                  <Text style={styles.clearPillText}>Clear all</Text>
                 </Pressable>
               </View>
 
@@ -652,7 +992,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                         animated: true,
                       })
                     }
-                    placeholder="Search loaded exercises…"
+                    placeholder="Search exercises or equipment..."
                     placeholderTextColor={colors.textMuted}
                     style={styles.searchInput}
                   />
@@ -692,85 +1032,20 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                     contentContainerStyle={styles.exerciseListContent}
                     nestedScrollEnabled
                     showsVerticalScrollIndicator={false}
+                    // Only checked for "near the end" — see onExerciseListScroll.
+                    // Throttled so a fast fling is not a JS call per frame.
+                    onScroll={onExerciseListScroll}
+                    scrollEventThrottle={100}
                   >
-                    {filteredExercises.map((ex) => {
-                      const checked = exerciseIds.includes(ex.id);
-                      const meta = [ex.primaryMuscles[0], ex.equipment]
-                        .filter(Boolean)
-                        .join(' • ');
-                      return (
-                        <Pressable
-                          key={ex.id}
-                          onPress={() => toggleExercise(ex.id)}
-                          style={[
-                            styles.exerciseRow,
-                            checked ? styles.exerciseRowChecked : styles.exerciseRowIdle,
-                          ]}
-                        >
-                          <View style={styles.exerciseLeft}>
-                            <View
-                              style={[
-                                styles.checkbox,
-                                checked ? styles.checkboxChecked : styles.checkboxIdle,
-                              ]}
-                            >
-                              {checked && (
-                                <Check size={14} strokeWidth={3.5} color={colors.onPrimary} />
-                              )}
-                            </View>
-                            <View style={styles.exerciseTextWrap}>
-                              <Text
-                                style={[
-                                  styles.exerciseName,
-                                  !checked && styles.exerciseNameIdle,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {ex.name}
-                              </Text>
-                              <View style={styles.exerciseMetaRow}>
-                                {ex.primaryMuscles[0] ? (
-                                  <View style={styles.exerciseMuscleTag}>
-                                    <Text style={styles.exerciseMuscleTagText}>
-                                      {ex.primaryMuscles[0]}
-                                    </Text>
-                                  </View>
-                                ) : null}
-                                {ex.equipment ? (
-                                  <>
-                                    <Text style={styles.exerciseMetaDot}>•</Text>
-                                    <Text style={styles.exerciseMeta} numberOfLines={1}>
-                                      {ex.equipment}
-                                    </Text>
-                                  </>
-                                ) : null}
-                              </View>
-                            </View>
-                          </View>
-                          <View style={styles.exerciseRight}>
-                            <Pressable
-                              accessibilityLabel={`More info about ${ex.name}`}
-                              hitSlop={8}
-                              onPress={() => setInfoExercise(ex)}
-                              style={[styles.infoBtn, !checked && styles.infoBtnIdle]}
-                            >
-                              <Info
-                                size={15}
-                                color={checked ? colors.secondary : colors.textSecondary}
-                                strokeWidth={2.6}
-                              />
-                            </Pressable>
-                            {checked ? (
-                              <View style={styles.exerciseTag}>
-                                <Text style={styles.exerciseTagText}>{ex.level}</Text>
-                              </View>
-                            ) : (
-                              <Plus size={18} color={colors.textSecondary} strokeWidth={2.6} />
-                            )}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
+                    {shownExercises.map((ex) => (
+                      <ExerciseRow
+                        key={ex.id}
+                        exercise={ex}
+                        checked={exerciseIds.includes(ex.id)}
+                        onToggle={toggleExercise}
+                        onInfo={setInfoExercise}
+                      />
+                    ))}
                   </ScrollView>
                 )}
 
@@ -784,94 +1059,7 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
 
               {listErrorText && <Text style={styles.errorText}>{listErrorText}</Text>}
             </View>
-
-            {/* SECTIONS 4 & 4b: SCHEDULE — hidden when only this date's
-                exercise list is being changed, since the recurring
-                schedule is not what is being edited then. */}
-            {exercisesOnly ? null : (
-            <>
-            {/* SECTION 4: TRAINING DAYS */}
-            <View style={styles.field}>
-              <View style={styles.labelRow}>
-                <Text style={styles.labelCaps}>SELECT TRAINING DAYS</Text>
-                <Text style={styles.daysCountText}>{activeDays.length} DAYS</Text>
-              </View>
-
-              <View style={styles.dayGrid}>
-                {DAY_ORDER.map((d) => {
-                  const active = days[d];
-                  return (
-                    <Pressable
-                      key={d}
-                      onPress={() => toggleDay(d)}
-                      style={[
-                        styles.dayPill,
-                        active ? styles.dayPillActive : styles.dayPillIdle,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayPillText,
-                          active ? styles.dayPillTextActive : styles.dayPillTextIdle,
-                        ]}
-                      >
-                        {d.slice(0, 3).toUpperCase()}
-                      </Text>
-                      {active ? (
-                        <Check
-                          size={12}
-                          strokeWidth={3.5}
-                          color={colors.onPrimary}
-                          style={styles.dayPillIcon}
-                        />
-                      ) : (
-                        <View style={styles.dayPillDot} />
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <View style={styles.noteRow}>
-                <CalendarCheck size={13} color={colors.primary} strokeWidth={2.4} />
-                <Text style={styles.recurrenceNote}>
-                  {activeDays.length > 0
-                    ? `${activeDays.length} selected: ${activeDays.join(', ')} · ${activeDays.length}x / week`
-                    : 'No training days selected'}
-                </Text>
-              </View>
-            </View>
-
-            {/* SECTION 4b: SESSION TIME — applies to every selected day above */}
-            <View style={styles.field}>
-              <View style={styles.labelRow}>
-                <Text style={styles.labelCaps}>SESSION TIME</Text>
-                <View style={styles.autoBalancedRow}>
-                  <Clock size={13} color={colors.secondary} />
-                  <Text style={styles.autoBalancedText}>Same time every day</Text>
-                </View>
-              </View>
-
-              <TimeDial
-                value={{ hour: timeHour, minute: timeMinute, period: timePeriod }}
-                onChange={(next) => {
-                  setTimeHour(next.hour);
-                  setTimeMinute(next.minute);
-                  setTimePeriod(next.period);
-                }}
-              />
-
-              <View style={styles.noteRow}>
-                <View style={styles.noteDot} />
-                <Text style={styles.recurrenceNote}>
-                  {activeDays.length > 0
-                    ? `Scheduled ${formattedTime} on ${activeDays.join(', ')}`
-                    : 'Pick training days above to see the full schedule'}
-                </Text>
-              </View>
-            </View>
-            </>
-            )}
+            ) : null}
           </ScrollView>
 
           {/* SECTION 5: ACTION FOOTER */}
@@ -1044,13 +1232,13 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
 
 const styles = themedStyles(() => ({
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    gap: 10,
+    gap: 8,
   },
   overlay: {
     flex: 1,
@@ -1066,7 +1254,7 @@ const styles = themedStyles(() => ({
   },
   sheet: {
     width: '100%',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -1089,11 +1277,9 @@ const styles = themedStyles(() => ({
 
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -1101,33 +1287,43 @@ const styles = themedStyles(() => ({
   headerTextWrap: { flex: 1, gap: 2 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   glowDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 6,
   },
+  headerKicker: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.9,
+    color: colors.primary,
+  },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: '800',
     color: colors.onSurface,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   headerSubtitle: { fontSize: 12, lineHeight: 17, color: colors.onSurfaceVariant },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   pressedDim: { opacity: 0.6 },
 
   body: { flexGrow: 0 },
+  bodyFill: { flex: 1 },
   bodyContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -1152,29 +1348,37 @@ const styles = themedStyles(() => ({
   requiredBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.DEFAULT,
-    backgroundColor: withOpacity(colors.primary, 0.1),
+    borderRadius: radius.sm,
+    backgroundColor: withOpacity(colors.primary, 0.18),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.primary, 0.3),
   },
-  requiredText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  requiredText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.primary,
+  },
 
   inputWrap: { position: 'relative', justifyContent: 'center' },
   input: {
     width: '100%',
-    height: 48,
-    // Left padding clears the leading barbell icon; right clears the
-    // clear button.
-    paddingLeft: 40,
-    paddingRight: 40,
+    height: 52,
+    // Left padding clears the leading icon; right clears the clear button.
+    paddingLeft: 44,
+    paddingRight: 44,
     fontSize: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceLow,
+    fontWeight: '600',
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     color: colors.onSurface,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   inputFocused: {
     borderColor: colors.primary,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   inputClearBtn: {
     position: 'absolute',
@@ -1187,132 +1391,99 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.surfaceContainerHigh,
   },
 
-  // A bordered pill rather than loose text, so it reads as a status
-  // rather than as another label.
-  autoBalancedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    backgroundColor: withOpacity(colors.secondary, 0.1),
-    borderWidth: 1,
-    borderColor: withOpacity(colors.secondary, 0.22),
-  },
-  autoBalancedText: { fontSize: 11.5, fontWeight: '700', color: colors.secondary },
 
-  selectorField: {
-    height: 50,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: withOpacity(colors.primary, 0.05),
-    borderWidth: 1,
-    borderColor: withOpacity(colors.primary, 0.18),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectorLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-  selectorSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  selectorValue: {
-    fontSize: 14,
-    fontWeight: '600',
+  // Bleeds out to the screen edges (bodyContent pads 20 each side) so the
+  // row swipes edge to edge, with the same inset restored inside it.
+  chipScroll: { flexGrow: 0, marginHorizontal: -20 },
+  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingVertical: 2 },
+  labelStack: { flexShrink: 1, gap: 2 },
+  labelHint: { fontSize: 11, color: colors.textMuted },
+  selectedCountText: { fontSize: 12, fontWeight: '800', color: colors.primary },
+  chipDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  targetRow: { flexDirection: 'row', gap: 10 },
+  targetField: { flex: 1, gap: 6 },
+  targetLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  targetInputWrap: { position: 'relative', justifyContent: 'center' },
+  targetInput: {
+    height: 48,
+    paddingLeft: 14,
+    paddingRight: 44,
+    fontSize: 15,
+    fontWeight: '700',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceLow,
     color: colors.onSurface,
-    flexShrink: 1,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  selectorBadge: {
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+  targetUnit: {
+    position: 'absolute',
+    right: 14,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surfaceLow,
   },
-  selectorBadgeText: { fontSize: 11, color: colors.onPrimary },
-
-  chipRow: { flexDirection: 'row', gap: 6, paddingBottom: 2, paddingRight: 4 },
-  labelWithBadge: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-    backgroundColor: withOpacity(colors.primary, 0.12),
-  },
-  countBadgeText: { fontSize: 10, fontWeight: '800', color: colors.primary },
+  categoryChipActive: { backgroundColor: colors.primary },
+  categoryChipText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  categoryChipTextActive: { color: colors.white },
   inputLeadingIcon: {
     position: 'absolute',
     left: 14,
     zIndex: 1,
   },
-  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  noteDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.success,
-  },
-  exerciseMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  exerciseMuscleTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    // Darker than surfaceContainer, which sat only a few points off the
-    // white card behind it.
-    backgroundColor: withOpacity(colors.textMuted, 0.2),
-  },
-  exerciseMuscleTagText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: colors.textPrimary,
-  },
-  exerciseMetaDot: { fontSize: 10, color: colors.textSecondary },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    // Squircle rather than a full pill, matching the exercise cards
-    // below so the two lists read as the same family.
+    gap: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
     borderRadius: 12,
+    borderWidth: 1,
   },
   chipIdle: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
     borderColor: colors.border,
   },
   chipActive: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    backgroundColor: withOpacity(colors.primary, 0.15),
+    borderColor: colors.primary,
   },
   chipText: {
-    fontSize: 11.5,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     textTransform: 'capitalize',
   },
-  chipTextActive: { color: colors.onPrimary },
-  chipTextIdle: { color: colors.onSurfaceVariant },
+  chipTextActive: { color: colors.onSurface, fontWeight: '700' },
+  chipTextIdle: { color: colors.textSecondary },
 
-  clearAllText: { fontSize: 12, fontWeight: '500', color: colors.secondary },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: colors.onSurface },
+  sectionSub: { fontSize: 12, color: colors.textMuted },
+  clearPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: withOpacity(colors.primary, 0.15),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.primary, 0.4),
+  },
+  clearPillText: { fontSize: 12, fontWeight: '700', color: colors.primary },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    height: 42,
+    height: 44,
     paddingHorizontal: 12,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceLow,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
@@ -1331,7 +1502,7 @@ const styles = themedStyles(() => ({
   // Fixed height regardless of state (loading/empty/populated) so selecting
   // a chip never shifts the rest of the sheet.
   exerciseListWrap: {
-    height: 220,
+    height: 360,
     borderRadius: radius.md,
     overflow: 'hidden',
   },
@@ -1353,68 +1524,92 @@ const styles = themedStyles(() => ({
     borderRadius: radius.md,
   },
   exerciseList: { flex: 1 },
-  exerciseListContent: { gap: 6, paddingBottom: 2 },
+  exerciseListContent: { gap: 10, paddingBottom: 2 },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: radius.md,
+    gap: 12,
+    padding: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
   },
   exerciseRowChecked: {
     backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: withOpacity(colors.primary, 0.8),
+    borderColor: withOpacity(colors.primary, 0.7),
   },
   exerciseRowIdle: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    // A solid divider tone rather than the 6%-alpha border token, which
-    // all but vanished against a white card.
-    borderColor: withOpacity(colors.textMuted, 0.35),
+    borderColor: colors.border,
   },
-  exerciseLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
+  exerciseThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
+  exerciseThumbImage: { width: '100%', height: '100%' },
+  exerciseThumbTag: {
+    position: 'absolute',
+    bottom: 3,
+    right: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  checkboxIdle: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: withOpacity(colors.textMuted, 0.55),
-  },
-  exerciseTextWrap: { flexShrink: 1 },
-  exerciseName: {
-    fontSize: 14,
+  exerciseThumbTagText: {
+    fontSize: 8.5,
     fontWeight: '800',
-    color: colors.textPrimary,
+    color: colors.white,
+    textTransform: 'capitalize',
   },
-  exerciseNameIdle: { fontWeight: '700', color: colors.textPrimary },
-  exerciseMeta: { fontSize: 11.5, fontWeight: '600', color: colors.textSecondary },
-  exerciseTag: {
+  exerciseTextWrap: { flex: 1, minWidth: 0, gap: 3 },
+  exerciseLevelPill: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.DEFAULT,
-    backgroundColor: colors.canvasDeep,
+    borderRadius: 6,
+    backgroundColor: withOpacity(colors.primary, 0.15),
+    borderWidth: 1,
+    borderColor: withOpacity(colors.primary, 0.2),
   },
-  exerciseTagText: { fontSize: 11, fontWeight: '600', color: colors.primary },
+  exerciseLevelText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'capitalize',
+  },
+  exerciseName: { fontSize: 14, fontWeight: '800', color: colors.onSurface },
+  exerciseMeta: { fontSize: 12, color: colors.textSecondary, textTransform: 'capitalize' },
 
   daysCountText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  scheduleCard: {
+    gap: 14,
+    padding: 16,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   dayGrid: { flexDirection: 'row', gap: 6 },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timeLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  timeLabel: { fontSize: 12.5, color: colors.textSecondary },
+  timeValue: { fontWeight: '800', color: colors.onSurface },
+  changeText: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
   dayPill: {
     flex: 1,
-    height: 44,
+    height: 40,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1423,38 +1618,20 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.primary,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.4,
     shadowRadius: 10,
     // Without elevation the glow renders on iOS only — Android ignores
     // shadow* entirely and draws from this instead.
     elevation: 6,
   },
   dayPillIdle: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: withOpacity(colors.textMuted, 0.28),
-    // A soft lift so the unselected days read as raised tiles rather
-    // than as holes in the sheet.
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 5,
-    elevation: 2,
+    borderColor: colors.border,
   },
-  dayPillText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4, lineHeight: 12 },
+  dayPillText: { fontSize: 12, fontWeight: '800' },
   dayPillTextActive: { color: colors.onPrimary },
   dayPillTextIdle: { color: colors.onSurfaceVariant },
-  dayPillIcon: { marginTop: 3 },
-  dayPillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 6,
-    // Was surfaceContainerHighest — the same near-white as the tile it
-    // sits on, so the marker could not be seen at all.
-    backgroundColor: colors.textMuted,
-  },
-  recurrenceNote: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
 
   // Stacked AM over PM in a recessed tray, as in the reference sheet.
   // Sits under both buttons and slides between them.
@@ -1480,7 +1657,7 @@ const styles = themedStyles(() => ({
   ctaClip: {
     width: '100%',
     height: 52,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.primary,
   },
@@ -1491,13 +1668,12 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     gap: 8,
   },
-  ctaText: { fontSize: 16, fontWeight: '800', color: colors.onPrimary },
+  ctaText: { fontSize: 14, fontWeight: '800', letterSpacing: 0.3, color: colors.onPrimary },
   draftBtnClip: {
     width: '100%',
-    height: 48,
+    height: 40,
     borderRadius: radius.md,
     overflow: 'hidden',
-    backgroundColor: withOpacity(colors.secondary, 0.1),
   },
   draftBtn: {
     flex: 1,
@@ -1506,18 +1682,20 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     gap: 8,
   },
-  draftBtnText: { fontSize: 15, fontWeight: '700', color: colors.secondary },
+  draftBtnText: { fontSize: 13, fontWeight: '700', color: colors.secondary },
 
-  exerciseRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  infoBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  exerciseRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  roundBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: withOpacity(colors.secondary, 0.12),
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  infoBtnIdle: { backgroundColor: withOpacity(colors.textMuted, 0.18) },
+  roundBtnRemove: { borderColor: withOpacity(colors.secondary, 0.4) },
 
   // Exercise info popup
   infoOverlay: {

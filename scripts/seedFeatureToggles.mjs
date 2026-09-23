@@ -34,7 +34,8 @@ const projectId = process.env.GCLOUD_PROJECT || process.env.EXPO_PUBLIC_FIREBASE
 // (unknown keys are ignored by the app). `demoUnknownFlag` is here to
 // show exactly that.
 const SEED = {
-  scheduleTab: { enabled: true, description: 'Schedule tab in the bottom nav' },
+  disabledPushNotification: { enabled: false, description: 'Kill switch: true turns all push notification code off' },
+  enabledAddForSubscription: { enabled: true, description: 'Shows the subscription advert above the dashboard nav bar' },
   demoUnknownFlag: { enabled: false, description: 'Not in the registry; ignored by the app' },
 };
 

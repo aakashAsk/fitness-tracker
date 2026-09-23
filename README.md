@@ -157,7 +157,7 @@ to attach credentials server-side.
 goes through a module in `src/Services/`. Shared, long-lived data
 (plans, profile) additionally flows through Redux so there is exactly one
 listener per collection for the whole app. Per-screen, per-day data
-(logs, hydration, steps) is read on demand by the screen or a hook.
+(logs, telemetry, steps) is read on demand by the screen or a hook.
 
 ---
 
@@ -250,7 +250,7 @@ Two patterns, chosen per collection:
 | `workoutLogs` | `{userId}_{planId}_{date}` | One per (user, plan, day) |
 | `mealPlans` | auto | Recurring rule |
 | `mealLogs` | `{userId}_{planId}_{date}` | One per (user, plan, day) |
-| `hydrationLogs` | `{userId}_{date}` | One per (user, day) |
+| `telemetry` | `{userId}_{date}` | One per (user, day) |
 
 `date` is always `"YYYY-MM-DD"` in the **device's local timezone**.
 
@@ -385,20 +385,54 @@ plan) and the same `state: 'planned' | 'completed'`.
 > An explicit `nutrition: undefined` key is rejected by Firestore with
 > "Unsupported field value" on the next write-back, which the edit path does.
 
-### `hydrationLogs/{userId}_{date}`
+### `telemetry/{userId}_{date}`
+
+Everything the dashboard shows for one day, in one document.
 
 ```ts
-interface HydrationLog {
+interface TelemetryDay {
   id: string; userId: string;
   date: string;
-  entries: { ml: number; time: string }[];   // oldest first
+  water: { ml: number; time: string }[];     // oldest first
+  steps: number | null;
+  caloriesBurned: number | null;
+  weightKg: number | null;
+  sleep: {
+    asleepMinutes: number; inBedMinutes: number;
+    start: string | null; end: string | null;  // ISO instants
+    stages: { deep: number; rem: number; light: number; awake: number } | null;
+  } | null;
   updatedAt: Date | null;
 }
 ```
 
-Individual drinks are stored rather than a running total, which preserves
+A day is a row, not a stream of events: every consumer asks "what did this
+day look like", and one merge-write per metric keeps a day to a single
+document however often the pedometer ticks.
+
+**Every metric is nullable, and `null` is not `0`** — nothing has reported it
+yet, as opposed to a measured zero. The dashboard shows `—` for the first and
+a real value for the second.
+
+Water keeps individual drinks rather than a running total, which preserves
 *when* the user drank and lets a mistaken entry be removed without guessing
 its size. `ML_PER_GLASS = 250`, `DAILY_GLASS_GOAL = 8` (2 litres).
+
+Writers: `saveWaterEntries` (the user logging a drink), `recordDailyMetrics`
+(steps / calories / sleep, written as a by-product of the dashboard being
+open, throttled by `shouldWriteMetrics`), and `saveDailyWeight` (a weigh-in;
+**nothing calls it yet** — there is no weigh-in UI, so `weightKg` stays null
+and the dashboard falls back to the onboarding profile's weight).
+
+> **Replaces `hydrationLogs`**, which held water alone. That collection is
+> read-only in `firestore.rules` and is still read once per day, as a
+> fallback, so existing water history carries forward the first time an old
+> day is opened (`readLegacyWater`). Safe to delete — collection, rule and
+> function — once no user has unmigrated days worth keeping.
+
+Pure shape rules (ids, totals, sanitising, the write throttle) live in
+`telemetryShape.ts` with no Firestore import, which is what makes them
+unit-testable — the same split as `nutritionTotals.ts`.
 
 ### Not in Firestore
 
@@ -423,7 +457,7 @@ at some point, and the file documents each:
    exist still evaluates the rules, with `resource` set to null; reading
    `resource.data` off null fails evaluation and surfaces as "Missing or
    insufficient permissions" rather than an empty result. Every `getDoc()` in
-   the app can hit this — `fetchHydrationLog`, `fetchMealLog`,
+   the app can hit this — `fetchTelemetry`, `fetchMealLog`,
    `fetchWorkoutLog`, `savePlannedOccurrence`. Nothing can leak from a
    document that does not exist.
 
@@ -442,7 +476,7 @@ at some point, and the file documents each:
    `logId == request.auth.uid + '_' + planId + '_' + date`. Without this,
    anyone could squat on another user's log id, which would permanently block
    that user from saving that day — their own write would then fail
-   `ownsExisting()`. `hydrationLogs` deliberately does **not** pin its id;
+   `ownsExisting()`. `telemetry` deliberately does **not** pin its id;
    that check is defence-in-depth, not correctness, and the ownership
    conditions are what actually protect the data.
 
@@ -467,7 +501,8 @@ screens.
 | `workoutLogService` | Per-day set/rep/weight log; legacy shape migration |
 | `mealPlanService` | Meal plan CRUD, `onSnapshot` subscription |
 | `mealLogService` | Meals actually eaten |
-| `hydrationLogService` | Water intake per day |
+| `telemetryService` | One day of dashboard metrics: water, steps, calories, sleep, weight |
+| `telemetryShape` | Its pure rules and types — no Firestore import, carries the tests |
 | `userService` | `getCurrentUserId()` — the single source of the uid |
 
 `getCurrentUserId()` matters: every per-user write and query calls it rather
@@ -574,7 +609,7 @@ Nutrition tab, went back home" case without any cross-screen invalidation.
 | `Screens/Splash` | Animated splash |
 | `Screens/Auth` | `AuthNavigator`, `EmailAuthScreen`, `ForgotPasswordScreen` |
 | `Screens/Onboarding` | `AboutYouStep`, `BodyMetricsStep`, `GoalStep`, `ActivityStep`, `OnboardingNavigator`, shared `OnboardingUI` |
-| `Screens/Dashboard` | `LiveTelementry` (the metric grid + charts), `TodaysWorkout`, `UpcomingMealCard` |
+| `Screens/Dashboard` | `LiveTelementry` (the metric grid + charts), `TodaysScheduleSlider` (today's workouts and meals, sorted by time) |
 | `Screens/Workout` | 27 files — planner, session logger, exercise library, modals, charts |
 | `Screens/Nutrition` | `NutritionScreen`, `NewMealPlanModal` |
 | `Screens/ScheduleScreen` | 13 files — timeline, week strip, upcoming section |
@@ -739,10 +774,10 @@ in place as comments:
 Both are intact, not deleted — swap the import back once the new designs have
 their data layer.
 
-**Dashboard cards are still partly hardcoded.** `LiveTelementry` reads steps
-and hydration live, but `caloriesBurned`, `bodyWeightKg`, `weeklyAvgKcal`,
-`monthlyGoalPercent`, the calorie budget, `WEEK_ACTIVITY` and `DEFAULT_MACROS`
-are prop defaults, not real data.
+**Dashboard cards are still partly hardcoded.** `LiveTelementry` reads steps,
+water, sleep, calories burned, body weight and the calorie budget live, but
+`weeklyAvgKcal`, `monthlyGoalPercent` and `WEEK_ACTIVITY` are still prop
+defaults, not real data.
 
 **NativeWind and `react-native-gifted-charts` are installed but unused** —
 charts are hand-drawn with `react-native-svg`.

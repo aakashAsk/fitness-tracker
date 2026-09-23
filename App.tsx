@@ -13,8 +13,11 @@ import { Provider } from 'react-redux';
 import { onAuthStateChanged } from '@firebase/auth';
 
 import DashboardOverview from './src/Screens/Dashboard/LiveTelementry';
-import TodaysWorkoutCard from './src/Screens/Dashboard/TodaysWorkout';
-import UpcomingMealCard from './src/Screens/Dashboard/UpcomingMealCard';
+import TodaysScheduleSlider from './src/Screens/Dashboard/TodaysScheduleSlider';
+import SubscriptionAdBanner from './src/Screens/Dashboard/SubscriptionAdBanner';
+import DashboardLoadGate, { resetDashboardGate } from './src/Screens/Dashboard/DashboardLoadGate';
+import DashboardSkeleton from './src/Screens/Dashboard/DashboardSkeleton';
+import { resetScreenGates } from './src/Components/ScreenLoadGate';
 import AuthNavigator from './src/Screens/Auth/AuthNavigator';
 import OnboardingNavigator from './src/Screens/Onboarding/OnboardingNavigator';
 import ProfileScreen from './src/Screens/Profile/ProfileScreen';
@@ -29,6 +32,7 @@ import { useAppDispatch, useAppSelector } from './src/Store/hooks';
 
 import { colors } from './src/Theme/colors';
 import BottomNavBar, { NavTab } from './src/Components/Navigation';
+import AppTopBar from './src/Components/AppTopBar';
 // Real, Firestore-backed calendar screen — new design temporarily
 // replaces this tab with ScheduleSession (a presentational timeline
 // UI). Not deleted: re-enable by swapping the import/usage below once
@@ -46,32 +50,12 @@ import { store } from './src/Store/store';
 import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 import { useMealPlansSync } from './src/Store/mealPlansSlice';
 import { auth } from './src/Firebase/firebaseConfig';
+import { cacheClear } from './src/Services/dataCache';
+import { resetTelemetryThrottle } from './src/Services/telemetryService';
 import { DialogProvider } from './src/Components/Dialog';
+import { FeatureFlagProvider, FeatureGate, useFeatureFlagsReady } from './src/FeatureFlags';
 import { themedStyles, ThemeProvider, useTheme, useThemeState } from './src/Theme/ThemeContext';
-// ── Reminders: temporarily disabled ──────────────────────────────────
-// expo-notifications cannot run in Expo Go on Android, so the whole
-// feature is commented out rather than half-working while the app is
-// developed there. Nothing else references these, so the module is not
-// bundled at all while this is off.
-//
-// To re-enable: uncomment this block and the useReminderSync() call
-// below, then run a dev build (npm run build:dev) — Expo Go will not
-// deliver notifications however this is configured.
-//
-import { useReminderSync } from './src/Store/useReminderSync';
-import * as Notifications from 'expo-notifications';
-//
-// Without a handler, a reminder that arrives while the app is open is
-// delivered silently — the user sees nothing until they background it.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-// ─────────────────────────────────────────────────────────────────────
+import { NotificationsRoot } from './src/Notifications/NotificationsRoot';
 
 function AppContent() {
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
@@ -87,6 +71,18 @@ function AppContent() {
   useEffect(
     () =>
       onAuthStateChanged(auth, user => {
+        // Signed out: forget everything read for that account, so the next
+        // one starts clean and sees the dashboard's first-load skeleton.
+        // (Cache keys carry the uid, so nothing could leak across
+        // accounts anyway — this is about not holding it, and about the
+        // skeleton.) The telemetry throttle is cleared for the same
+        // reason: its own docs say it is for sign-out, and nothing did.
+        if (!user) {
+          cacheClear();
+          resetDashboardGate();
+          resetScreenGates();
+          resetTelemetryThrottle();
+        }
         setFirebaseUser(user);
         setAuthResolved(true);
       }),
@@ -139,7 +135,12 @@ function AppContent() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const [bootComplete, setBootComplete] = useState(false);
 
-  const appReady = authResolved && (!hasSession || !profileLoading);
+  // Flags are part of "ready" so a feature that is switched off is never
+  // painted for a frame. They load concurrently with auth, and
+  // FeatureFlagProvider's 2.5 s timeout guarantees this cannot hang.
+  const flagsReady = useFeatureFlagsReady();
+
+  const appReady = authResolved && flagsReady && (!hasSession || !profileLoading);
 
   // Latched rather than derived: a later profile refetch flips
   // profileLoading back on, and without this the splash would reappear
@@ -155,11 +156,12 @@ function AppContent() {
   useWorkoutPlansSync(firebaseUser?.uid);
   useMealPlansSync(firebaseUser?.uid);
 
-  // Reschedules the device's reminders whenever a plan changes.
-  // Disabled with the import above — see the note at the top of the file.
-  useReminderSync(hasSession);
-
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+
+  // Session-scoped: once dismissed the advert stays gone until the app is
+  // restarted, which is as persistent as an advert should be without a
+  // stored preference behind it.
+  const [adDismissed, setAdDismissed] = useState(false);
 
   // A plan the next tab should scroll to — set when a dashboard card
   // sends the user to its session. Cleared once the tab has landed, so
@@ -179,15 +181,19 @@ function AppContent() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <DashboardOverview onProfilePress={() => setActiveTab('profile')} />
-            <TodaysWorkoutCard
-              onOpenWorkout={(planId) => openPlanInTab('workout', planId)}
-              onViewAll={() => setActiveTab('workout')}
-            />
-            <UpcomingMealCard
-              onOpenMeal={(planId) => openPlanInTab('nutrition', planId)}
-              onViewAll={() => setActiveTab('nutrition')}
-            />
+            {/* The skeleton stands in until every dashboard section has
+                loaded, then the real screen replaces it in one go. The
+                gate's wrapper takes over the spacing scrollContent used to
+                apply between these two directly. */}
+            <DashboardLoadGate skeleton={<DashboardSkeleton />} style={styles.dashboardStack}>
+              <DashboardOverview />
+              <TodaysScheduleSlider
+                onOpenWorkout={(planId) => openPlanInTab('workout', planId)}
+                onOpenMeal={(planId) => openPlanInTab('nutrition', planId)}
+                onViewWorkouts={() => setActiveTab('workout')}
+                onViewMeals={() => setActiveTab('nutrition')}
+              />
+            </DashboardLoadGate>
           </ScrollView>
         );
 
@@ -281,7 +287,26 @@ function AppContent() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
 
+      <AppTopBar activeTab={activeTab} onProfilePress={() => setActiveTab('profile')} />
       <View style={styles.content}>{renderScreen()}</View>
+
+      {/* Subscription advert, above the nav bar on the dashboard only.
+          Mounted outside `content` and absolutely positioned so it floats
+          over the scroll rather than pushing it — the dashboard does not
+          jump when the advert arrives five seconds in.
+
+          `adDismissed` lives here rather than in the banner so it
+          survives a tab switch: dismissing it on the way to the Workout
+          tab has to mean dismissed, not "back in five seconds". */}
+      {activeTab === 'home' && !adDismissed ? (
+        // box-none so only the card itself catches touches — the empty
+        // space either side of it still scrolls the dashboard underneath.
+        <View style={styles.adSlot} pointerEvents="box-none">
+          <FeatureGate flag="enabledAddForSubscription">
+            <SubscriptionAdBanner onDismiss={() => setAdDismissed(true)} />
+          </FeatureGate>
+        </View>
+      ) : null}
 
       <BottomNavBar activeTab={activeTab} onTabPress={setActiveTab} />
     </SafeAreaView>
@@ -299,6 +324,7 @@ export default function App() {
 
   return (
     <Provider store={store}>
+      <FeatureFlagProvider>
       <ThemeProvider value={theme}>
         {/* SafeAreaProvider is outermost on purpose: DialogProvider and
             the modal sheets below it call useSafeAreaInsets(), which
@@ -310,9 +336,14 @@ export default function App() {
               surfaces rather than the platform's. */}
           <DialogProvider>
             <AppContent />
+            {/* Owns everything notification-related, behind the
+                `notifications` flag. Sits beside AppContent so it is
+                unaffected by the splash and auth early returns. */}
+            <NotificationsRoot />
           </DialogProvider>
         </SafeAreaProvider>
       </ThemeProvider>
+      </FeatureFlagProvider>
     </Provider>
   );
 }
@@ -327,6 +358,16 @@ const styles = themedStyles(() => ({
     flex: 1,
   },
 
+  // Floats the advert over the dashboard, clear of the nav bar below it
+  // (BottomNavBar is 64 high on an 8 bottom padding). Absolute so the
+  // dashboard does not shift when the advert slides in five seconds in.
+  adSlot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 100,
+  },
+
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -336,6 +377,12 @@ const styles = themedStyles(() => ({
     flex: 1,
     paddingHorizontal: 0,
     paddingTop: 8,
+  },
+
+  // The gap scrollContent applies between the dashboard's sections —
+  // repeated here because the gate wraps them in a View of their own.
+  dashboardStack: {
+    gap: 24,
   },
 
   scrollContent: {

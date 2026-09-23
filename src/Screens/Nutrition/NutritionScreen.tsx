@@ -14,23 +14,26 @@ import {
     type MealPlan,
 } from '../../Services/mealPlanService';
 import { useMealPlansError } from '../../Store/mealPlansSlice';
+import { parseTimeToMinutes } from '../../Services/workoutPlanService';
+import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import {
     DAILY_ML_GOAL,
-    fetchHydrationLog,
+    fetchTelemetry,
     formatEntryTime,
     glassesFrom,
-    HydrationLogServiceError,
     ML_PER_GLASS,
-    saveHydrationEntries,
+    saveWaterEntries,
+    TelemetryServiceError,
     totalMl,
-    type HydrationEntry,
-} from '../../Services/hydrationLogService';
+    type WaterEntry,
+} from '../../Services/telemetryService';
 import {
     MealLogServiceError,
 } from '../../Services/mealLogService';
 import { toDateKey, todayDateKey } from '../../Services/workoutLogService';
 import { themedStyles } from '../../Theme/ThemeContext';
 import { useDayMeals } from '../../Hooks/useDayMeals';
+import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
 import { useScrollToItem } from '../../Hooks/useScrollToItem';
 import { useDailySteps } from '../../Hooks/useDailySteps';
 import { useAppSelector } from '../../Store/hooks';
@@ -38,6 +41,13 @@ import { selectDerivedTargets } from '../../Store/userProfileSlice';
 import HydrationCard from './HydrationCard';
 import CalorieMacroCard from './CalorieMacroCard';
 import MealLogsCard from './MealLogsCard';
+import NutritionSkeleton from './NutritionSkeleton';
+import ScreenLoadGate from '../../Components/ScreenLoadGate';
+import { useMealPlansLoading } from '../../Store/mealPlansSlice';
+
+// A meal within this many minutes of a scheduled workout, on a shared
+// day, is flagged as a clash rather than silently overlapping it.
+const WORKOUT_CONFLICT_WINDOW_MINUTES = 30;
 
 export interface NutritionScreenProps {
     /** A meal plan to scroll to on arrival — set when the user comes here
@@ -53,18 +63,26 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
     onFocusHandled,
 }) => {
     const [activeSubNav, setActiveSubNav] = useState('diet');
-    // Water logged on the selected date. Held with the date it belongs
-    // to so a stale count from the previous day can never be shown — or,
-    // worse, saved over the new day's record.
+    // Water and burn calories logged on the selected date. Held with the
+    // date it belongs to so a stale reading from the previous day can
+    // never be shown — or, worse, saved over the new day's record.
     const [hydration, setHydration] = useState<{
         dateKey: string;
-        entries: HydrationEntry[];
-    }>({ dateKey: '', entries: [] });
+        entries: WaterEntry[];
+        /** From the day's telemetry row — step-derived, written whenever
+            the Dashboard has been opened that day. Null when the day has
+            no telemetry document yet. */
+        caloriesBurned: number | null;
+    }>({ dateKey: '', entries: [], caloriesBurned: null });
     const dialog = useDialog();
 
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const selectedDateKey = toDateKey(selectedDate);
     const isToday = selectedDateKey === todayDateKey();
+    // Nothing scheduled for a day that hasn't happened yet can be logged —
+    // MealLogsCard needs this to distinguish "later today" (time-gated)
+    // from "a future day entirely" (gated regardless of time).
+    const isFutureDay = selectedDateKey > todayDateKey();
 
     const mealPlansError = useMealPlansError();
 
@@ -92,13 +110,42 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
     } = useDayMeals(selectedDate);
 
     const targets = useAppSelector(selectDerivedTargets);
+    // The profile stores no fiber target, so use the common guideline of
+    // 14 g per 1,000 kcal (25 g until a calorie target exists).
+    const fiberGoalG = targets ? Math.round((targets.calorieTarget / 1000) * 14) : 25;
     const stepData = useDailySteps();
-    // Steps are device-local with no history (README:397-400) — only
-    // today can show a burn figure. A past date always shows '—'.
-    const calorieBurned =
+
+    // Today's completed workouts, for the calories they report burning —
+    // same source the Workout tab's own summaries read from, so this
+    // figure can never disagree with what a session card shows there.
+    const dayWorkouts = useDayWorkoutEvents(selectedDate);
+    const workoutCaloriesBurned = React.useMemo(
+        () =>
+            Array.from(dayWorkouts.statsByPlanId.values()).reduce(
+                (sum, stats) => sum + stats.caloriesBurned,
+                0,
+            ),
+        [dayWorkouts.statsByPlanId],
+    );
+
+    // Step-derived calories come from the day's telemetry row — written
+    // by the Dashboard (see LiveTelementry's useRecordTelemetry) — which
+    // works for any date, not just today: the live pedometer reading is
+    // only ever "today", but a past day's step burn survives in
+    // Firestore once the Dashboard has recorded it. Today additionally
+    // falls back to the live sensor reading for the moments before that
+    // day's telemetry row has been written yet.
+    const hasHydrationForDay = hydration.dateKey === selectedDateKey;
+    const telemetryStepCalories = hasHydrationForDay ? hydration.caloriesBurned : null;
+    const liveStepCalories =
         isToday && !stepData.loading && stepData.source !== 'unavailable'
             ? stepData.caloriesBurned
             : null;
+    const stepCaloriesBurned = telemetryStepCalories ?? liveStepCalories ?? 0;
+
+    // Never null — a day with nothing recorded yet is a real zero, not a
+    // missing figure the card should blank out.
+    const calorieBurned = stepCaloriesBurned + workoutCaloriesBurned;
 
     // Arriving from the dashboard's meal card: land on that meal, where
     // its Log and Edit buttons are. Waits for the day's logs so it
@@ -166,7 +213,30 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
         }
     };
 
-    const handleCreateMealPlan = async (payload: MealPlanPayload) => {
+    const workoutPlans = useWorkoutPlans();
+
+    /**
+     * A live workout sharing a day with this meal plan and scheduled
+     * within WORKOUT_CONFLICT_WINDOW_MINUTES of it, or null. Used to warn
+     * before saving rather than block — the user may genuinely want to
+     * eat right before or after a session.
+     */
+    const findWorkoutConflict = (payload: MealPlanPayload) => {
+        const mealMinutes = parseTimeToMinutes(payload.time);
+        const days = new Set(payload.days);
+        return (
+            workoutPlans.find(
+                (plan) =>
+                    plan.status === 'live' &&
+                    !!plan.time &&
+                    plan.days.some((day) => days.has(day)) &&
+                    Math.abs(parseTimeToMinutes(plan.time) - mealMinutes) <=
+                        WORKOUT_CONFLICT_WINDOW_MINUTES,
+            ) ?? null
+        );
+    };
+
+    const saveMealPlan = async (payload: MealPlanPayload) => {
         setIsSavingMeal(true);
         try {
             const planId = await createMealPlan({ ...payload, status: 'live' });
@@ -189,7 +259,30 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
         }
     };
 
-    const hasHydrationForDay = hydration.dateKey === selectedDateKey;
+    const handleCreateMealPlan = async (payload: MealPlanPayload) => {
+        const conflict = findWorkoutConflict(payload);
+        if (conflict) {
+            dialog.show({
+                title: 'Clashes with a workout',
+                message: `"${conflict.name}" is scheduled at ${conflict.time} on ${conflict.days.join(', ')} — close to this meal's ${payload.time}. Add it anyway?`,
+                actions: [
+                    { label: 'Cancel', style: 'cancel' },
+                    {
+                        label: 'Add Anyway',
+                        style: 'primary',
+                        onPress: () => void saveMealPlan(payload),
+                    },
+                ],
+            });
+            return;
+        }
+        await saveMealPlan(payload);
+    };
+
+    // Everything the first paint needs: the meal store's first snapshot and
+    // the selected day's logs and water.
+    const mealPlansLoading = useMealPlansLoading();
+    const isScreenReady = !mealPlansLoading && hasLogsForDay && hasHydrationForDay;
     const waterEntries = hasHydrationForDay ? hydration.entries : [];
     const waterMl = totalMl(waterEntries);
     const filledGlasses = glassesFrom(waterEntries);
@@ -197,19 +290,23 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
 
     useEffect(() => {
         let cancelled = false;
-        fetchHydrationLog(selectedDateKey)
-            .then((log) => {
+        fetchTelemetry(selectedDateKey)
+            .then((day) => {
                 if (!cancelled) {
-                    setHydration({ dateKey: selectedDateKey, entries: log?.entries ?? [] });
+                    setHydration({
+                        dateKey: selectedDateKey,
+                        entries: day?.water ?? [],
+                        caloriesBurned: day?.caloriesBurned ?? null,
+                    });
                 }
             })
             .catch((error) => {
                 if (cancelled) return;
-                setHydration({ dateKey: selectedDateKey, entries: [] });
+                setHydration({ dateKey: selectedDateKey, entries: [], caloriesBurned: null });
                 dialog.show({
                     title: 'Could not load water intake',
                     message:
-                        error instanceof HydrationLogServiceError
+                        error instanceof TelemetryServiceError
                             ? error.message
                             : 'Something went wrong loading this day.',
                 });
@@ -227,17 +324,17 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
      * On failure it rolls back to what was on screen, so the UI never
      * keeps a state the database rejected.
      */
-    const commitEntries = async (next: HydrationEntry[]) => {
+    const commitEntries = async (next: WaterEntry[]) => {
         const previous = waterEntries;
-        setHydration({ dateKey: selectedDateKey, entries: next });
+        setHydration((prev) => ({ ...prev, dateKey: selectedDateKey, entries: next }));
         try {
-            await saveHydrationEntries(selectedDateKey, next);
+            await saveWaterEntries(selectedDateKey, next);
         } catch (error) {
-            setHydration({ dateKey: selectedDateKey, entries: previous });
+            setHydration((prev) => ({ ...prev, dateKey: selectedDateKey, entries: previous }));
             dialog.show({
                 title: 'Could not save water intake',
                 message:
-                    error instanceof HydrationLogServiceError
+                    error instanceof TelemetryServiceError
                         ? error.message
                         : 'Something went wrong. Please try again.',
             });
@@ -281,66 +378,78 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <CalorieMacroCard
-                    calorieTotal={targets?.calorieTarget ?? null}
-                    calorieConsumed={totals?.calories ?? null}
-                    calorieBurned={calorieBurned}
-                    macros={[
-                        {
-                            label: 'Protein',
-                            grams: totals?.protein ?? null,
-                            goalGrams: targets?.proteinG ?? 0,
-                            color: colors.protein,
-                        },
-                        {
-                            label: 'Carbs',
-                            grams: totals?.carbs ?? null,
-                            goalGrams: targets?.carbsG ?? 0,
-                            color: colors.carbs,
-                        },
-                        {
-                            label: 'Fats',
-                            grams: totals?.fat ?? null,
-                            goalGrams: targets?.fatsG ?? 0,
-                            color: colors.fats,
-                        },
-                    ]}
-                />
-
-                <View style={styles.dateStripWrapper}>
-                    <WorkoutDateStrip
-                        selectedDate={selectedDate}
-                        onSelectDate={setSelectedDate}
-                        screenHorizontalPadding={spacing.screenHorizontalPadding}
-                        accentColor={colors.secondary}
+                {/* First load of the session: a page-shaped skeleton stands in until
+                    the day's meals and water have loaded, then the real screen
+                    replaces it in one step. The gate carries the spacing scrollContent
+                    used to apply between these sections directly. */}
+                <ScreenLoadGate
+                    screenKey="nutrition"
+                    ready={isScreenReady}
+                    skeleton={<NutritionSkeleton />}
+                    style={styles.stack}
+                >
+                    <CalorieMacroCard
+                        calorieTotal={targets?.calorieTarget ?? null}
+                        calorieConsumed={totals?.calories ?? null}
+                        calorieBurned={calorieBurned}
+                        macros={[
+                            {
+                                label: 'Protein',
+                                grams: totals?.protein ?? null,
+                                goalGrams: targets?.proteinG ?? 0,
+                                color: colors.protein,
+                            },
+                            {
+                                label: 'Carbs',
+                                grams: totals?.carbs ?? null,
+                                goalGrams: targets?.carbsG ?? 0,
+                                color: colors.carbs,
+                            },
+                            {
+                                label: 'Fiber',
+                                grams: totals?.fiber ?? null,
+                                goalGrams: fiberGoalG,
+                                color: colors.success,
+                            },
+                        ]}
                     />
-                </View>
 
-                <HydrationCard
-                    waterEntries={waterEntries}
-                    waterMl={waterMl}
-                    filledGlasses={filledGlasses}
-                    canLogWater={canLogWater}
-                    hasHydrationForDay={hasHydrationForDay}
-                    onToggleGlass={toggleGlass}
-                    onAddWater={addWater}
-                    onRemoveEntry={removeWaterEntry}
-                />
+                    <View style={styles.dateStripWrapper}>
+                        <WorkoutDateStrip
+                            selectedDate={selectedDate}
+                            onSelectDate={setSelectedDate}
+                            screenHorizontalPadding={spacing.screenHorizontalPadding}
+                            accentColor={colors.secondary}
+                        />
+                    </View>
 
-                <View onLayout={focus.onContainerLayout}>
-                    <MealLogsCard
-                        dayCards={dayCards}
-                        hasLogsForDay={hasLogsForDay}
-                        isToday={isToday}
-                        loggingPlanId={loggingPlanId}
-                        estimatingIds={estimatingIds}
-                        onLogMeal={handleLogMeal}
-                        onEditMeal={setEditingLog}
-                        onFocusItem={focus.onItemLayout}
+                    <HydrationCard
+                        waterEntries={waterEntries}
+                        waterMl={waterMl}
+                        filledGlasses={filledGlasses}
+                        canLogWater={canLogWater}
+                        hasHydrationForDay={hasHydrationForDay}
+                        onToggleGlass={toggleGlass}
+                        onAddWater={addWater}
+                        onRemoveEntry={removeWaterEntry}
                     />
-                </View>
 
-                <View style={styles.fabSpacer} />
+                    <View onLayout={focus.onContainerLayout}>
+                        <MealLogsCard
+                            dayCards={dayCards}
+                            hasLogsForDay={hasLogsForDay}
+                            isToday={isToday}
+                            isFutureDay={isFutureDay}
+                            loggingPlanId={loggingPlanId}
+                            estimatingIds={estimatingIds}
+                            onLogMeal={handleLogMeal}
+                            onEditMeal={setEditingLog}
+                            onFocusItem={focus.onItemLayout}
+                        />
+                    </View>
+
+                    <View style={styles.fabSpacer} />
+                </ScreenLoadGate>
             </ScrollView>
 
             <TouchableOpacity
@@ -389,12 +498,15 @@ const styles = themedStyles(() => ({
     },
     scrollContent: {
         paddingBottom: 32,
+    },
+    // Spacing between the sections, carried by the load gate's wrapper.
+    stack: {
         gap: 20,
     },
     dateStripWrapper: {
         // No horizontal padding here — WorkoutDateStrip applies
-        // screenHorizontalPadding itself via its contentContainerStyle, and
-        // sizes its tiles assuming that is the only inset.
+        // screenHorizontalPadding itself, via marginHorizontal on its own
+        // root View, and sizes its tiles from its own measured width.
     },
     fabSpacer: {
         height: 56,

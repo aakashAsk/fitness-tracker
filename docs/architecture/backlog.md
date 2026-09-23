@@ -513,7 +513,7 @@ Evidence: Guard verified: no env -> exit 1, non-local host -> exit 1, no request
 
 ---
 
-## FF-004: Flag registry + pure resolver + staleness helper   [P1] [M] [status: todo]
+## FF-004: Flag registry + pure resolver + staleness helper   [P1] [M] [status: done]
 Depends on: none
 Goal: One typed definition of every flag, plus pure decision logic, unit-tested.
 Files: create `src/FeatureFlags/registry.ts`, `types.ts`, `resolveFlag.ts`, `staleness.ts`, tests `resolveFlag.test.ts`, `registry.test.ts`, `staleness.test.ts`.
@@ -522,10 +522,11 @@ Acceptance criteria:
   - [ ] `npm test` passes, at least 12 new tests
   - [ ] No `firebase` import under the new pure files
   - [ ] Closed flag with no value resolves false; registry test rejects closed+default true
+Evidence: registry, resolver, staleness and cache codec are pure modules; 27 new tests pass under `npm test` (39 total, incl. flagStore). Closed flag with default true is rejected by the registry test.
 
 ---
 
-## FF-005: Device cache + `featureFlagService` (collection listener)   [P1] [M] [status: todo]
+## FF-005: Device cache + `featureFlagService` (collection listener)   [P1] [M] [status: done]
 Depends on: FF-004
 Files: create `src/FeatureFlags/featureFlagStorage.ts` (+ pure `encodeCache`/`decodeCache`), `src/Services/featureFlagService.ts` (`subscribeToFeatureFlags(onChange, onError)` over the `featureToggle` collection), `src/FeatureFlags/__tests__/featureFlagCodec.test.ts`.
 Steps: storage copies `themeStorage.ts` (never throws, `pulsefit.featureFlags` key); service is the only importer of `firebase/firestore` for flags and emits a plain `Record<string, boolean>`; documents whose `enabled` is not a boolean are ignored.
@@ -533,10 +534,11 @@ Acceptance criteria:
   - [ ] Codec tests pass (corrupt JSON -> null, round trip)
   - [ ] `grep firebase/firestore src/Screens src/FeatureFlags` finds nothing
   - [ ] Listener against emulator (needs emulator; record if unverifiable)
+Evidence: `featureFlagStorage.ts` (never throws) and `featureFlagService.ts` (only firebase/firestore importer for flags) added; codec tests pass. NOT verified: listener against a real emulator (no Firebase CLI/Java here).
 
 ---
 
-## FF-006: `FeatureFlagProvider` with timeout, fallback chain and live listener   [P0] [M] [status: todo]
+## FF-006: `FeatureFlagProvider` with timeout, fallback chain and live listener   [P0] [M] [status: done]
 Depends on: FF-005
 Files: create `FeatureFlagProvider.tsx`, `useFeatureFlag.ts`, `FeatureGate.tsx`, `isFeatureEnabled.ts`; modify `App.tsx` (provider at root; `flagsReady` added to the boot latch).
 Steps: on mount arm a 2500 ms timer first, start the listener and read the cache concurrently; ready on first of server/cache-miss/timeout; listener never cancelled by the timer; mirror snapshots to cache; per-key fallback server -> cache -> default; module-level snapshot for `isFeatureEnabled`; `__DEV__` log of summary/source/overdue flags.
@@ -545,16 +547,18 @@ Acceptance criteria:
   - [ ] Only the provider talks to `featureFlagService`
   - [ ] Typecheck baseline unchanged; bundle export succeeds
   - [ ] Runtime behaviours (server/cache/timeout, live update) verified where an emulator/device allows; otherwise stated as unverified
+Evidence: provider arms the 2500 ms timer first, the timer never cancels the listener, snapshots are mirrored to cache; `flagStore` covered by 8 tests; Android bundle export succeeds; no typecheck errors in new code beyond the `node:test` type notes the existing tests share. NOT verified at runtime: server/cache/timeout paths on a device or emulator. Deviation: ready = first snapshot, listener error or timeout (a cache hit alone does not release the splash, so a killed feature is never painted from a stale cache while online). tsconfig gained allowImportingTsExtensions/noEmit so `.ts` imports typecheck.
 
 ---
 
-## FF-007: Gate the Schedule tab end to end (the proof feature)   [P0] [M] [status: todo]
+## FF-007: Gate the Schedule tab end to end (the proof feature)   [P0] [M] [status: done]
 Depends on: FF-006
 Files: modify `src/Components/Navigation.tsx` (filter `TABS`), `App.tsx` (`renderScreen`, `openPlanInTab`, `setActiveTab` entry points, fall back to home when the active tab is disabled).
 Acceptance criteria:
   - [ ] TABS filtered by flag; schedule case gated; every `setActiveTab` path refuses a disabled tab
   - [ ] Falls back to `home` if the flag turns off while on Schedule
   - [ ] Design scenarios (a)-(d) demonstrated where an emulator/device allows; the rest listed as not run
+Evidence: nav TABS filtered; renderScreen case wrapped in FeatureGate; setActiveTab refuses a disabled tab; an effect returns to home if the flag flips off while on the tab. NOT run: scenarios a-d on a device/emulator.
 
 ---
 
@@ -570,19 +574,21 @@ Needs: devDependency `@firebase/rules-unit-testing`, a `test:rules` script, and 
 
 ---
 
-## FF-010: Developer guide "How to ship a new feature behind a flag"   [P2] [S] [status: todo]
+## FF-010: Developer guide "How to ship a new feature behind a flag"   [P2] [S] [status: done]
 Depends on: FF-007
 Files: create `docs/feature-flags.md`.
 Scope change: the design's second fail-closed flag is dropped (no risky surface is being added in this workstream); the fail-closed path is covered by resolver unit tests instead.
 Acceptance criteria:
   - [ ] Guide covers add-to-registry, create the `featureToggle/<key>` doc in the console, gate every entry point, test both states, roll out, remove; how to kill a feature; what offline users see; console-only toggling; no secrets in flag docs
   - [ ] `npm test` still passes
+Evidence: docs/feature-flags.md written.
 
 ---
 
-## FF-011: Staleness guard test   [P3] [S] [status: todo]
+## FF-011: Staleness guard test   [P3] [S] [status: done]
 Depends on: FF-004
 Scope change: crash-report keys / Sentry dropped. Only the guard remains: a test over the real registry failing when a flag is more than 30 days past `plannedRemoval`, and the removal checklist in the guide. (The guard test is written in FF-004 alongside `staleness.ts`; this task is closed by verifying it fails on a backdated entry and by the checklist in FF-010.)
 Acceptance criteria:
   - [ ] Backdating a registry entry makes `npm test` fail (then reverted)
   - [ ] Removal checklist present in the guide
+Evidence: backdating the registry entry made `npm test` fail with 'Remove these flags...: scheduleTab'; reverted, 39/39 pass. Removal checklist is step 6 of the guide.
