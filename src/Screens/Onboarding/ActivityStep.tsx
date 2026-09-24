@@ -1,17 +1,9 @@
-// Step 3 — activity level, weekly pace, injuries and diet, plus a live
-// preview of the numbers that are about to be saved.
+// Step 6 — weekly pace, injuries and diet, plus a live preview of the
+// numbers that are about to be saved. Activity level itself is asked
+// earlier, in WorkoutFrequencyStep.
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import {
-  Activity,
-  Armchair,
-  Bolt,
-  Dumbbell,
-  Flame,
-  HeartPulse,
-  Salad,
-  Utensils,
-} from 'lucide-react-native';
+import { Bolt, Flame, HeartPulse, Salad, Utensils } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import {
@@ -21,52 +13,8 @@ import {
   ProfileAnswers,
   WeeklyPace,
 } from '../../Services/userProfileService';
-import {
-  Chip,
-  FieldCard,
-  PrimaryButton,
-  SegmentedControl,
-  SelectCard,
-  StepHeader,
-  StepTitle,
-} from './OnboardingUI';
+import { Chip, FieldCard, PrimaryButton, SegmentedControl, StepHeader, StepTitle } from './OnboardingUI';
 import { themedStyles } from '../../Theme/ThemeContext';
-
-const ICON_SIZE = 20;
-
-const ACTIVITY_LEVELS: {
-  value: ActivityLevel;
-  title: string;
-  description: string;
-  badge?: string;
-  icon: (color: string) => React.ReactNode;
-}[] = [
-  {
-    value: 'sedentary',
-    title: 'Sedentary',
-    description: 'Desk job, little deliberate movement',
-    icon: color => <Armchair size={ICON_SIZE} color={color} strokeWidth={2.4} />,
-  },
-  {
-    value: 'light',
-    title: 'Lightly Active',
-    description: '1–3 training days per week',
-    icon: color => <Activity size={ICON_SIZE} color={color} strokeWidth={2.4} />,
-  },
-  {
-    value: 'moderate',
-    title: 'Moderately Active',
-    description: '3–5 training days per week',
-    badge: 'Most common',
-    icon: color => <Dumbbell size={ICON_SIZE} color={color} strokeWidth={2.4} />,
-  },
-  {
-    value: 'very_active',
-    title: 'Very Active',
-    description: '6–7 days of intense training',
-    icon: color => <HeartPulse size={ICON_SIZE} color={color} strokeWidth={2.4} />,
-  },
-];
 
 const PACE_OPTIONS: { value: WeeklyPace; label: string; sublabel: string }[] = [
   { value: 0.25, label: 'Gentle', sublabel: '0.25 kg / wk' },
@@ -130,39 +78,22 @@ export const ActivityStep: React.FC<ActivityStepProps> = ({
 }) => {
   const patch = (next: Partial<ActivityStepValue>) => onChange({ ...value, ...next });
 
-  // Pace only moves the number for fat loss — for the other three goals
-  // calculateCalorieTarget ignores it entirely, so showing the control
-  // would promise an effect it does not have.
-  const showPace = goal === 'fat-loss';
+  // Pace only moves the number for the two deficit goals —
+  // calculateCalorieTarget ignores it for the others, so showing the
+  // control there would promise an effect it does not have.
+  const showPace = goal === 'fat-loss' || goal === 'weight-loss';
 
   const { tdee, dailyCalorieTarget, macros } = deriveTargets({ ...answers, ...value });
   const calorieDelta = dailyCalorieTarget - tdee;
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <StepHeader step={4} onBack={onBack} />
+      <StepHeader step={6} onBack={onBack} />
 
       <StepTitle
-        title="Activity, health & targets"
-        subtitle="Fine-tune your training volume, joint care, and nutrition preferences."
+        title="Health & targets"
+        subtitle="Fine-tune your joint care and nutrition preferences before we set your numbers."
       />
-
-      <View style={styles.options} accessibilityRole="radiogroup">
-        {ACTIVITY_LEVELS.map(level => {
-          const selected = level.value === value.activityLevel;
-          return (
-            <SelectCard
-              key={level.value}
-              title={level.title}
-              description={level.description}
-              badge={level.badge}
-              selected={selected}
-              onPress={() => patch({ activityLevel: level.value })}
-              icon={level.icon(selected ? colors.white : colors.textSecondary)}
-            />
-          );
-        })}
-      </View>
 
       {showPace ? (
         <FieldCard
@@ -170,8 +101,8 @@ export const ActivityStep: React.FC<ActivityStepProps> = ({
           icon={<Flame size={16} color={colors.secondary} strokeWidth={2.4} />}
         >
           <Text style={styles.cardCopy}>
-            How fast you want to lose weight. Faster means a deeper deficit and a harder
-            week — steady is what most people sustain.
+            How fast you want to reach your goal. Faster means a bigger daily calorie change and
+            a harder week — steady is what most people sustain.
           </Text>
           <SegmentedControl<WeeklyPace>
             value={value.weeklyPaceKg}
@@ -322,7 +253,6 @@ const styles = themedStyles(() => ({
     paddingBottom: spacing['2xl'],
     gap: spacing.md,
   },
-  options: { gap: spacing.sm },
   cardCopy: { fontSize: 12, lineHeight: 17, color: colors.textSecondary },
   fieldNote: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },

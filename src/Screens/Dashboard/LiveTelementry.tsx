@@ -2,7 +2,6 @@ import React from 'react';
 import { Linking, View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import {
-    ArrowRight,
     BedDouble,
     Clock,
     Droplet,
@@ -24,12 +23,13 @@ import { useRecordTelemetry } from '../../Hooks/useRecordTelemetry';
 import { useDayMeals } from '../../Hooks/useDayMeals';
 import { useDayWorkoutEvents } from '../../Hooks/useDayWorkoutEvents';
 import { useGreeting } from '../../Hooks/useGreeting';
+import { useWeeklyMacroCompletion } from '../../Hooks/useWeeklyMacroCompletion';
 import { useAppSelector } from '../../Store/hooks';
 import CaloriesBurnCard from './CaloriesBurnCard';
 import UpcomingEventsSection from './UpcomingEventsSection';
 import WeightEntryModal from './WeightEntryModal';
 import { useDashboardReady } from './DashboardLoadGate';
-import { selectDerivedTargets, selectUserProfile } from '../../Store/userProfileSlice';
+import { selectDerivedTargets, selectLoginStreak, selectUserProfile } from '../../Store/userProfileSlice';
 import { useLastNightSleep } from '../../Hooks/useLastNightSleep';
 import {
     formatClock,
@@ -54,25 +54,13 @@ export interface DashboardOverviewProps {
     // selectDerivedTargets — so neither is passed in either.
     // Body weight comes from today's telemetry row, or the onboarding
     // profile when there has been no weigh-in — so it is not passed in.
-    weeklyAvgKcal?: number;
-    monthlyGoalPercent?: number;
+    // The weekly bars come from useWeeklyMacroCompletion — also not
+    // passed in.
 }
-
-const WEEK_ACTIVITY = [
-    { day: 'M', percent: 0.44 },
-    { day: 'T', percent: 0.67 },
-    { day: 'W', percent: 1, peak: true, kcal: 567 },
-    { day: 'T', percent: 0.56 },
-    { day: 'F', percent: 0.67 },
-    { day: 'S', percent: 0.28 },
-    { day: 'S', percent: 0.08 },
-];
 
 const BAR_TRACK_HEIGHT = 96;
 const CALORIE_RING_SIZE = 112;
 const CALORIE_RING_STROKE = 10;
-const GAUGE_SIZE = 40;
-const GAUGE_STROKE = 3;
 /** What the Sleep tile says when there is no night to show. Only the
     ones with a fix say "tap" — see sleepAction. */
 const SLEEP_STATUS_MESSAGE: Record<SleepStatus, string> = {
@@ -105,10 +93,7 @@ function openHealthConnectStore() {
 const METRIC_RING_SIZE = 78;
 const METRIC_RING_STROKE = 8;
 
-export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
-    weeklyAvgKcal = 485,
-    monthlyGoalPercent = 89,
-}) => {
+export const DashboardOverview: React.FC<DashboardOverviewProps> = () => {
     // "Good morning" is the clock's business, not a caller's, and the
     // name is whatever the user gave at onboarding. A profile written
     // before the name step shipped has none, in which case the greeting
@@ -116,6 +101,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     const { greeting, dateLabel } = useGreeting();
     const profile = useAppSelector(selectUserProfile);
     const userName = profile?.displayName?.trim() ?? '';
+    const loginStreak = useAppSelector(selectLoginStreak);
 
     // Steps come from the device rather than props — the pedometer is
     // the source of truth, and nothing upstream has a better number.
@@ -269,6 +255,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     // the profile has loaded.
     useDashboardReady('calorie-budget', hasLogsForDay);
     const targets = useAppSelector(selectDerivedTargets);
+
+    // The week's macro completion — one % per day, averaging that day's
+    // protein/carbs/fiber ratios. Waits for the profile's targets, same
+    // reason calorieBudgetLoading below waits for them.
+    const weeklyMacros = useWeeklyMacroCompletion(
+        targets ? { proteinG: targets.proteinG, carbsG: targets.carbsG } : null,
+    );
+
+    // Which bar shows its percentage badge. Starts on today, same as
+    // before tapping existed; tapping any other bar moves the badge
+    // there instead of opening anything — one number, no popup.
+    const [selectedDateKey, setSelectedDateKey] = React.useState<string | null>(null);
+
     const calorieBudgetLoading = !hasLogsForDay || !targets;
     const calorieBudgetTotal = targets?.calorieTarget ?? 0;
     const calorieBudgetConsumed = nutritionTotals?.calories ?? 0;
@@ -304,27 +303,33 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             : 0;
     const calorieDashOffset = calorieCircumference * (1 - calorieConsumedPercent);
 
-    const gaugeRadius = (GAUGE_SIZE - GAUGE_STROKE) / 2;
-    const gaugeCircumference = 2 * Math.PI * gaugeRadius;
-    const gaugeDashOffset = gaugeCircumference * (1 - monthlyGoalPercent / 100);
-
     return (
         <View style={styles.wrapper}>
             {/* Greeting row — the avatar lives in the shared top bar
-                (App.tsx's AppTopBar) and the streak moved out, so the
-                name has the full width and no longer needs to truncate. */}
+                (App.tsx's AppTopBar), so the name/date block has the full
+                width. The streak pill sits at the far (flex-end) side: 0
+                for a brand-new profile is not worth a pill, so it only
+                shows once there is something to show. */}
             <View style={styles.greetingRow}>
-                <View style={styles.greetingTitleRow}>
-                    <Text style={styles.greetingTitle}>
-                        {greeting}
-                        {userName ? `, ${userName}` : ''}
-                    </Text>
-                    <Text style={styles.greetingEmoji}>✨</Text>
+                <View style={styles.greetingTextBlock}>
+                    <View style={styles.greetingTitleRow}>
+                        <Text style={styles.greetingTitle}>
+                            {greeting}
+                            {userName ? `, ${userName}` : ''}
+                        </Text>
+                        <Text style={styles.greetingEmoji}>✨</Text>
+                    </View>
+                    <View style={styles.dateRow}>
+                        <Clock size={12} color={colors.secondary} strokeWidth={2.4} />
+                        <Text style={styles.dateText}>{dateLabel}</Text>
+                    </View>
                 </View>
-                <View style={styles.dateRow}>
-                    <Clock size={12} color={colors.secondary} strokeWidth={2.4} />
-                    <Text style={styles.dateText}>{dateLabel}</Text>
-                </View>
+                {loginStreak > 0 ? (
+                    <View style={styles.streakPill}>
+                        <Flame size={16} color={colors.secondary} strokeWidth={2.6} />
+                        <Text style={styles.streakPillText}>{loginStreak}</Text>
+                    </View>
+                ) : null}
             </View>
 
             {/* Today's unlogged workouts and meals, each with a start/end timer */}
@@ -568,97 +573,69 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 </TouchableOpacity>
             </View>
 
-            {/* Weekly activity card */}
+            {/* Weekly activity card — one bar per day, each the mean of
+                that day's protein, carbs and fiber ratios (not a single
+                metric). A Friday bar at 50% means protein + carbs + fiber
+                averaged 50% of their targets that day. */}
             <View style={styles.card}>
-                <View style={styles.cardHeaderRow}>
-                    <View>
-                        <Text style={styles.cardTitle}>Weekly Activity</Text>
-                        <Text style={styles.cardSubtitle}>Avg. {weeklyAvgKcal} kcal / day</Text>
-                    </View>
-                    <View style={styles.segmentedControl}>
-                        <View style={[styles.segmentPill, styles.segmentPillActive]}>
-                            <Text style={styles.segmentTextActive}>Week</Text>
-                        </View>
-                        <View style={styles.segmentPill}>
-                            <Text style={styles.segmentText}>Month</Text>
-                        </View>
-                        <View style={styles.segmentPill}>
-                            <Text style={styles.segmentText}>Year</Text>
-                        </View>
-                    </View>
+                <View style={styles.cardHeaderTextBlock}>
+                    <Text style={styles.cardTitle}>Weekly Activity</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>
+                        Protein, carbs &amp; fiber
+                    </Text>
                 </View>
 
                 <View style={styles.barChartRow}>
-                    {WEEK_ACTIVITY.map((item, index) => (
-                        <View key={index} style={styles.barColumn}>
-                            {item.peak ? (
-                                <View style={styles.barPeakBadge}>
-                                    <Text style={styles.barPeakBadgeText}>{item.kcal}</Text>
-                                </View>
-                            ) : null}
-                            <View
-                                style={[
-                                    styles.barTrack,
-                                    item.peak && styles.barTrackPeak,
-                                ]}
-                            >
-                                <View
-                                    style={[
-                                        styles.barFill,
-                                        {
-                                            height: Math.max(BAR_TRACK_HEIGHT * item.percent, 8),
-                                            backgroundColor: item.peak
-                                                ? colors.primary
-                                                : withOpacity(colors.primary, 0.35),
-                                        },
-                                    ]}
-                                />
-                            </View>
-                            <Text style={[styles.barDayLabel, item.peak && styles.barDayLabelActive]}>
-                                {item.day}
-                            </Text>
-                        </View>
-                    ))}
+                    {weeklyMacros.loading && weeklyMacros.days.length === 0
+                        ? Array.from({ length: 7 }, (_, index) => (
+                              <View key={index} style={styles.barColumn}>
+                                  <SkeletonBlock width={14} height={BAR_TRACK_HEIGHT} radius={8} />
+                              </View>
+                          ))
+                        : weeklyMacros.days.map((day) => {
+                              const dayPercent = Math.round(day.percent * 100);
+                              // Today's badge shows by default; tapping any
+                              // bar moves it there instead — never both,
+                              // and never neither once something is picked.
+                              const isHighlighted = selectedDateKey
+                                  ? selectedDateKey === day.dateKey
+                                  : day.isToday;
+                              return (
+                                  <TouchableOpacity
+                                      key={day.dateKey}
+                                      style={styles.barColumn}
+                                      activeOpacity={0.7}
+                                      onPress={() => setSelectedDateKey(day.dateKey)}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={`${day.label} — ${dayPercent}% of goal`}
+                                  >
+                                      {isHighlighted ? (
+                                          <View style={styles.barPeakBadge}>
+                                              <Text style={styles.barPeakBadgeText}>{dayPercent}%</Text>
+                                          </View>
+                                      ) : null}
+                                      <View style={[styles.barTrack, isHighlighted && styles.barTrackPeak]}>
+                                          <View
+                                              style={[
+                                                  styles.barFill,
+                                                  {
+                                                      height: Math.max(BAR_TRACK_HEIGHT * day.percent, 8),
+                                                      backgroundColor: isHighlighted
+                                                          ? colors.primary
+                                                          : withOpacity(colors.primary, 0.35),
+                                                  },
+                                              ]}
+                                          />
+                                      </View>
+                                      <Text
+                                          style={[styles.barDayLabel, isHighlighted && styles.barDayLabelActive]}
+                                      >
+                                          {day.label}
+                                      </Text>
+                                  </TouchableOpacity>
+                              );
+                          })}
                 </View>
-
-                <TouchableOpacity activeOpacity={0.8} style={styles.calloutRow}>
-                    <View style={styles.calloutLeft}>
-                        <View style={styles.gaugeWrapper}>
-                            <Svg width={GAUGE_SIZE} height={GAUGE_SIZE}>
-                                <Circle
-                                    cx={GAUGE_SIZE / 2}
-                                    cy={GAUGE_SIZE / 2}
-                                    r={gaugeRadius}
-                                    stroke={colors.surfaceContainer}
-                                    strokeWidth={GAUGE_STROKE}
-                                    fill="none"
-                                />
-                                <Circle
-                                    cx={GAUGE_SIZE / 2}
-                                    cy={GAUGE_SIZE / 2}
-                                    r={gaugeRadius}
-                                    stroke={colors.primary}
-                                    strokeWidth={GAUGE_STROKE}
-                                    strokeDasharray={gaugeCircumference}
-                                    strokeDashoffset={gaugeDashOffset}
-                                    strokeLinecap="round"
-                                    fill="none"
-                                    rotation={-90}
-                                    originX={GAUGE_SIZE / 2}
-                                    originY={GAUGE_SIZE / 2}
-                                />
-                            </Svg>
-                            <Text style={styles.gaugeText}>{monthlyGoalPercent}%</Text>
-                        </View>
-                        <View style={styles.calloutTextBlock}>
-                            <Text style={styles.calloutTitle}>Bravo! You're Crushing It</Text>
-                            <Text style={styles.calloutSubtitle}>
-                                {monthlyGoalPercent}% of monthly activity goal reached
-                            </Text>
-                        </View>
-                    </View>
-                    <ArrowRight size={18} color={colors.primary} strokeWidth={2.4} />
-                </TouchableOpacity>
             </View>
 
             {/* Calorie budget card */}
@@ -767,9 +744,15 @@ const styles = themedStyles(() => ({
         gap: 20,
     },
     greetingRow: {
-        // A plain block now, not a row: with the avatar and streak pill
-        // gone there is nothing to sit beside, and the name can use the
-        // whole width.
+        // Row, not a block: the streak pill sits at the far (flex-end)
+        // side, opposite the name/date block.
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+    greetingTextBlock: {
+        flexShrink: 1,
         alignItems: 'flex-start',
     },
     greetingTitleRow: {
@@ -791,6 +774,21 @@ const styles = themedStyles(() => ({
         // Never the thing that gets squeezed — it is 15px wide and the
         // name beside it has hundreds to give.
         flexShrink: 0,
+    },
+    streakPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 11,
+        paddingVertical: 6,
+        borderRadius: 14,
+        backgroundColor: withOpacity(colors.secondary, 0.14),
+        flexShrink: 0,
+    },
+    streakPillText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: colors.secondary,
     },
     dateRow: {
         flexDirection: 'row',
@@ -941,6 +939,10 @@ const styles = themedStyles(() => ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: 8,
+    },
+    cardHeaderTextBlock: {
+        flexShrink: 1,
     },
     cardTitle: {
         fontSize: 16,
@@ -953,36 +955,6 @@ const styles = themedStyles(() => ({
         fontWeight: '500',
         color: colors.textSecondary,
         marginTop: 2,
-    },
-    segmentedControl: {
-        flexDirection: 'row',
-        backgroundColor: colors.surfaceContainer,
-        borderRadius: 20,
-        padding: 3,
-        gap: 2,
-    },
-    segmentPill: {
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 16,
-    },
-    segmentPillActive: {
-        backgroundColor: colors.surface,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 3,
-        elevation: 1,
-    },
-    segmentText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: colors.textSecondary,
-    },
-    segmentTextActive: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: colors.primary,
     },
     barChartRow: {
         flexDirection: 'row',
@@ -1032,46 +1004,6 @@ const styles = themedStyles(() => ({
     barDayLabelActive: {
         color: colors.primary,
         fontWeight: '800',
-    },
-    calloutRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colors.surfaceLow,
-        borderRadius: 18,
-        padding: 12,
-    },
-    calloutLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        flexShrink: 1,
-    },
-    gaugeWrapper: {
-        width: GAUGE_SIZE,
-        height: GAUGE_SIZE,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    gaugeText: {
-        position: 'absolute',
-        fontSize: 10,
-        fontWeight: '800',
-        color: colors.primary,
-    },
-    calloutTextBlock: {
-        flexShrink: 1,
-    },
-    calloutTitle: {
-        fontSize: 13.5,
-        fontWeight: '800',
-        color: colors.textPrimary,
-    },
-    calloutSubtitle: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: colors.textSecondary,
-        marginTop: 2,
     },
     calorieBudgetRow: {
         flexDirection: 'row',

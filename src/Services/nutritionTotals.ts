@@ -46,6 +46,12 @@ export interface MealItem {
   nutrition?: MealItemNutrition;
 }
 
+/** Grams/day. A general dietary guideline (25-38 g depending on age and
+ * sex), not derived per-profile the way protein/carbs/fat are — the app
+ * has no fiber formula, so this is a flat target rather than one from
+ * deriveTargets. */
+export const DAILY_FIBER_GOAL_G = 30;
+
 /** Running totals across a set of items. */
 export interface NutritionTotals {
   calories: number;

@@ -37,6 +37,7 @@ import { radius } from '../../Theme/spacing';
 import { DayKey } from './Types';
 import {
   describeMissingTarget,
+  estimateWorkoutMinutes,
   isRestCategory,
   isTargetCategory,
   MAX_TARGET_KM,
@@ -615,6 +616,15 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
   const parsedKm = showDistance ? parseTarget(targetKm, MAX_TARGET_KM) : undefined;
   const parsedMinutes = isTarget ? parseTarget(targetMinutes, MAX_TARGET_MINUTES) : undefined;
 
+  // Auto-fills as exercises are picked or a target is typed — see
+  // estimateWorkoutMinutes for why this is a formula, not an AI call.
+  const estimatedMinutes = estimateWorkoutMinutes({
+    category,
+    exerciseIds,
+    targetKm: parsedKm,
+    targetMinutes: parsedMinutes,
+  });
+
   const payload: NewPlanPayload = {
     name,
     muscles: isTarget || isRest ? [] : muscles,
@@ -785,6 +795,24 @@ export const NewPlanModal: React.FC<NewPlanModalProps> = ({
                     </Pressable>
                   );
                 })}
+              </View>
+            </View>
+            )}
+
+            {/* Estimated session length — auto-filled from the exercise
+                count (or the target below, once one is set), never typed
+                by hand. Not shown for a rest day, which has no length. */}
+            {isRest ? null : (
+            <View style={styles.field}>
+              <Text style={styles.labelCaps}>ESTIMATED TIME</Text>
+              <View style={styles.estimatedTimePill}>
+                <Text style={styles.estimatedTimeText}>
+                  {estimatedMinutes > 0
+                    ? `~${estimatedMinutes} min`
+                    : isTarget
+                      ? 'Add a target to see an estimate'
+                      : 'Add exercises to see an estimate'}
+                </Text>
               </View>
             </View>
             )}
@@ -1359,6 +1387,19 @@ const styles = themedStyles(() => ({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: colors.primary,
+  },
+  estimatedTimePill: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    backgroundColor: withOpacity(colors.secondary, 0.12),
+  },
+  estimatedTimeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.secondary,
   },
 
   inputWrap: { position: 'relative', justifyContent: 'center' },

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -16,6 +16,7 @@ import DashboardOverview from './src/Screens/Dashboard/LiveTelementry';
 import TodaysScheduleSlider from './src/Screens/Dashboard/TodaysScheduleSlider';
 import SubscriptionAdBanner from './src/Screens/Dashboard/SubscriptionAdBanner';
 import DashboardLoadGate, { resetDashboardGate } from './src/Screens/Dashboard/DashboardLoadGate';
+import { resetDismissedEvents } from './src/Screens/Dashboard/UpcomingEventsSection';
 import DashboardSkeleton from './src/Screens/Dashboard/DashboardSkeleton';
 import { resetScreenGates } from './src/Components/ScreenLoadGate';
 import AuthNavigator from './src/Screens/Auth/AuthNavigator';
@@ -56,6 +57,7 @@ import { DialogProvider } from './src/Components/Dialog';
 import { FeatureFlagProvider, FeatureGate, useFeatureFlagsReady } from './src/FeatureFlags';
 import { themedStyles, ThemeProvider, useTheme, useThemeState } from './src/Theme/ThemeContext';
 import { NotificationsRoot } from './src/Notifications/NotificationsRoot';
+import { useHardwareBack, useRootHardwareBackHandler } from './src/Hooks/useHardwareBack';
 
 function AppContent() {
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
@@ -82,6 +84,7 @@ function AppContent() {
           resetDashboardGate();
           resetScreenGates();
           resetTelemetryThrottle();
+          resetDismissedEvents();
         }
         setFirebaseUser(user);
         setAuthResolved(true);
@@ -158,6 +161,45 @@ function AppContent() {
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
+  // Set by a tab's own sub-view (e.g. the Workout tab's Exercise
+  // Library) so the shared AppTopBar can show a back button and that
+  // view's title instead of the tab's own brand/section label. Reset on
+  // every tab switch — a stale back button pointing at a screen that is
+  // no longer mounted would do nothing useful.
+  const [subScreen, setSubScreen] = useState<{ title: string; onBack: () => void } | null>(null);
+  const setActiveTabAndClearSubScreen = (tab: NavTab) => {
+    setSubScreen(null);
+    setActiveTab(tab);
+  };
+
+  // The one place installing the actual hardware-back listener — see
+  // useHardwareBack.ts for why the app needs this at all (no router, so
+  // nothing was undoing a sub-screen before Android just closed the app).
+  useRootHardwareBackHandler();
+
+  // Runs only while the tab bar itself is on screen — the auth, boot and
+  // onboarding screens below have no tabs to unwind, so Android's normal
+  // "back exits" applies there untouched. On the tab bar: a sub-screen
+  // closes first; with none open, back returns to Home instead of
+  // exiting, the usual Android pattern; only Home itself lets the press
+  // through to actually exit.
+  const handleHardwareBack = useCallback(() => {
+    if (subScreen) {
+      subScreen.onBack();
+      return true;
+    }
+    if (activeTab !== 'home') {
+      setActiveTabAndClearSubScreen('home');
+      return true;
+    }
+    return false;
+  }, [subScreen, activeTab]);
+
+  useHardwareBack(
+    handleHardwareBack,
+    bootComplete && hasSession && !profileLoading && !needsOnboarding,
+  );
+
   // Session-scoped: once dismissed the advert stays gone until the app is
   // restarted, which is as persistent as an advert should be without a
   // stored preference behind it.
@@ -169,7 +211,7 @@ function AppContent() {
   const [focusPlanId, setFocusPlanId] = useState<string | null>(null);
   const openPlanInTab = (tab: 'workout' | 'nutrition', planId: string) => {
     setFocusPlanId(planId);
-    setActiveTab(tab);
+    setActiveTabAndClearSubScreen(tab);
   };
   const clearFocus = () => setFocusPlanId(null);
 
@@ -190,8 +232,8 @@ function AppContent() {
               <TodaysScheduleSlider
                 onOpenWorkout={(planId) => openPlanInTab('workout', planId)}
                 onOpenMeal={(planId) => openPlanInTab('nutrition', planId)}
-                onViewWorkouts={() => setActiveTab('workout')}
-                onViewMeals={() => setActiveTab('nutrition')}
+                onViewWorkouts={() => setActiveTabAndClearSubScreen('workout')}
+                onViewMeals={() => setActiveTabAndClearSubScreen('nutrition')}
               />
             </DashboardLoadGate>
           </ScrollView>
@@ -201,7 +243,11 @@ function AppContent() {
         // return <WorkoutPlanner />;
         return (
           <View style={styles.tabContent}>
-            <WorkoutSession focusPlanId={focusPlanId} onFocusHandled={clearFocus} />
+            <WorkoutSession
+              focusPlanId={focusPlanId}
+              onFocusHandled={clearFocus}
+              onSubScreenChange={setSubScreen}
+            />
           </View>
         );
 
@@ -287,7 +333,11 @@ function AppContent() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={colors.background} />
 
-      <AppTopBar activeTab={activeTab} onProfilePress={() => setActiveTab('profile')} />
+      <AppTopBar
+        activeTab={activeTab}
+        onProfilePress={() => setActiveTabAndClearSubScreen('profile')}
+        subScreen={subScreen}
+      />
       <View style={styles.content}>{renderScreen()}</View>
 
       {/* Subscription advert, above the nav bar on the dashboard only.
@@ -308,7 +358,7 @@ function AppContent() {
         </View>
       ) : null}
 
-      <BottomNavBar activeTab={activeTab} onTabPress={setActiveTab} />
+      <BottomNavBar activeTab={activeTab} onTabPress={setActiveTabAndClearSubScreen} />
     </SafeAreaView>
   );
 }

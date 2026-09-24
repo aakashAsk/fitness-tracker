@@ -10,10 +10,16 @@ import { estimateItemNutrition } from '../../Services/nutritionAiService';
 import {
     createMealPlan,
     updateMealPlan,
+    describeMealConflict,
+    findMealScheduleConflict,
     MealPlanServiceError,
     type MealPlan,
 } from '../../Services/mealPlanService';
-import { useMealPlansError } from '../../Store/mealPlansSlice';
+import MealPlanLibrary from './MealPlanLibrary';
+import WorkoutPlanEngineCard from '../Workout/WorkoutPlanEngineCard';
+import { useAiDraftMealPlans } from '../../Hooks/useAiDraftMealPlans';
+import { FeatureGate } from '../../FeatureFlags';
+import { useMealPlans, useMealPlansError, useMealPlansLoading } from '../../Store/mealPlansSlice';
 import { parseTimeToMinutes } from '../../Services/workoutPlanService';
 import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import {
@@ -43,7 +49,6 @@ import CalorieMacroCard from './CalorieMacroCard';
 import MealLogsCard from './MealLogsCard';
 import NutritionSkeleton from './NutritionSkeleton';
 import ScreenLoadGate from '../../Components/ScreenLoadGate';
-import { useMealPlansLoading } from '../../Store/mealPlansSlice';
 
 // A meal within this many minutes of a scheduled workout, on a shared
 // day, is flagged as a clash rather than silently overlapping it.
@@ -75,6 +80,8 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
         caloriesBurned: number | null;
     }>({ dateKey: '', entries: [], caloriesBurned: null });
     const dialog = useDialog();
+    const { generate: generateAiMealPlans, isGenerating: isGeneratingAiMealPlans } =
+        useAiDraftMealPlans();
 
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const selectedDateKey = toDateKey(selectedDate);
@@ -168,6 +175,49 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                 title: 'Could not save meal log',
                 message:
                     error instanceof MealLogServiceError
+                        ? error.message
+                        : 'Something went wrong. Please try again.',
+            });
+        } finally {
+            setIsSavingMeal(false);
+        }
+    };
+
+    // Editing a plan's recurring rule from the library below — every day
+    // it produces changes, past and future, unlike editingLog above which
+    // only ever touches the selected date.
+    const [editingPlan, setEditingPlan] = useState<MealPlan | null>(null);
+    const mealPlans = useMealPlans();
+
+    const handleUpdateMealPlan = async (payload: MealPlanPayload) => {
+        if (!editingPlan) return;
+
+        // Rescheduling a live plan can move it on top of another one.
+        // Excluded from the search by id, or it would clash with itself.
+        if (editingPlan.status === 'live') {
+            const conflict = findMealScheduleConflict(
+                mealPlans,
+                { days: payload.days, time: payload.time },
+                { excludePlanId: editingPlan.id },
+            );
+            if (conflict) {
+                dialog.show({
+                    title: 'That time is already taken',
+                    message: describeMealConflict(conflict),
+                });
+                return;
+            }
+        }
+
+        setIsSavingMeal(true);
+        try {
+            await updateMealPlan(editingPlan.id, payload);
+            setEditingPlan(null);
+        } catch (error) {
+            dialog.show({
+                title: 'Could not save meal plan',
+                message:
+                    error instanceof MealPlanServiceError
                         ? error.message
                         : 'Something went wrong. Please try again.',
             });
@@ -414,6 +464,20 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                         ]}
                     />
 
+                    <FeatureGate flag="enabledAddForSubscription">
+                        <WorkoutPlanEngineCard
+                            onPress={generateAiMealPlans}
+                            loading={isGeneratingAiMealPlans}
+                            headerLabel="MEAL PLAN ENGINE"
+                            headerHint="1-Tap Personalization"
+                            pillText="Intelligent Nutrition Engine"
+                            title="Design AI Meal Plan"
+                            description="Build a week of meals calibrated to your calorie target, macros, goal, and dietary needs."
+                            loadingLabel="Designing your AI meal plan"
+                            idleLabel="Design AI meal plan"
+                        />
+                    </FeatureGate>
+
                     <View style={styles.dateStripWrapper}>
                         <WorkoutDateStrip
                             selectedDate={selectedDate}
@@ -447,6 +511,8 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                             onFocusItem={focus.onItemLayout}
                         />
                     </View>
+
+                    <MealPlanLibrary onEditPlan={setEditingPlan} />
 
                     <View style={styles.fabSpacer} />
                 </ScreenLoadGate>
@@ -485,6 +551,21 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                     }}
                     onClose={() => setEditingLog(null)}
                     onCreate={handleSaveLogEdit}
+                    saving={isSavingMeal}
+                />
+            ) : null}
+
+            {editingPlan ? (
+                <NewMealPlanModal
+                    initialPlan={{
+                        name: editingPlan.name,
+                        mealType: editingPlan.mealType,
+                        items: editingPlan.items,
+                        days: editingPlan.days,
+                        time: editingPlan.time,
+                    }}
+                    onClose={() => setEditingPlan(null)}
+                    onCreate={handleUpdateMealPlan}
                     saving={isSavingMeal}
                 />
             ) : null}

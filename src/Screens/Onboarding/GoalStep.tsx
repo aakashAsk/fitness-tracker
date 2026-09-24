@@ -4,7 +4,7 @@
 // userProfileService.
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { Dumbbell, Flame, Heart, Sprout } from 'lucide-react-native';
+import { Flame, Heart, Sprout, TrendingDown, TrendingUp } from 'lucide-react-native';
 import { colors } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import { FitnessGoal } from '../../Services/userProfileService';
@@ -23,12 +23,12 @@ const GOALS: {
   icon: (color: string) => React.ReactNode;
 }[] = [
   {
-    value: 'hypertrophy',
-    title: 'Build Muscle & Hypertrophy',
-    description: 'Progressive overload, hypertrophy stimulus, high protein targets.',
-    hint: '+15% caloric surplus',
-    accent: colors.hypertrophy,
-    icon: color => <Dumbbell size={ICON_SIZE} color={color} strokeWidth={2.4} />,
+    value: 'weight-loss',
+    title: 'Lose Weight',
+    description: 'A straightforward caloric deficit, sized to your weekly pace.',
+    hint: 'Deficit set by your weekly pace',
+    accent: colors.secondary,
+    icon: color => <TrendingDown size={ICON_SIZE} color={color} strokeWidth={2.4} />,
   },
   {
     value: 'fat-loss',
@@ -38,6 +38,14 @@ const GOALS: {
     accent: colors.secondary,
     badge: 'Popular',
     icon: color => <Flame size={ICON_SIZE} color={color} strokeWidth={2.4} />,
+  },
+  {
+    value: 'weight-gain',
+    title: 'Gain Weight',
+    description: 'A straightforward caloric surplus to add weight steadily.',
+    hint: '+10% caloric surplus',
+    accent: colors.hypertrophy,
+    icon: color => <TrendingUp size={ICON_SIZE} color={color} strokeWidth={2.4} />,
   },
   {
     value: 'endurance',
@@ -69,7 +77,7 @@ export const GoalStep: React.FC<GoalStepProps> = ({ value, onChange, onContinue,
     contentContainerStyle={styles.content}
     showsVerticalScrollIndicator={false}
   >
-    <StepHeader step={2} onBack={onBack} />
+    <StepHeader step={4} onBack={onBack} />
 
     <StepTitle
       title="What is your primary fitness goal?"

@@ -30,19 +30,37 @@ export interface WorkoutPlanEngineCardProps {
         ignores taps, so the ~10s wait reads as work in progress and a
         second tap cannot start a second run. */
     loading?: boolean;
+    /** All the copy is overridable so this same gradient card can front a
+        different AI feature (the Nutrition tab's meal-plan generator, say)
+        without duplicating the SVG/layout — everything below defaults to
+        the original workout-plan wording. */
+    headerLabel?: string;
+    headerHint?: string;
+    pillText?: string;
+    title?: string;
+    description?: string;
+    loadingLabel?: string;
+    idleLabel?: string;
 }
 
 export const WorkoutPlanEngineCard: React.FC<WorkoutPlanEngineCardProps> = ({
     onPress,
     loading = false,
+    headerLabel = 'WORKOUT PLAN ENGINE',
+    headerHint = '1-Tap Personalization',
+    pillText = 'Intelligent Routine Engine',
+    title = 'Design AI Workout Protocol',
+    description = 'Curate an adaptive split calibrated to your target biomechanics, fatigue capacity, and equipment.',
+    loadingLabel = 'Designing your AI workout protocol',
+    idleLabel = 'Design AI workout protocol',
 }) => {
     const [size, setSize] = useState({ width: 0, height: 0 });
 
     return (
         <View style={styles.section}>
             <View style={styles.headerRow}>
-                <Text style={styles.headerLabel}>WORKOUT PLAN ENGINE</Text>
-                <Text style={styles.headerHint}>1-Tap Personalization</Text>
+                <Text style={styles.headerLabel}>{headerLabel}</Text>
+                <Text style={styles.headerHint}>{headerHint}</Text>
             </View>
 
             <View style={styles.shadow}>
@@ -52,9 +70,7 @@ export const WorkoutPlanEngineCard: React.FC<WorkoutPlanEngineCardProps> = ({
                     disabled={!onPress || loading}
                     accessibilityRole={onPress ? 'button' : undefined}
                     accessibilityState={{ busy: loading, disabled: !onPress || loading }}
-                    accessibilityLabel={
-                        loading ? 'Designing your AI workout protocol' : 'Design AI workout protocol'
-                    }
+                    accessibilityLabel={loading ? loadingLabel : idleLabel}
                     style={styles.card}
                     onLayout={(event) => {
                         const { width, height } = event.nativeEvent.layout;
@@ -113,13 +129,10 @@ export const WorkoutPlanEngineCard: React.FC<WorkoutPlanEngineCardProps> = ({
                         <View style={styles.textBlock}>
                             <View style={styles.pill}>
                                 <View style={styles.pillDot} />
-                                <Text style={styles.pillText}>Intelligent Routine Engine</Text>
+                                <Text style={styles.pillText}>{pillText}</Text>
                             </View>
-                            <Text style={styles.title}>Design AI Workout Protocol</Text>
-                            <Text style={styles.description}>
-                                Curate an adaptive split calibrated to your target biomechanics,
-                                fatigue capacity, and equipment.
-                            </Text>
+                            <Text style={styles.title}>{title}</Text>
+                            <Text style={styles.description}>{description}</Text>
                         </View>
 
                         <View style={styles.arrowCircle}>

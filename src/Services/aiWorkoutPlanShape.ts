@@ -54,8 +54,8 @@ export interface AiPlanRequest {
   bmi: number;
   goal: FitnessGoal;
   activityLevel: ActivityLevel;
-  /** Target kg lost per week. Only for a fat-loss goal — for the others
-   * the profile's pace is not a target the plan should chase. */
+  /** Target kg lost per week. Only for the two deficit goals — for the
+   * others the profile's pace is not a target the plan should chase. */
   weeklyPaceKg: number | null;
   injuries: string[];
   daysPerWeek: number;
@@ -144,7 +144,8 @@ export function buildPlanRequest(
     bmi: Math.round((weightKg / (heightM * heightM)) * 10) / 10,
     goal: profile.goal,
     activityLevel: profile.activityLevel,
-    weeklyPaceKg: profile.goal === 'fat-loss' ? profile.weeklyPaceKg : null,
+    weeklyPaceKg:
+      profile.goal === 'fat-loss' || profile.goal === 'weight-loss' ? profile.weeklyPaceKg : null,
     injuries: sanitiseLabels(profile.injuries),
     daysPerWeek: clampInt(
       preferences.daysPerWeek ?? DEFAULT_DAYS[profile.activityLevel],
@@ -172,6 +173,8 @@ export function maxExercisesFor(sessionMinutes: number): number {
 const GOAL_TEXT: Record<FitnessGoal, string> = {
   hypertrophy: 'build muscle (hypertrophy)',
   'fat-loss': 'lose body fat while keeping muscle',
+  'weight-loss': 'lose weight',
+  'weight-gain': 'gain weight',
   endurance: 'improve endurance and work capacity',
   maintenance: 'maintain current fitness',
 };

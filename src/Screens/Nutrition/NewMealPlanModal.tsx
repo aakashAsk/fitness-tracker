@@ -33,6 +33,8 @@ import {
     type MealItem,
     type MealType,
 } from '../../Services/mealPlanService';
+import { parseTimeToMinutes, type WorkoutPlan } from '../../Services/workoutPlanService';
+import { useWorkoutPlans } from '../../Store/workoutPlansSlice';
 import { themedStyles } from '../../Theme/ThemeContext';
 
 export interface MealPlanPayload {
@@ -67,6 +69,32 @@ const EMPTY_ITEM: MealItem = { name: '', quantity: '', unit: 'g' };
  * be appended here and the picker picks them up with no other change. */
 const UNITS = ['g', 'ml', 'piece', 'scoop', 'cup', 'tbsp', 'tsp'];
 
+/** A plausible plan name for each meal type, shown as the name field's
+ * placeholder so an empty field still hints at what to type rather than
+ * a generic example that reads oddly once a snack or supplement is
+ * picked. */
+const PLAN_NAME_PLACEHOLDER: Record<MealType, string> = {
+    breakfast: 'e.g. High Protein Breakfast',
+    lunch: 'e.g. Grilled Chicken Lunch',
+    dinner: 'e.g. Salmon & Veggies Dinner',
+    snack: 'e.g. Afternoon Protein Snack',
+    'pre-workout': 'e.g. Pre-Workout Fuel',
+    'post-workout': 'e.g. Post-Workout Recovery',
+    supplement: 'e.g. Daily Supplement Stack',
+};
+
+/** Likewise for the first food item row — a real example for the meal
+ * type being built, rather than the same "Food name" no matter what. */
+const FOOD_NAME_PLACEHOLDER: Record<MealType, string> = {
+    breakfast: 'e.g. Oatmeal',
+    lunch: 'e.g. Grilled Chicken Breast',
+    dinner: 'e.g. Baked Salmon',
+    snack: 'e.g. Greek Yogurt',
+    'pre-workout': 'e.g. Banana',
+    'post-workout': 'e.g. Whey Protein Shake',
+    supplement: 'e.g. Fish Oil Capsule',
+};
+
 function toDayRecord(days?: DayKey[]): Record<DayKey, boolean> {
     const selected = new Set(days ?? []);
     return DAY_ORDER.reduce(
@@ -83,6 +111,42 @@ function parseTime(time?: string): { hour: number; minute: number; period: 'AM' 
         minute: parseInt(match[2], 10),
         period: match[3].toUpperCase() === 'AM' ? 'AM' : 'PM',
     };
+}
+
+/** Minutes since midnight -> the dial's own 12-hour parts, wrapping
+ * around midnight both ways so "30 min before 12:15 AM" and "30 min
+ * after 11:45 PM" both land on a real time instead of a negative hour. */
+function minutesToParts(totalMinutes: number): { hour: number; minute: number; period: 'AM' | 'PM' } {
+    const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+    const period: 'AM' | 'PM' = wrapped < 720 ? 'AM' : 'PM';
+    const hour24 = Math.floor(wrapped / 60);
+    const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    return { hour, minute: wrapped % 60, period };
+}
+
+/** Half an hour, in minutes — how far a pre/post-workout meal is offset
+ * from the workout it flanks. */
+const WORKOUT_MEAL_OFFSET_MINUTES = 30;
+
+/**
+ * The earliest live workout scheduled on any of `days`, if there is one.
+ *
+ * "Earliest" rather than "any match": a day can have more than one
+ * workout, and the first of the day is the one a pre-workout meal should
+ * actually lead into (post-workout mirrors it for the same reason — the
+ * two meals are meant to be a pair around one session, not scattered
+ * across every session that day).
+ */
+function findWorkoutTimeMinutes(plans: WorkoutPlan[], days: DayKey[]): number | null {
+    const daySet = new Set(days);
+    let earliest: number | null = null;
+    for (const plan of plans) {
+        if (plan.status !== 'live' || !plan.time) continue;
+        if (!plan.days.some((day) => daySet.has(day))) continue;
+        const minutes = parseTimeToMinutes(plan.time);
+        if (earliest === null || minutes < earliest) earliest = minutes;
+    }
+    return earliest;
 }
 
 export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
@@ -218,6 +282,30 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
 
     const activeDays = useMemo(() => DAY_ORDER.filter((day) => days[day]) as DayKey[], [days]);
 
+    // Pre/post-workout have no fixed clock time the way breakfast or
+    // lunch do — DEFAULT_MEAL_TIME leaves them out on purpose — so
+    // instead of a fixed default, this reaches for whatever the user
+    // actually has scheduled: 30 minutes either side of the earliest live
+    // workout on the plan's own days. Runs off the same "untouched"
+    // guard as chooseMealType, and re-runs as the days selection changes
+    // (picking a workout meal type before choosing days would otherwise
+    // find nothing to offset from) — but never overwrites a time the
+    // user set by hand.
+    const workoutPlans = useWorkoutPlans();
+    useEffect(() => {
+        if (timeTouched.current) return;
+        if (mealType !== 'pre-workout' && mealType !== 'post-workout') return;
+        if (activeDays.length === 0) return;
+
+        const workoutMinutes = findWorkoutTimeMinutes(workoutPlans, activeDays);
+        if (workoutMinutes === null) return;
+
+        const offset = mealType === 'pre-workout' ? -WORKOUT_MEAL_OFFSET_MINUTES : WORKOUT_MEAL_OFFSET_MINUTES;
+        const suggested = minutesToParts(workoutMinutes + offset);
+        setHour(suggested.hour);
+        setMinute(suggested.minute);
+        setPeriod(suggested.period);
+    }, [mealType, activeDays, workoutPlans]);
 
     const updateItem = (index: number, patch: Partial<MealItem>) =>
         setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -368,7 +456,7 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                                 value={name}
                                 onChangeText={setName}
                                 onFocus={() => scrollToField('name')}
-                                placeholder="e.g. High Protein Breakfast"
+                                placeholder={PLAN_NAME_PLACEHOLDER[mealType]}
                                 placeholderTextColor={colors.textMuted}
                                 style={styles.input}
                             />
@@ -428,7 +516,9 @@ export const NewMealPlanModal: React.FC<NewMealPlanModalProps> = ({
                                         onFocus={() =>
                                             scrollToField('items', itemRowY.current[index] ?? 0)
                                         }
-                                        placeholder="Food name"
+                                        placeholder={
+                                            index === 0 ? FOOD_NAME_PLACEHOLDER[mealType] : 'Food name'
+                                        }
                                         placeholderTextColor={colors.textMuted}
                                         style={[styles.input, styles.itemName]}
                                     />

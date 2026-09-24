@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { Bell, Flame } from 'lucide-react-native';
+import { Bell, ChevronLeft, Flame } from 'lucide-react-native';
 import { colors } from '../Theme/colors';
 import { themedStyles } from '../Theme/ThemeContext';
 import UserAvatar from './UserAvatar';
@@ -21,6 +21,14 @@ export interface AppTopBarProps {
     activeTab: NavTab;
     onProfilePress: () => void;
     onNotificationsPress?: () => void;
+    /**
+     * Set by a tab's own sub-screen (e.g. the Workout tab's Exercise
+     * Library) to replace the brand mark with a back button and the
+     * section label with that sub-screen's own title. Screens that push
+     * a sub-view no longer need to build their own header/back button —
+     * see WorkoutSession's onSubScreenChange.
+     */
+    subScreen?: { title: string; onBack: () => void } | null;
 }
 
 /**
@@ -33,15 +41,30 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
     activeTab,
     onProfilePress,
     onNotificationsPress,
+    subScreen,
 }) => (
     <View style={styles.topBar}>
         <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-                <Flame size={16} color={colors.white} strokeWidth={2.6} />
-            </View>
+            {subScreen ? (
+                <TouchableOpacity
+                    style={styles.backButton}
+                    activeOpacity={0.7}
+                    onPress={subScreen.onBack}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                >
+                    <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2.4} />
+                </TouchableOpacity>
+            ) : (
+                <View style={styles.brandMark}>
+                    <Flame size={16} color={colors.white} strokeWidth={2.6} />
+                </View>
+            )}
             <View>
-                <Text style={styles.brandTitle}>PulseFit</Text>
-                <Text style={styles.brandSubtitle}>{SECTION_LABEL[activeTab]}</Text>
+                <Text style={styles.brandTitle}>{subScreen ? subScreen.title : 'PulseFit'}</Text>
+                {subScreen ? null : (
+                    <Text style={styles.brandSubtitle}>{SECTION_LABEL[activeTab]}</Text>
+                )}
             </View>
         </View>
         <View style={styles.topBarActions}>
@@ -91,6 +114,14 @@ const styles = themedStyles(() => ({
         backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    backButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surfaceContainer,
     },
     brandTitle: {
         fontSize: 15,

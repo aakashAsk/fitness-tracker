@@ -11,7 +11,7 @@
 import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { useCallback, useEffect } from 'react';
 import type { UserProfile } from '../Services/userProfileService';
-import { fetchUserProfile } from '../Services/userProfileService';
+import { fetchUserProfile, recordDailyLogin } from '../Services/userProfileService';
 import type { ThemeMode } from '../Theme/colors';
 import { useAppDispatch, useAppSelector } from './hooks';
 
@@ -87,6 +87,11 @@ export const selectUserProfileError = (state: { userProfile: UserProfileState })
 export const selectUserPhotoUrl = (state: { userProfile: UserProfileState }) =>
   state.userProfile.profile?.photoURL ?? null;
 
+/** Consecutive days the user has opened the app, ending today. 0 while
+    the profile is loading or for an account with no profile yet. */
+export const selectLoginStreak = (state: { userProfile: UserProfileState }) =>
+  state.userProfile.profile?.loginStreak ?? 0;
+
 /** The user's derived calorie/macro targets, or null before the profile
     has loaded (or for a pre-onboarding account with no profile yet). */
 export const selectDerivedTargets = createSelector(
@@ -128,8 +133,26 @@ export function useUserProfileSync(userId: string | null | undefined) {
     dispatch(userProfileLoading());
 
     fetchUserProfile(userId)
-      .then(profile => {
-        if (active) dispatch(userProfileReceived(profile));
+      .then(async profile => {
+        if (!active) return;
+
+        // Only a profile that exists counts as "logged in" here — a
+        // brand-new account still mid-onboarding has no streak to bump
+        // yet, and recordDailyLogin would just write a doc onboarding is
+        // about to overwrite anyway.
+        if (!profile) {
+          dispatch(userProfileReceived(profile));
+          return;
+        }
+
+        try {
+          const { loginStreak, lastLoginDate } = await recordDailyLogin(userId);
+          if (active) dispatch(userProfileReceived({ ...profile, loginStreak, lastLoginDate }));
+        } catch {
+          // A failed streak bump should not block the rest of the app —
+          // the user still sees their profile, just without today's tick.
+          if (active) dispatch(userProfileReceived(profile));
+        }
       })
       .catch(error => {
         if (active) dispatch(userProfileFailed((error as Error).message));

@@ -28,7 +28,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import {
-  ChevronLeft,
   Dumbbell,
   Hourglass,
   Info,
@@ -70,13 +69,11 @@ export interface ExerciseDetailProps {
   exercise?: Exercise;
   /** Otherwise the slug id, fetched on mount. */
   exerciseId?: string;
-  onBack: () => void;
 }
 
 export const ExerciseDetail: React.FC<ExerciseDetailProps> = ({
   exercise: provided,
   exerciseId,
-  onBack,
 }) => {
   const [exercise, setExercise] = useState<Exercise | null>(provided ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -144,7 +141,6 @@ export const ExerciseDetail: React.FC<ExerciseDetailProps> = ({
   if (loadError) {
     return (
       <View style={styles.root}>
-        <Header title="Exercise" onBack={onBack} />
         <View style={styles.centered}>
           <Text style={styles.errorTitle}>Could not load this exercise</Text>
           <Text style={styles.errorBody}>{loadError}</Text>
@@ -156,7 +152,6 @@ export const ExerciseDetail: React.FC<ExerciseDetailProps> = ({
   if (!exercise) {
     return (
       <View style={styles.root}>
-        <Header title="Exercise" onBack={onBack} />
         <SkeletonGroup style={styles.content}>
           <SkeletonBlock height={190} radius={radius.xl} />
           <SkeletonBlock height={26} radius={radius.full} />
@@ -172,8 +167,6 @@ export const ExerciseDetail: React.FC<ExerciseDetailProps> = ({
 
   return (
     <View style={styles.root}>
-      <Header title={titleCase(exercise.category ?? 'Exercise')} onBack={onBack} />
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Title block — the design's "CHEST PROTOCOL / name" pair. */}
         <View style={styles.titleBlock}>
@@ -370,24 +363,6 @@ export const ExerciseDetail: React.FC<ExerciseDetailProps> = ({
   );
 };
 
-const Header: React.FC<{ title: string; onBack: () => void }> = ({ title, onBack }) => (
-  <View style={styles.headerRow}>
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onBack}
-      accessibilityRole="button"
-      accessibilityLabel="Back to exercises"
-      style={styles.backButton}
-    >
-      <ChevronLeft size={19} color={colors.textPrimary} strokeWidth={2.4} />
-    </TouchableOpacity>
-    <Text style={styles.headerTitle} numberOfLines={1}>
-      {title}
-    </Text>
-    <View style={styles.backButtonSpacer} />
-  </View>
-);
-
 /**
  * One tile of the 2x2 grid. A null `value` renders the empty dash rather
  * than a zero — "0 kg" reads as a measurement, "—" reads as absent.
@@ -456,33 +431,6 @@ export default ExerciseDetail;
 
 const styles = themedStyles(() => ({
   root: { flex: 1, backgroundColor: colors.background },
-
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xs,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    color: colors.textPrimary,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  backButtonSpacer: { width: 40 },
 
   content: {
     paddingHorizontal: spacing.lg,

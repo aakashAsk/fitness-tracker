@@ -41,7 +41,6 @@ import {
 } from 'react-native';
 import {
   Activity,
-  ChevronLeft,
   ChevronRight,
   Dumbbell as DumbbellIcon,
   Footprints,
@@ -106,13 +105,11 @@ const CATEGORY_FILTERS = [
 const PAGE_SIZE = 12;
 
 export interface ExerciseLibraryProps {
-  onBack: () => void;
   onSelectExercise: (exercise: Exercise) => void;
   initialMuscle?: string;
 }
 
 export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
-  onBack,
   onSelectExercise,
   initialMuscle,
 }) => {
@@ -294,7 +291,7 @@ export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
         {showFilters ? (
           <>
             {/* Target biomechanics */}
-            <View style={styles.zoneHeader}>
+            <View style={[styles.zoneHeader, styles.zoneHeaderSpacing]}>
               <View style={styles.zoneHeaderLeft}>
                 <View style={styles.zoneDot} />
                 <Text style={styles.zoneLabel}>Target biomechanics</Text>
@@ -309,7 +306,7 @@ export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
             </View>
 
             {muscleZones.length === 0 ? (
-              <SkeletonGroup style={styles.carousel}>
+              <SkeletonGroup style={[styles.carousel, styles.carouselSpacing]}>
                 <SkeletonBlock width={150} height={62} radius={radius.full} />
                 <SkeletonBlock width={150} height={62} radius={radius.full} />
               </SkeletonGroup>
@@ -317,6 +314,7 @@ export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={styles.carouselSpacing}
                 contentContainerStyle={styles.carousel}
               >
                 {muscleZones.map((zone) => (
@@ -334,6 +332,7 @@ export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.chipRowSpacing}
               contentContainerStyle={styles.chipRow}
             >
               {CATEGORY_FILTERS.map((chip) => {
@@ -361,33 +360,38 @@ export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
           </>
         ) : null}
 
-      {/* Featured card leads the feed; the rest are FlatList rows. */}
-      {!loading && !error && featured ? (
-        <View style={styles.featuredWrap}>
-          <FeaturedCard exercise={featured} onPress={() => onSelectExercise(featured)} />
-        </View>
-      ) : null}
+      {/* Top margin lives here, not on the filters above: this block
+          sits right under the search bar whether the filters are shown
+          or hidden, so it is the one that needs the gap either way. */}
+      <View style={styles.feedTop}>
+        {/* Featured card leads the feed; the rest are FlatList rows. */}
+        {!loading && !error && featured ? (
+          <View style={styles.featuredWrap}>
+            <FeaturedCard exercise={featured} onPress={() => onSelectExercise(featured)} />
+          </View>
+        ) : null}
 
-      {error ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Could not load exercises</Text>
-          <Text style={styles.emptyBody}>{error}</Text>
-        </View>
-      ) : loading ? (
-        <View style={styles.list}>
-          <FeaturedSkeleton />
-          <RowSkeleton />
-          <RowSkeleton />
-          <RowSkeleton />
-        </View>
-      ) : items.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No exercises match</Text>
-          <Text style={styles.emptyBody}>
-            Try a different zone, or clear the search and filters.
-          </Text>
-        </View>
-      ) : null}
+        {error ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Could not load exercises</Text>
+            <Text style={styles.emptyBody}>{error}</Text>
+          </View>
+        ) : loading ? (
+          <View style={styles.list}>
+            <FeaturedSkeleton />
+            <RowSkeleton />
+            <RowSkeleton />
+            <RowSkeleton />
+          </View>
+        ) : items.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No exercises match</Text>
+            <Text style={styles.emptyBody}>
+              Try a different zone, or clear the search and filters.
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </>
   );
 
@@ -424,24 +428,9 @@ export const ExerciseLibrary: React.FC<ExerciseLibraryProps> = ({
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Back to workout"
-          style={styles.backButton}
-        >
-          <ChevronLeft size={19} color={colors.textPrimary} strokeWidth={2.4} />
-        </TouchableOpacity>
-        <View style={styles.headerTextBlock}>
-          <Text style={styles.headerEyebrow}>PULSEFIT</Text>
-          <Text style={styles.headerTitle}>Exercises</Text>
-        </View>
-        <View style={styles.backButtonSpacer} />
-      </View>
-
+      {/* No header here — the shared AppTopBar shows the back button and
+          "Exercises" title while this screen is open (see WorkoutSession's
+          onSubScreenChange), so this screen does not duplicate it. */}
       <FlatList
         data={rest}
         keyExtractor={(item: Exercise) => item.id}
@@ -702,38 +691,6 @@ export default ExerciseLibrary;
 const styles = themedStyles(() => ({
   root: { flex: 1, backgroundColor: colors.background },
 
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xs,
-  },
-  headerTextBlock: { flex: 1, alignItems: 'center' },
-  headerEyebrow: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    color: colors.textPrimary,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  backButtonSpacer: { width: 40 },
-
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
@@ -797,6 +754,17 @@ const styles = themedStyles(() => ({
     justifyContent: 'space-between',
     paddingHorizontal: 2,
   },
+  // The search row, "Target biomechanics" and the category chips all
+  // render as siblings inside the FlatList's single header cell, so the
+  // list's own contentContainerStyle gap never lands between them —
+  // each section carries its own top margin instead.
+  zoneHeaderSpacing: { marginTop: spacing.md },
+  carouselSpacing: { marginTop: spacing.sm },
+  chipRowSpacing: { marginTop: spacing.sm },
+  // Sits right under the search bar (filters shown or hidden), so the
+  // gap above the feed lives here rather than on the filters — see the
+  // comment at its usage.
+  feedTop: { marginTop: spacing.md },
   zoneHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   zoneDot: { width: 7, height: 7, borderRadius: radius.full, backgroundColor: colors.primary },
   zoneLabel: {

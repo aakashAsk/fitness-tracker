@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ScrollView,
     View,
@@ -67,6 +67,7 @@ import { useDialog } from '../../Components/Dialog';
 import { themedStyles } from '../../Theme/ThemeContext';
 import ExerciseLibrary from './ExerciseLibrary';
 import ExerciseDetail from './ExerciseDetail';
+import { useHardwareBack } from '../../Hooks/useHardwareBack';
 
 // Live version of the Workout tab: the exercise list below the date
 // strip is now the real workout plan(s) scheduled on whichever weekday
@@ -147,9 +148,21 @@ export interface WorkoutSessionProps {
     /** Called once the tab has landed on `focusPlanId`, so the caller can
         clear it and a later visit does not jump again. */
     onFocusHandled?: () => void;
+    /**
+     * Reports whether a sub-view (the Exercise Library) is currently
+     * showing in place of the tab's own screen, so the shared AppTopBar
+     * can swap in a back button and that view's title instead of every
+     * sub-view building its own header. Called with null when back on
+     * the tab's own screen.
+     */
+    onSubScreenChange?: (subScreen: { title: string; onBack: () => void } | null) => void;
 }
 
-export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onFocusHandled }) => {
+export const WorkoutSession: React.FC<WorkoutSessionProps> = ({
+    focusPlanId,
+    onFocusHandled,
+    onSubScreenChange,
+}) => {
     const dialog = useDialog();
     // The AI plan button: generates a week from the user's profile and
     // saves it as drafts. Called up here with the other hooks, ahead of
@@ -272,6 +285,34 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     // and the Profile tab already swaps to Settings the same way.
     const [browsing, setBrowsing] = useState(false);
     const [detailExercise, setDetailExercise] = useState<Exercise | null>(null);
+
+    const closeExerciseDetail = useCallback(() => {
+        setDetailExercise(null);
+        return true;
+    }, []);
+
+    // Tells the shared AppTopBar to show a back button + title instead
+    // of the tab's own brand/section label while a sub-screen is open —
+    // see ExerciseLibrary and ExerciseDetail, neither of which builds its
+    // own header, so there is exactly one back button on screen at a
+    // time no matter how deep this stack goes.
+    useEffect(() => {
+        if (!onSubScreenChange) return;
+        if (detailExercise) {
+            onSubScreenChange({ title: detailExercise.name, onBack: closeExerciseDetail });
+        } else if (browsing) {
+            onSubScreenChange({ title: 'Exercises', onBack: () => setBrowsing(false) });
+        } else {
+            onSubScreenChange(null);
+        }
+        // Leaving the tab (unmount) must not leave the top bar stuck on
+        // a back button for whatever tab loads next.
+        return () => onSubScreenChange(null);
+    }, [browsing, detailExercise, onSubScreenChange, closeExerciseDetail]);
+
+    // A hardware back press while the detail view is open must close it
+    // first, not fall through to exiting the app or leaving the library.
+    useHardwareBack(closeExerciseDetail, detailExercise !== null);
 
     // The strip above "View All". Preference is the day's own planned
     // exercises — the ones the user is about to do. With nothing
@@ -850,18 +891,12 @@ export const WorkoutSession: React.FC<WorkoutSessionProps> = ({ focusPlanId, onF
     // Detail sits above the library so backing out of it returns to the
     // list the user came from, with its search and filters intact.
     if (detailExercise) {
-        return (
-            <ExerciseDetail
-                exercise={detailExercise}
-                onBack={() => setDetailExercise(null)}
-            />
-        );
+        return <ExerciseDetail exercise={detailExercise} />;
     }
 
     if (browsing) {
         return (
             <ExerciseLibrary
-                onBack={() => setBrowsing(false)}
                 onSelectExercise={setDetailExercise}
             />
         );

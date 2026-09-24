@@ -5,6 +5,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -21,7 +24,7 @@ import { colors, withOpacity } from '../../Theme/colors';
 import { radius, spacing } from '../../Theme/spacing';
 import { themedStyles } from '../../Theme/ThemeContext';
 
-export const TOTAL_STEPS = 4;
+export const TOTAL_STEPS = 6;
 
 /** "Step 2 of 3" plus the fill bar above every step's content. */
 export const StepHeader: React.FC<{ step: number; onBack?: () => void }> = ({
@@ -427,6 +430,97 @@ export const PrimaryButton: React.FC<{
 
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 
+export const WHEEL_ITEM_HEIGHT = 44;
+const WHEEL_VISIBLE_ROWS = 5;
+const WHEEL_PADDING_ROWS = Math.floor(WHEEL_VISIBLE_ROWS / 2);
+export const WHEEL_HEIGHT = WHEEL_ITEM_HEIGHT * WHEEL_VISIBLE_ROWS;
+
+export interface WheelColumnProps {
+  /** Display strings, index-aligned with whatever `onChange` reports. */
+  items: string[];
+  selectedIndex: number;
+  onChange: (index: number) => void;
+}
+
+/**
+ * One scrollable, snap-to-row column of a date-of-birth style picker.
+ *
+ * A plain ScrollView doing the work, not a native picker or a FlatList —
+ * this app has no native date-picker dependency, and every wheel here
+ * has too few rows (at most ~100 years) to need virtualization; see the
+ * comment on the ScrollView itself for why FlatList specifically is the
+ * wrong tool here. `contentOffset` lets it land on the right row
+ * immediately, with no visible jump after the first frame.
+ */
+export const WheelColumn: React.FC<WheelColumnProps> = ({ items, selectedIndex, onChange }) => {
+  const scrollRef = useRef<ScrollView>(null);
+  // True only while the user's own drag is driving the scroll — the
+  // sync-to-selectedIndex effect below must not fight a gesture in
+  // progress (e.g. selecting a new month reflowing the day list mid-drag
+  // on that other column).
+  const userScrolling = useRef(false);
+
+  useEffect(() => {
+    if (userScrolling.current) return;
+    scrollRef.current?.scrollTo({ y: selectedIndex * WHEEL_ITEM_HEIGHT, animated: false });
+  }, [selectedIndex]);
+
+  const handleMomentumEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      userScrolling.current = false;
+      const rawIndex = Math.round(event.nativeEvent.contentOffset.y / WHEEL_ITEM_HEIGHT);
+      onChange(Math.min(items.length - 1, Math.max(0, rawIndex)));
+    },
+    [items.length, onChange],
+  );
+
+  return (
+    <View style={styles.wheelColumn}>
+      {/* Behind the list (transparent scroll background), not on top of
+          it — this is the fixed band the centered row scrolls into, the
+          content is what actually moves. */}
+      <View pointerEvents="none" style={styles.wheelHighlight} />
+      {/*
+        A plain ScrollView, not a FlatList: every wheel here has at most
+        ~100 rows (years) — nowhere near enough to need virtualization —
+        and a FlatList (a VirtualizedList) nested inside this screen's
+        outer ScrollView of the same orientation is exactly the pattern
+        React Native warns against, since the two fight over vertical
+        touch gestures. A plain ScrollView-in-ScrollView carries no such
+        warning and Android's native nested-scroll handling resolves the
+        touch ownership correctly (see nestedScrollEnabled below).
+      */}
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        style={styles.wheelList}
+        contentContainerStyle={{ paddingVertical: WHEEL_ITEM_HEIGHT * WHEEL_PADDING_ROWS }}
+        // Only honored on the first render, same as FlatList's
+        // initialScrollIndex was — later moves go through the
+        // sync-to-selectedIndex effect's scrollTo instead.
+        contentOffset={{ x: 0, y: selectedIndex * WHEEL_ITEM_HEIGHT }}
+        snapToInterval={WHEEL_ITEM_HEIGHT}
+        decelerationRate="fast"
+        nestedScrollEnabled
+        onScrollBeginDrag={() => {
+          userScrolling.current = true;
+        }}
+        onMomentumScrollEnd={handleMomentumEnd}
+      >
+        {items.map((item, index) => (
+          <View key={index} style={styles.wheelItem}>
+            <Text
+              style={[styles.wheelItemText, index === selectedIndex && styles.wheelItemTextActive]}
+            >
+              {item}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+};
+
 const styles = themedStyles(() => ({
   stepHeader: { gap: spacing.xs },
   stepHeaderRow: {
@@ -637,4 +731,19 @@ const styles = themedStyles(() => ({
     textTransform: 'uppercase',
     color: colors.white,
   },
+
+  wheelColumn: { flex: 1, height: WHEEL_HEIGHT },
+  wheelList: { height: WHEEL_HEIGHT },
+  wheelHighlight: {
+    position: 'absolute',
+    top: WHEEL_ITEM_HEIGHT * WHEEL_PADDING_ROWS,
+    left: 4,
+    right: 4,
+    height: WHEEL_ITEM_HEIGHT,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainer,
+  },
+  wheelItem: { height: WHEEL_ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
+  wheelItemText: { fontSize: 17, fontWeight: '600', color: colors.textMuted },
+  wheelItemTextActive: { color: colors.textPrimary, fontWeight: '800' },
 }));

@@ -42,6 +42,11 @@ export const AboutYouStep: React.FC<AboutYouStepProps> = ({
     // the space between their first and last name.
     const nameReady = value.displayName.trim().length > 0;
 
+    // Lets the name field's "Next" hand focus straight to the phone
+    // field, instead of just closing the keyboard — returnKeyType="next"
+    // alone only changes the key's label, it does not move focus itself.
+    const phoneInputRef = React.useRef<TextInput>(null);
+
     return (
         <ScrollView
             contentContainerStyle={styles.content}
@@ -63,7 +68,7 @@ export const AboutYouStep: React.FC<AboutYouStepProps> = ({
                     <TextInput
                         value={value.displayName}
                         onChangeText={(displayName) => onChange({ displayName })}
-                        placeholder="e.g. Aakash"
+                        placeholder="e.g. Jordan Lee"
                         placeholderTextColor={colors.textSecondary}
                         style={styles.input}
                         maxLength={MAX_NAME_LENGTH}
@@ -71,6 +76,8 @@ export const AboutYouStep: React.FC<AboutYouStepProps> = ({
                         autoCorrect={false}
                         autoFocus
                         returnKeyType="next"
+                        blurOnSubmit={false}
+                        onSubmitEditing={() => phoneInputRef.current?.focus()}
                         accessibilityLabel="Your name"
                     />
                 </FieldCard>
@@ -81,9 +88,10 @@ export const AboutYouStep: React.FC<AboutYouStepProps> = ({
                     trailing={<Text style={styles.optional}>Optional</Text>}
                 >
                     <TextInput
+                        ref={phoneInputRef}
                         value={value.phoneNumber}
                         onChangeText={(phoneNumber) => onChange({ phoneNumber })}
-                        placeholder="e.g. 98765 43210"
+                        placeholder="e.g. 90000 00000"
                         placeholderTextColor={colors.textSecondary}
                         style={styles.input}
                         maxLength={MAX_PHONE_LENGTH}

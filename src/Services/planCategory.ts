@@ -74,6 +74,44 @@ export function describePlanSummary(plan: PlanSummaryInput): string {
   return `${count} ${count === 1 ? 'exercise' : 'exercises'}`;
 }
 
+/** Minutes assumed per exercise — sets, reps and rest combined — and a
+ * fixed warm-up/transition allowance on top. Matches the AI plan
+ * generator's own assumption (see aiWorkoutPlanShape's maxExercisesFor:
+ * "about 8 minutes each once warm-up, rest and transitions are
+ * counted"), so the two estimates agree instead of disagreeing about the
+ * same workout. */
+const MINUTES_PER_EXERCISE = 8;
+const WARMUP_MINUTES = 5;
+/** An easy, conversational pace — the fallback when a distance target
+ * has no explicit time alongside it. */
+const ASSUMED_MINUTES_PER_KM = 6;
+
+/**
+ * A rough session length in minutes, for the create sheet's live preview
+ * and the plan library's summary — a plausible starting point to see
+ * before a single session of this plan has actually been logged, not a
+ * promise.
+ *
+ * Deliberately a fixed formula rather than an AI estimate: the inputs
+ * (how many exercises, or a stated distance/time target) are already
+ * exactly what a session's length depends on, so a model would have
+ * nothing to add beyond what arithmetic already gives — instantly, for
+ * free, and the same way every time it's asked.
+ */
+export function estimateWorkoutMinutes(plan: PlanSummaryInput): number {
+  if (isRestCategory(plan.category)) return 0;
+  if (plan.targetMinutes) return plan.targetMinutes;
+  if (usesDistanceTarget(plan.category) && plan.targetKm) {
+    return Math.round(plan.targetKm * ASSUMED_MINUTES_PER_KM);
+  }
+  // A target category with neither a time nor a distance typed yet has
+  // nothing to estimate from.
+  if (isTargetCategory(plan.category)) return 0;
+  return plan.exerciseIds.length > 0
+    ? WARMUP_MINUTES + plan.exerciseIds.length * MINUTES_PER_EXERCISE
+    : 0;
+}
+
 /**
  * What is missing from a target-category plan, or null when it has what
  * it needs: swimming needs a time; the others need a distance or a time.

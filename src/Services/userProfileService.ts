@@ -12,14 +12,38 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import { getCurrentUserId } from './userService';
 import type { ThemeMode } from '../Theme/colors';
+import { nextLoginStreak } from './streakService.ts';
+import { toDateKey } from './dateRange.ts';
 
 const PROFILE_COLLECTION = 'userProfiles';
 
 export type Gender = 'male' | 'female' | 'other';
 
-export type FitnessGoal = 'hypertrophy' | 'fat-loss' | 'endurance' | 'maintenance';
+/**
+ * 'weight-loss' and 'weight-gain' are the plain, general-purpose
+ * versions of 'fat-loss' and 'hypertrophy' — a deficit/surplus without
+ * the lean-mass-preservation or muscle-building emphasis those carry.
+ * 'hypertrophy' is kept (not offered as a fresh choice in GoalStep, but
+ * still valid) so an existing profile that already picked it keeps
+ * working exactly as before.
+ */
+export type FitnessGoal =
+  | 'weight-loss'
+  | 'weight-gain'
+  | 'hypertrophy'
+  | 'fat-loss'
+  | 'endurance'
+  | 'maintenance';
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very_active';
+
+/** The main challenge the user wants help overcoming, asked right after the goal. */
+export type Obstacle =
+  | 'consistency'
+  | 'eating-habits'
+  | 'support'
+  | 'busy-schedule'
+  | 'meal-inspiration';
 
 /** Target weekly weight change, in kg. */
 export type WeeklyPace = 0.25 | 0.5 | 0.75;
@@ -38,11 +62,24 @@ export interface ProfileAnswers {
    */
   phoneNumber: string;
   gender: Gender;
-  /** Years. */
+  /** Years. Kept alongside birthDate rather than derived from it on every
+   * read: birthDate is null for any profile saved before this field
+   * existed, and age is the number every formula and screen already
+   * reads. */
   age: number;
+  /** "YYYY-MM-DD", or null for a profile saved before this field existed
+   * (or one that answered by age directly, since birthDate is optional
+   * nowhere but the onboarding step that collects it). Source of truth
+   * for `age` going forward — see BodyMetricsStep, which derives age
+   * from this and writes both. */
+  birthDate: string | null;
   heightCm: number;
   weightKg: number;
+  /** What the user is aiming for — drives progress bars against current weight. */
+  targetWeightKg: number;
   goal: FitnessGoal;
+  /** Main challenge the user picked when asked what gets in their way. */
+  obstacle: Obstacle;
   activityLevel: ActivityLevel;
   weeklyPaceKg: WeeklyPace;
   /** Free-form area labels, e.g. ['Knees']. Empty means injury-free. */
@@ -87,6 +124,13 @@ export interface UserProfile extends ProfileAnswers, DerivedTargets {
   onboardingCompleted: boolean;
   createdAt: Date | null;
   updatedAt: Date | null;
+  /** Consecutive days, ending today, the user has opened the app.
+   * 0 for a profile that predates this field. */
+  loginStreak: number;
+  /** "YYYY-MM-DD" the streak was last bumped, or null before this
+   * field existed. Local calendar date, same key the workout streak
+   * uses — see recordDailyLogin. */
+  lastLoginDate: string | null;
 }
 
 export class UserProfileServiceError extends Error {
@@ -124,9 +168,15 @@ const PACE_CALORIE_DELTA: Record<number, number> = {
 /** Protein, grams per kg of bodyweight, by goal. */
 const PROTEIN_PER_KG: Record<FitnessGoal, number> = {
   hypertrophy: 2.0,
-  // Highest of the four: protein is what protects lean mass while in a
+  // Highest of the six: protein is what protects lean mass while in a
   // deficit.
   'fat-loss': 2.2,
+  // A plainer deficit than fat-loss — still enough protein to protect
+  // lean mass, just not the specialised cut target.
+  'weight-loss': 1.8,
+  // A plainer surplus than hypertrophy — general weight gain, not a
+  // muscle-building program, so less protein is asked for.
+  'weight-gain': 1.6,
   endurance: 1.6,
   maintenance: 1.6,
 };
@@ -135,6 +185,11 @@ const PROTEIN_PER_KG: Record<FitnessGoal, number> = {
 const FAT_CALORIE_SHARE: Record<FitnessGoal, number> = {
   hypertrophy: 0.25,
   'fat-loss': 0.3,
+  'weight-loss': 0.3,
+  // Slightly higher than hypertrophy's — a plain weight-gain target
+  // leaves more of the surplus flexible rather than steering it all to
+  // carbs for training fuel.
+  'weight-gain': 0.3,
   // Lower, so more of the budget is left for the carbohydrate that
   // actually fuels long sessions.
   endurance: 0.22,
@@ -150,14 +205,34 @@ export function calculateBmr(
   return Math.round(base + GENDER_BMR_OFFSET[gender]);
 }
 
+/** Midpoint of the WHO "healthy weight" BMI band (18.5-24.9), used below
+ * as the one number to build a suggested target weight from. */
+const HEALTHY_BMI_MIDPOINT = 21.7;
+
+/**
+ * A starting-point target weight, from height alone — BMI * height²,
+ * at the middle of the healthy range.
+ *
+ * This is a population-level estimate, not a personal one: it knows
+ * nothing about frame size, muscle mass or the user's own goal, which is
+ * exactly why onboarding pre-fills it rather than requiring it — a
+ * number to adjust from, not a prescription. Rounded to the nearest
+ * 0.5 kg to match the target-weight stepper's own step size.
+ */
+export function estimateHealthyWeightKg(heightCm: number): number {
+  const heightM = heightCm / 100;
+  const raw = HEALTHY_BMI_MIDPOINT * heightM * heightM;
+  return Math.round(raw * 2) / 2;
+}
+
 export function calculateTdee(bmr: number, activityLevel: ActivityLevel): number {
   return Math.round(bmr * ACTIVITY_MULTIPLIER[activityLevel]);
 }
 
 /**
- * The daily intake target. Fat loss subtracts the pace deficit;
- * hypertrophy adds a 15% surplus; endurance and maintenance eat at
- * maintenance.
+ * The daily intake target. Fat loss and plain weight loss subtract the
+ * pace deficit; hypertrophy adds a 15% surplus and plain weight gain a
+ * 10% one; endurance and maintenance eat at maintenance.
  *
  * Floored at 1200 kcal — below that a target stops being a plan and
  * starts being a medical question, and the pace slider can otherwise
@@ -170,9 +245,14 @@ export function calculateCalorieTarget(
 ): number {
   switch (goal) {
     case 'fat-loss':
+    case 'weight-loss':
       return Math.max(1200, tdee - (PACE_CALORIE_DELTA[weeklyPaceKg] ?? 500));
     case 'hypertrophy':
       return Math.round(tdee * 1.15);
+    // A plainer, smaller surplus than hypertrophy's 15% — general weight
+    // gain rather than a muscle-building program.
+    case 'weight-gain':
+      return Math.round(tdee * 1.1);
     default:
       return tdee;
   }
@@ -218,9 +298,14 @@ function toUserProfile(userId: string, data: Record<string, unknown>): UserProfi
     phoneNumber: ((data.phoneNumber as string) ?? '').trim(),
     gender: (data.gender as Gender) ?? 'other',
     age: Number(data.age) || 0,
+    birthDate: (data.birthDate as string) || null,
     heightCm: Number(data.heightCm) || 0,
     weightKg: Number(data.weightKg) || 0,
+    // Falls back to current weight for profiles written before this field
+    // existed, so a progress bar against it starts at 0% rather than NaN.
+    targetWeightKg: Number(data.targetWeightKg) || Number(data.weightKg) || 0,
     goal: (data.goal as FitnessGoal) ?? 'maintenance',
+    obstacle: (data.obstacle as Obstacle) ?? 'consistency',
     activityLevel: (data.activityLevel as ActivityLevel) ?? 'moderate',
     weeklyPaceKg: (Number(data.weeklyPaceKg) || 0.5) as WeeklyPace,
     injuries: ((data.injuries as unknown[]) ?? []).map(String),
@@ -238,6 +323,8 @@ function toUserProfile(userId: string, data: Record<string, unknown>): UserProfi
     onboardingCompleted: data.onboardingCompleted === true,
     createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.() ?? null,
     updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.() ?? null,
+    loginStreak: Number(data.loginStreak) || 0,
+    lastLoginDate: (data.lastLoginDate as string) ?? null,
   };
 }
 
@@ -314,6 +401,10 @@ export async function saveUserProfile(
     // rather than dates until the document is read back.
     createdAt: null,
     updatedAt: null,
+    // Onboarding does not touch the login streak — recordDailyLogin
+    // bumps it separately, right after this profile is loaded.
+    loginStreak: 0,
+    lastLoginDate: null,
   };
 }
 
@@ -336,6 +427,52 @@ export async function saveUserThemeMode(mode: ThemeMode, userId?: string): Promi
   } catch (error) {
     throw new UserProfileServiceError(
       `Could not save your theme: ${(error as Error).message}`,
+    );
+  }
+}
+
+/**
+ * Bumps the login streak for today, once per day.
+ *
+ * Reads the doc first rather than blind-writing, since the new value
+ * depends on the old one (nextLoginStreak). Safe to call every time the
+ * app opens: a second call the same day reads back the same streak and
+ * skips the write, so there is no double-count and no wasted write for
+ * a user who force-quits and reopens the app.
+ *
+ * Returns the current streak either way, so the caller always has a
+ * number to show even for a profile that does not exist yet (a signed-in
+ * user who has not finished onboarding).
+ */
+export async function recordDailyLogin(
+  userId?: string,
+): Promise<{ loginStreak: number; lastLoginDate: string }> {
+  const uid = userId ?? getCurrentUserId();
+  const todayKey = toDateKey(new Date());
+
+  try {
+    const ref = doc(db, PROFILE_COLLECTION, uid);
+    const snapshot = await getDoc(ref);
+    const data = snapshot.exists() ? (snapshot.data() as Record<string, unknown>) : {};
+
+    const previousStreak = Number(data.loginStreak) || 0;
+    const lastLoginDate = (data.lastLoginDate as string) ?? null;
+    const loginStreak = nextLoginStreak(previousStreak, lastLoginDate, new Date());
+
+    if (lastLoginDate === todayKey) {
+      return { loginStreak, lastLoginDate: todayKey };
+    }
+
+    await setDoc(
+      ref,
+      { loginStreak, lastLoginDate: todayKey, userId: uid, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+
+    return { loginStreak, lastLoginDate: todayKey };
+  } catch (error) {
+    throw new UserProfileServiceError(
+      `Could not update your login streak: ${(error as Error).message}`,
     );
   }
 }

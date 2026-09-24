@@ -53,6 +53,30 @@ export function currentWorkoutStreak(completedDateKeys: Iterable<string>, today:
   return streak;
 }
 
+/**
+ * The login streak after opening the app today.
+ *
+ * Unlike the workout streak above, this one does NOT forgive a missed
+ * day — a login streak is "did you open the app today", and yesterday's
+ * open already counted for yesterday. So: same day as last recorded ->
+ * unchanged (opening the app twice in a day is not two days). Exactly
+ * one day later -> +1. Anything else (a gap, or no prior login) ->
+ * restarts at 1, since today's open is itself a login.
+ */
+export function nextLoginStreak(
+  previousStreak: number,
+  lastLoginDateKey: string | null,
+  today: Date,
+): number {
+  const todayKey = toDateKey(today);
+  if (lastLoginDateKey === todayKey) return previousStreak;
+
+  const yesterdayKey = toDateKey(addDays(today, -1));
+  if (lastLoginDateKey === yesterdayKey) return previousStreak + 1;
+
+  return 1;
+}
+
 export interface HeatmapDay {
   /** "YYYY-MM-DD" */
   date: string;

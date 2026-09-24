@@ -33,10 +33,20 @@ import {
     getMealPlansForDate,
     MEAL_TYPE_LABEL,
     type MealPlan,
+    type MealType,
 } from '../../Services/mealPlanService';
 import { useMealPlans, useMealPlansLoading } from '../../Store/mealPlansSlice';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import { themedStyles } from '../../Theme/ThemeContext';
+
+/** These three are a quick marker around training, not something to sit
+ * and read — the timeline collapses them to one line instead of the full
+ * meal card breakfast/lunch/dinner/snack get. */
+const COMPACT_MEAL_TYPES: ReadonlySet<MealType> = new Set([
+    'pre-workout',
+    'post-workout',
+    'supplement',
+]);
 
 // Day timeline for the Schedule tab, driven by the user's real plans.
 //
@@ -262,6 +272,46 @@ export const ScheduleSession: React.FC = () => {
 
     const renderMeal = (meal: MealPlan, isLast: boolean) => {
         const { clock, period } = splitTime(meal.time);
+
+        // Supplement and pre/post-workout entries are a quick marker
+        // around a training session, not a meal to sit and read about —
+        // the full card (icon, item list) is more than they need, so
+        // they collapse to one line: just the type and the name, next to
+        // their time like everything else on the timeline.
+        if (COMPACT_MEAL_TYPES.has(meal.mealType)) {
+            return (
+                <View
+                    style={[
+                        styles.timelineRow,
+                        styles.compactTimelineRow,
+                        isLast && styles.timelineRowLast,
+                    ]}
+                >
+                    <View style={styles.timeColumn}>
+                        <Text style={styles.timeText}>{clock}</Text>
+                        <Text style={styles.periodText}>{period}</Text>
+                    </View>
+
+                    <View style={styles.nodeColumn}>
+                        <View style={[styles.mealPip, styles.compactPip]}>
+                            <View style={styles.mealPipDot} />
+                        </View>
+                        {!isLast ? <View style={styles.nodeLine} /> : null}
+                    </View>
+
+                    <View style={styles.eventCardWrapper}>
+                        <View style={styles.compactMealRow}>
+                            <Text style={styles.compactMealType} numberOfLines={1}>
+                                {MEAL_TYPE_LABEL[meal.mealType]}
+                            </Text>
+                            <Text style={styles.compactMealName} numberOfLines={1}>
+                                {meal.name}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            );
+        }
 
         return (
             <View style={[styles.timelineRow, isLast && styles.timelineRowLast]}>
@@ -744,6 +794,42 @@ const styles = themedStyles(() => ({
     mealItems: {
         fontSize: 11.5,
         lineHeight: 16,
+        color: colors.textSecondary,
+    },
+    // The one-line variant for supplement/pre-/post-workout entries —
+    // no card, no icon, just the type and name beside their time.
+    // Its row overrides timelineRow's flex-start with 'center': that
+    // alignment is right for the full meal/workout cards (tall, so their
+    // top should line up with the time and the node dot) but leaves a
+    // single line of text sitting below a top-pinned dot instead of
+    // beside it.
+    compactTimelineRow: {
+        alignItems: 'center',
+    },
+    compactPip: {
+        // A touch smaller than the full meal pip: this row carries a lot
+        // less visual weight, and a same-size node would overstate it.
+        transform: [{ scale: 0.8 }],
+        // Nudged up from dead-center — sitting exactly level with the
+        // text's middle read as low against the label's cap-height.
+        marginTop: 0,
+    },
+    compactMealRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 6,
+    },
+    compactMealType: {
+        fontSize: 10.5,
+        fontWeight: '800',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+        color: colors.textMuted,
+    },
+    compactMealName: {
+        flex: 1,
+        fontSize: 12.5,
+        fontWeight: '600',
         color: colors.textSecondary,
     },
     timeline: {

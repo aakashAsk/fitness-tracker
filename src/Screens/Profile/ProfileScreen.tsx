@@ -2,7 +2,7 @@
 // userProfileService and shows what the app has actually calibrated
 // against. Every number here is loaded, never hard-coded: if a value
 // looks wrong, the fix belongs in onboarding or the formulas, not here.
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -20,9 +20,11 @@ import {
   Dumbbell,
   Flame,
   HeartPulse,
+  Lightbulb,
   LogOut,
   Salad,
   Settings as SettingsIcon,
+  Target,
   User,
   Utensils,
   Zap,
@@ -33,11 +35,13 @@ import { radius, spacing } from '../../Theme/spacing';
 import { clearCachedThemeMode } from '../../Theme/themeStorage';
 import { clearStepLedger } from '../../Services/stepService';
 import { useDialog } from '../../Components/Dialog';
+import { useHardwareBack } from '../../Hooks/useHardwareBack';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import {
   ActivityLevel,
   FitnessGoal,
   Gender,
+  Obstacle,
   saveUserPhotoUrl,
   UserProfile,
 } from '../../Services/userProfileService';
@@ -68,6 +72,8 @@ const GENDER_LABEL: Record<Gender, string> = {
 const GOAL_LABEL: Record<FitnessGoal, string> = {
   hypertrophy: 'Build Muscle',
   'fat-loss': 'Lose Fat',
+  'weight-loss': 'Lose Weight',
+  'weight-gain': 'Gain Weight',
   endurance: 'Endurance',
   maintenance: 'Maintain',
 };
@@ -92,10 +98,30 @@ const PACE_LABEL: Record<number, string> = {
   0.75: 'Aggressive',
 };
 
+const OBSTACLE_LABEL: Record<Obstacle, string> = {
+  consistency: 'Lack of Consistency',
+  'eating-habits': 'Unhealthy Eating Habits',
+  support: 'Lack of Support',
+  'busy-schedule': 'Busy Schedule',
+  'meal-inspiration': 'Lack of Meal Inspiration',
+};
+
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
 /** 178 -> "5'10"". */
 function formatFeetInches(heightCm: number): string {
   const totalInches = Math.round(heightCm / 2.54);
   return `${Math.floor(totalInches / 12)}'${totalInches % 12}"`;
+}
+
+/** "1998-03-15" -> "Mar 15, 1998". Null for a profile saved before
+ * birthDate existed — callers fall back to not showing it. */
+function formatBirthDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatMemberSince(date: Date | null): string {
@@ -109,6 +135,13 @@ function formatMemberSince(date: Date | null): string {
 export const ProfileScreen: React.FC = () => {
   const dialog = useDialog();
   const [showSettings, setShowSettings] = useState(false);
+  // A hardware back press while Settings is open should close Settings,
+  // not exit the app — see useHardwareBack.ts.
+  const closeSettings = useCallback(() => {
+    setShowSettings(false);
+    return true;
+  }, []);
+  useHardwareBack(closeSettings, showSettings);
 
   // Read from the store, which App.tsx populated once at startup —
   // this screen no longer fetches on mount, so opening the tab is
@@ -319,7 +352,11 @@ const ProfileBody: React.FC<{ profile: UserProfile }> = ({ profile }) => {
     <>
       {/* Quick biometrics strip */}
       <View style={styles.quickStrip}>
-        <QuickStat label="Age" value={`${profile.age} yrs`} />
+        <QuickStat
+          label="Age"
+          value={`${profile.age} yrs`}
+          caption={formatBirthDate(profile.birthDate) ?? undefined}
+        />
         <View style={styles.quickDivider} />
         <QuickStat
           label="Height"
@@ -358,11 +395,15 @@ const ProfileBody: React.FC<{ profile: UserProfile }> = ({ profile }) => {
               label="Weekly pace"
               value={PACE_LABEL[profile.weeklyPaceKg] ?? 'Steady'}
               caption={
-                profile.goal === 'fat-loss'
+                profile.goal === 'fat-loss' || profile.goal === 'weight-loss'
                   ? `-${profile.weeklyPaceKg} kg/wk`
                   : 'Not applied to this goal'
               }
-              captionColor={profile.goal === 'fat-loss' ? colors.secondary : undefined}
+              captionColor={
+                profile.goal === 'fat-loss' || profile.goal === 'weight-loss'
+                  ? colors.secondary
+                  : undefined
+              }
               icon={<Flame size={15} color={colors.secondary} strokeWidth={2.4} />}
               tint={colors.secondary}
             />
@@ -378,6 +419,27 @@ const ProfileBody: React.FC<{ profile: UserProfile }> = ({ profile }) => {
               icon={<Utensils size={15} color={colors.primary} strokeWidth={2.4} />}
               tint={colors.primary}
               valueColor={colors.primary}
+            />
+            <MetricTile
+              label="Target weight"
+              value={`${profile.targetWeightKg.toFixed(1)} kg`}
+              caption={(() => {
+                const delta = round1(profile.targetWeightKg - profile.weightKg);
+                if (delta === 0) return 'Already there';
+                return `${delta > 0 ? '+' : ''}${delta} kg to go`;
+              })()}
+              captionColor={
+                profile.targetWeightKg === profile.weightKg ? colors.success : colors.secondary
+              }
+              icon={<Target size={15} color={colors.success} strokeWidth={2.4} />}
+              tint={colors.success}
+            />
+            <MetricTile
+              label="Main obstacle"
+              value={OBSTACLE_LABEL[profile.obstacle]}
+              caption="What we're helping you work around"
+              icon={<Lightbulb size={15} color={colors.secondary} strokeWidth={2.4} />}
+              tint={colors.secondary}
             />
           </View>
 

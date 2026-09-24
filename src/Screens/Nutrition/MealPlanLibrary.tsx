@@ -1,100 +1,107 @@
 import React, { useMemo, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import {
     CalendarDays,
     ChevronDown,
     Clock,
-    Dumbbell,
     Layers,
     Pause,
     Pencil,
     Play,
-    Target,
     Trash2,
+    UtensilsCrossed,
 } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import {
-    deleteWorkoutPlan,
-    parseTimeToMinutes,
-    updateWorkoutPlan,
-    WorkoutPlanServiceError,
-    type WorkoutPlan,
-    type WorkoutPlanStatus,
-} from '../../Services/workoutPlanService';
-import { DAY_ORDER } from './Data';
-import { useWorkoutPlans, useWorkoutPlansLoading } from '../../Store/workoutPlansSlice';
+    deleteMealPlan,
+    describeIncompleteMealPlan,
+    describeItems,
+    describeMealConflict,
+    findMealScheduleConflict,
+    MAX_MEAL_PLANS_PER_USER,
+    MEAL_TYPE_LABEL,
+    MEAL_TYPES,
+    updateMealPlan,
+    MealPlanServiceError,
+    type MealPlan,
+    type MealPlanStatus,
+    type MealType,
+} from '../../Services/mealPlanService';
+import { parseTimeToMinutes } from '../../Services/workoutPlanService';
+import { DAY_ORDER } from '../Workout/Data';
+import { useMealPlans, useMealPlansLoading } from '../../Store/mealPlansSlice';
 import { SkeletonBlock, SkeletonGroup } from '../../Components/Skeleton';
 import { useDialog } from '../../Components/Dialog';
-import {
-    describeConflict,
-    describeIncompletePlan,
-    findScheduleConflict,
-    MAX_PLANS_PER_USER,
-} from '../../Services/planValidation';
-import { describePlanSummary, estimateWorkoutMinutes } from '../../Services/planCategory';
 import { themedStyles } from '../../Theme/ThemeContext';
 
-// Every plan the user owns, independent of any date — the counterpart
-// to the day view above it, which only ever shows what is scheduled on
-// the selected date.
-//
-// It exists mainly so drafts and paused plans are reachable at all:
-// getEventsForDate only expands plans whose status is 'live', so a
-// plan saved as a draft never appears on any date and would otherwise
-// be invisible the moment it was created.
+// Every meal plan the user owns, independent of any date — the
+// nutrition-side counterpart to the workout tab's PlanLibrary, and
+// deliberately built the same way: getMealPlansForDate only expands
+// plans whose status is 'live', so a draft or paused plan would
+// otherwise never be reachable at all.
 
-const STATUS_ORDER: WorkoutPlanStatus[] = ['live', 'paused', 'draft'];
+const STATUS_ORDER: MealPlanStatus[] = ['live', 'paused', 'draft'];
 
-const STATUS_LABEL: Record<WorkoutPlanStatus, string> = {
+const STATUS_LABEL: Record<MealPlanStatus, string> = {
     live: 'Live',
     paused: 'Paused',
     draft: 'Draft',
 };
 
-const STATUS_COLOR: Record<WorkoutPlanStatus, string> = {
+const STATUS_COLOR: Record<MealPlanStatus, string> = {
     live: colors.success,
     paused: colors.warning,
     draft: colors.textMuted,
 };
 
 /** "Mon, Wed, Fri" — or a plain count once the list gets long. */
-function describeDays(plan: WorkoutPlan): string {
+function describeDays(plan: MealPlan): string {
     if (plan.days.length === 0) return 'No days set';
     if (plan.days.length > 3) return `${plan.days.length} days/week`;
     return plan.days.join(', ');
 }
 
-/** Index of the earliest day a plan trains, Monday first. A plan with no
- * days set has nothing to sort by, so it sorts after every scheduled one. */
-function earliestDayIndex(plan: WorkoutPlan): number {
+/** Index of the earliest day a plan is eaten, Monday first. A plan with
+ * no days set has nothing to sort by, so it sorts after every scheduled one. */
+function earliestDayIndex(plan: MealPlan): number {
     if (plan.days.length === 0) return DAY_ORDER.length;
     return Math.min(...plan.days.map((day) => DAY_ORDER.indexOf(day)));
 }
 
-export interface PlanLibraryProps {
+export interface MealPlanLibraryProps {
     /**
      * Opens the full plan editor. Editing from here is always a
      * whole-plan edit — there is no date in context to scope a change
-     * to, unlike the cards in the day view.
+     * to, unlike the day cards above.
      */
-    onEditPlan?: (plan: WorkoutPlan) => void;
+    onEditPlan?: (plan: MealPlan) => void;
 }
 
-export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
-    const plans = useWorkoutPlans();
-    const isLoading = useWorkoutPlansLoading();
+/** "All", then one tab per MealType, in the same order MEAL_TYPES lists
+ * them — tabs mirror the enum exactly rather than only the types that
+ * happen to have a plan, so the section a user is about to fill in
+ * (say, Snack) is still there to switch to. */
+const TAB_KEYS: ('all' | MealType)[] = ['all', ...MEAL_TYPES.map((entry) => entry.key)];
+
+const TAB_LABEL: Record<'all' | MealType, string> = {
+    all: 'All',
+    ...MEAL_TYPE_LABEL,
+};
+
+export const MealPlanLibrary: React.FC<MealPlanLibraryProps> = ({ onEditPlan }) => {
+    const plans = useMealPlans();
+    const isLoading = useMealPlansLoading();
     const dialog = useDialog();
     const [updatingId, setUpdatingId] = useState<string | null>(null);
-    // Accordion — one plan's details open at a time, matching the
-    // exercise rows in the day cards above.
+    // Accordion — one plan's details open at a time.
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'all' | MealType>('all');
 
-    // Monday first, by each plan's earliest training day; same-day plans
-    // sort by time. A plan with no days set falls to the end, and among
-    // ties the store's own order (newest first) is preserved — sort() is
-    // stable.
+    // Monday first, by each plan's earliest day; same-day plans sort by
+    // time. A plan with no days set falls to the end, and among ties the
+    // store's own order (newest first) is preserved — sort() is stable.
     const ordered = useMemo(
         () =>
             [...plans].sort((a, b) => {
@@ -105,7 +112,20 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
         [plans],
     );
 
-    const changeStatus = async (plan: WorkoutPlan, next: WorkoutPlanStatus) => {
+    // Counts feed the tab badges — computed off the full list, not the
+    // filtered one, so switching tabs doesn't change any other tab's number.
+    const countByType = useMemo(() => {
+        const counts = new Map<MealType, number>();
+        for (const plan of plans) counts.set(plan.mealType, (counts.get(plan.mealType) ?? 0) + 1);
+        return counts;
+    }, [plans]);
+
+    const visible = useMemo(
+        () => (activeTab === 'all' ? ordered : ordered.filter((plan) => plan.mealType === activeTab)),
+        [ordered, activeTab],
+    );
+
+    const changeStatus = async (plan: MealPlan, next: MealPlanStatus) => {
         if (next === plan.status) return;
 
         // Going live is the point at which a plan actually lands on the
@@ -113,13 +133,13 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
         // complete first, then free of schedule clashes. A draft is
         // allowed to be half-finished right up until this moment.
         if (next === 'live') {
-            const incomplete = describeIncompletePlan(plan);
+            const incomplete = describeIncompleteMealPlan(plan);
             if (incomplete) {
                 dialog.show({ title: 'Plan isn’t ready yet', message: incomplete });
                 return;
             }
 
-            const conflict = findScheduleConflict(
+            const conflict = findMealScheduleConflict(
                 plans,
                 { days: plan.days, time: plan.time },
                 { excludePlanId: plan.id },
@@ -127,7 +147,7 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
             if (conflict) {
                 dialog.show({
                     title: 'That time is already taken',
-                    message: describeConflict(conflict),
+                    message: describeMealConflict(conflict),
                 });
                 return;
             }
@@ -135,12 +155,12 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
 
         setUpdatingId(plan.id);
         try {
-            await updateWorkoutPlan(plan.id, { status: next });
+            await updateMealPlan(plan.id, { status: next });
         } catch (error) {
             dialog.show({
                 title: 'Could not update plan',
                 message:
-                    error instanceof WorkoutPlanServiceError
+                    error instanceof MealPlanServiceError
                         ? error.message
                         : 'Something went wrong. Please try again.',
             });
@@ -149,15 +169,15 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
         }
     };
 
-    const deletePlan = async (plan: WorkoutPlan) => {
+    const deletePlan = async (plan: MealPlan) => {
         setUpdatingId(plan.id);
         try {
-            await deleteWorkoutPlan(plan.id);
+            await deleteMealPlan(plan.id);
         } catch (error) {
             dialog.show({
                 title: 'Could not delete plan',
                 message:
-                    error instanceof WorkoutPlanServiceError
+                    error instanceof MealPlanServiceError
                         ? error.message
                         : 'Something went wrong. Please try again.',
             });
@@ -169,7 +189,7 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
     // Deleting is permanent — a live plan disappears from the calendar
     // the moment this confirms, same as a draft leaving the library for
     // good — so it always asks first rather than being a single tap.
-    const confirmDelete = (plan: WorkoutPlan) => {
+    const confirmDelete = (plan: MealPlan) => {
         dialog.show({
             title: 'Delete this plan?',
             message: `"${plan.name || 'Untitled plan'}" will be removed for good. This can't be undone.`,
@@ -181,9 +201,8 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
     };
 
     // A plan has to be able to move between states from here, or a draft
-    // could never become live and the Save as Draft button would be a
-    // one-way trip.
-    const promptStatus = (plan: WorkoutPlan) => {
+    // could never become live.
+    const promptStatus = (plan: MealPlan) => {
         dialog.show({
             title: plan.name,
             message: `Currently ${STATUS_LABEL[plan.status].toLowerCase()}. Move it to:`,
@@ -201,17 +220,56 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
         <View style={styles.card}>
             <View style={styles.headerRow}>
                 <View style={styles.headerLeft}>
-                    <Layers size={16} color={colors.primary} strokeWidth={2.4} />
-                    <Text style={styles.headerTitle}>All Plans</Text>
+                    <Layers size={16} color={colors.secondary} strokeWidth={2.4} />
+                    <Text style={styles.headerTitle}>All Meal Plans</Text>
                 </View>
                 {/* Shown against the cap so the limit is visible before
                     the user hits it, rather than only as an alert. */}
                 <View style={styles.countPill}>
                     <Text style={styles.countText}>
-                        {isLoading ? '—' : `${plans.length}/${MAX_PLANS_PER_USER}`}
+                        {isLoading ? '—' : `${plans.length}/${MAX_MEAL_PLANS_PER_USER}`}
                     </Text>
                 </View>
             </View>
+
+            {isLoading ? null : (
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.tabRow}
+                >
+                    {TAB_KEYS.map((key) => {
+                        const isActive = activeTab === key;
+                        const count = key === 'all' ? plans.length : countByType.get(key) ?? 0;
+                        return (
+                            <TouchableOpacity
+                                key={key}
+                                activeOpacity={0.8}
+                                onPress={() => setActiveTab(key)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: isActive }}
+                                style={[styles.tab, isActive && styles.tabActive]}
+                            >
+                                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                                    {TAB_LABEL[key]}
+                                </Text>
+                                {count > 0 ? (
+                                    <View style={[styles.tabBadge, isActive && styles.tabBadgeActive]}>
+                                        <Text
+                                            style={[
+                                                styles.tabBadgeText,
+                                                isActive && styles.tabBadgeTextActive,
+                                            ]}
+                                        >
+                                            {count}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            )}
 
             {isLoading ? (
                 <View style={styles.list}>
@@ -228,14 +286,16 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                         </SkeletonGroup>
                     ))}
                 </View>
-            ) : ordered.length === 0 ? (
+            ) : visible.length === 0 ? (
                 <Text style={styles.emptyText}>
-                    No plans yet — tap "Add Workout Plan" to create your first one.
+                    {ordered.length === 0
+                        ? 'No meal plans yet — tap "Create Meal Plan" to add your first one.'
+                        : `No ${TAB_LABEL[activeTab].toLowerCase()} plans yet.`}
                 </Text>
             ) : (
                 <View style={styles.list}>
-                    {ordered.map((plan, index) => {
-                        const isLast = index === ordered.length - 1;
+                    {visible.map((plan, index) => {
+                        const isLast = index === visible.length - 1;
                         const statusColor = STATUS_COLOR[plan.status];
                         const isExpanded = expandedId === plan.id;
                         const isBusy = updatingId === plan.id;
@@ -260,7 +320,11 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                                         style={styles.rowMain}
                                     >
                                         <View style={styles.rowIcon}>
-                                            <Dumbbell size={15} color={colors.primary} strokeWidth={2.3} />
+                                            <UtensilsCrossed
+                                                size={15}
+                                                color={colors.secondary}
+                                                strokeWidth={2.3}
+                                            />
                                         </View>
 
                                         <View style={styles.rowText}>
@@ -268,11 +332,8 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                                                 {plan.name || 'Untitled plan'}
                                             </Text>
                                             <Text style={styles.rowMeta} numberOfLines={1}>
-                                                {describePlanSummary(plan)}
-                                                {estimateWorkoutMinutes(plan) > 0
-                                                    ? ` · ~${estimateWorkoutMinutes(plan)} min`
-                                                    : ''}{' '}
-                                                · {describeDays(plan)}
+                                                {MEAL_TYPE_LABEL[plan.mealType]} ·{' '}
+                                                {describeDays(plan)}
                                             </Text>
                                         </View>
 
@@ -304,7 +365,7 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                                         >
                                             <Pencil
                                                 size={14}
-                                                color={colors.primary}
+                                                color={colors.secondary}
                                                 strokeWidth={2.4}
                                             />
                                         </TouchableOpacity>
@@ -350,23 +411,21 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
                                             <Text style={styles.detailText}>
                                                 {plan.days.length > 0
                                                     ? plan.days.join(', ')
-                                                    : 'No training days set'}
+                                                    : 'No days set'}
                                             </Text>
                                         </View>
 
                                         <View style={styles.detailLine}>
                                             <Clock size={13} color={colors.textMuted} />
                                             <Text style={styles.detailText}>
-                                                {plan.time || 'No session time set'}
+                                                {plan.time || 'No meal time set'}
                                             </Text>
                                         </View>
 
                                         <View style={styles.detailLine}>
-                                            <Target size={13} color={colors.textMuted} />
+                                            <UtensilsCrossed size={13} color={colors.textMuted} />
                                             <Text style={styles.detailText} numberOfLines={2}>
-                                                {plan.muscles.length > 0
-                                                    ? plan.muscles.join(', ')
-                                                    : 'No muscle groups set'}
+                                                {describeItems(plan.items)}
                                             </Text>
                                         </View>
 
@@ -465,7 +524,7 @@ export const PlanLibrary: React.FC<PlanLibraryProps> = ({ onEditPlan }) => {
     );
 };
 
-export default PlanLibrary;
+export default MealPlanLibrary;
 
 const styles = themedStyles(() => ({
     card: {
@@ -473,7 +532,7 @@ const styles = themedStyles(() => ({
         borderRadius: 24,
         padding: 16,
         marginHorizontal: spacing.screenHorizontalPadding,
-        shadowColor: colors.primary,
+        shadowColor: colors.secondary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.07,
         shadowRadius: 18,
@@ -497,7 +556,7 @@ const styles = themedStyles(() => ({
         letterSpacing: -0.2,
     },
     countPill: {
-        backgroundColor: withOpacity(colors.primary, 0.14),
+        backgroundColor: withOpacity(colors.secondary, 0.14),
         paddingHorizontal: 9,
         paddingVertical: 3,
         borderRadius: 12,
@@ -505,12 +564,56 @@ const styles = themedStyles(() => ({
     countText: {
         fontSize: 10.5,
         fontWeight: '800',
-        color: colors.primary,
+        color: colors.secondary,
     },
     emptyText: {
         fontSize: 13,
         lineHeight: 19,
         color: colors.textSecondary,
+    },
+    tabRow: {
+        gap: 6,
+        paddingRight: 4,
+    },
+    tab: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 20,
+        backgroundColor: colors.surfaceContainer,
+    },
+    tabActive: {
+        backgroundColor: colors.secondary,
+    },
+    tabText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textSecondary,
+    },
+    tabTextActive: {
+        color: colors.white,
+    },
+    tabBadge: {
+        minWidth: 16,
+        height: 16,
+        paddingHorizontal: 4,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: withOpacity(colors.secondary, 0.16),
+    },
+    tabBadgeActive: {
+        backgroundColor: withOpacity(colors.white, 0.25),
+    },
+    tabBadgeText: {
+        fontSize: 9.5,
+        fontWeight: '800',
+        color: colors.secondary,
+    },
+    tabBadgeTextActive: {
+        color: colors.white,
     },
     list: {
         gap: 2,
@@ -535,7 +638,7 @@ const styles = themedStyles(() => ({
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: withOpacity(colors.primary, 0.12),
+        backgroundColor: withOpacity(colors.secondary, 0.12),
     },
     deleteButton: {
         width: 28,
@@ -570,7 +673,6 @@ const styles = themedStyles(() => ({
         flex: 1,
         fontSize: 11.5,
         color: colors.textSecondary,
-        textTransform: 'capitalize',
     },
     actionRow: {
         flexDirection: 'row',
@@ -586,7 +688,7 @@ const styles = themedStyles(() => ({
         borderRadius: 20,
     },
     actionPrimary: {
-        backgroundColor: colors.primary,
+        backgroundColor: colors.secondary,
     },
     actionPrimaryText: {
         fontSize: 11.5,
@@ -610,7 +712,7 @@ const styles = themedStyles(() => ({
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: withOpacity(colors.primary, 0.12),
+        backgroundColor: withOpacity(colors.secondary, 0.12),
     },
     rowText: {
         flex: 1,

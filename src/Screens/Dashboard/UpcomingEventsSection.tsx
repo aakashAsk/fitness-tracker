@@ -6,6 +6,8 @@
 // workout's or meal's log for the day, marking it completed.
 import React, { useEffect, useMemo, useState } from 'react';
 import { AppState, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { X } from 'lucide-react-native';
 import { colors, withOpacity } from '../../Theme/colors';
 import { themedStyles } from '../../Theme/ThemeContext';
 import { useDialog } from '../../Components/Dialog';
@@ -22,6 +24,66 @@ import { useMealPlans } from '../../Store/mealPlansSlice';
 import { useDashboardReady } from './DashboardLoadGate';
 
 const MAX_VISIBLE = 3;
+
+/**
+ * Dismissed rows, per calendar day. Module state, not component state:
+ * the Dashboard remounts every time the Home tab is left and returned to
+ * (see DashboardLoadGate's own note on this), and a dismissal that reset
+ * on every remount would not feel like a dismissal at all. Keyed by date
+ * so it forgets on its own once the day it applied to is over, rather
+ * than needing an explicit expiry.
+ *
+ * Backed by AsyncStorage, not just memory: memory alone survives a tab
+ * switch but not the app being force-closed and reopened, which reads
+ * exactly like a dismissal that "didn't work" even though nothing is
+ * actually broken. Only today's dismissals are worth persisting — an
+ * older day's are stale by definition — so one storage slot is enough;
+ * see hydrateDismissedEvents/persistDismissedEvents below.
+ */
+const dismissedByDate = new Map<string, Set<string>>();
+
+const DISMISSED_EVENTS_STORAGE_KEY = 'dismissedEvents_v1';
+
+/** Read once per cold start — after that, dismissedByDate itself is the
+ * source of truth and every later mount reads it straight from memory. */
+let hydrated = false;
+
+/** Loads today's dismissals from disk into dismissedByDate, if this is
+ * the first mount since the app started. Returns what's now known for
+ * `dateKey`, whether that came from disk or was already in memory. */
+async function hydrateDismissedEvents(dateKey: string): Promise<Set<string>> {
+    if (hydrated) return dismissedByDate.get(dateKey) ?? new Set();
+    hydrated = true;
+    try {
+        const raw = await AsyncStorage.getItem(DISMISSED_EVENTS_STORAGE_KEY);
+        if (!raw) return dismissedByDate.get(dateKey) ?? new Set();
+        const stored = JSON.parse(raw) as { date: string; keys: string[] };
+        if (stored.date !== dateKey) return dismissedByDate.get(dateKey) ?? new Set();
+        const keys = new Set(stored.keys);
+        dismissedByDate.set(dateKey, keys);
+        return keys;
+    } catch {
+        // A corrupt or unreadable cache is not worth failing over —
+        // today's events just show up undismissed, same as a fresh
+        // install would.
+        return dismissedByDate.get(dateKey) ?? new Set();
+    }
+}
+
+function persistDismissedEvents(dateKey: string, keys: Set<string>): void {
+    void AsyncStorage.setItem(
+        DISMISSED_EVENTS_STORAGE_KEY,
+        JSON.stringify({ date: dateKey, keys: Array.from(keys) }),
+    ).catch(() => undefined);
+}
+
+/** Clears every day's dismissals — call on sign-out, alongside
+ * resetDashboardGate/resetScreenGates, so the next account starts clean. */
+export function resetDismissedEvents(): void {
+    dismissedByDate.clear();
+    hydrated = false;
+    void AsyncStorage.removeItem(DISMISSED_EVENTS_STORAGE_KEY).catch(() => undefined);
+}
 
 interface EventRow {
     key: string;
@@ -67,6 +129,32 @@ export const UpcomingEventsSection: React.FC = () => {
     useDashboardReady('upcoming-events', hasOccurrencesForDay && hasLogsForDay);
 
     const [savingKey, setSavingKey] = useState<string | null>(null);
+
+    // Rows the user has cleared from this strip today. Seeded from the
+    // module-level map so a dismissal survives the Dashboard remounting
+    // (leaving and returning to the Home tab) — it does not touch the
+    // plan or log it came from, so the Workout/Nutrition tabs are
+    // unaffected, and it resets on its own the next calendar day.
+    const dateKey = toDateKey(today);
+    const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(
+        () => new Set(dismissedByDate.get(dateKey)),
+    );
+
+    // Only fires anything on the very first mount after a cold start —
+    // hydrateDismissedEvents is a no-op past that point. A fresh install
+    // or an already-hydrated session both resolve to the same (possibly
+    // empty) set instantly; this only matters the one time disk actually
+    // has to be read.
+    useEffect(() => {
+        let cancelled = false;
+        hydrateDismissedEvents(dateKey).then((keys) => {
+            if (!cancelled && keys.size > 0) setDismissedKeys(new Set(keys));
+        });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const activeKey = active ? `${active.kind}:${active.planId}` : null;
 
@@ -114,10 +202,26 @@ export const UpcomingEventsSection: React.FC = () => {
         return list.sort((a, b) => Number(b.key === activeKey) - Number(a.key === activeKey));
     }, [dayEvents, completedPlanIds, hasOccurrencesForDay, dayCards, hasLogsForDay, active, activeKey]);
 
-    if (rows.length === 0) return null;
+    // The running timer's row is never dismissible — clearing it would
+    // orphan an in-progress session with no way back to its End button.
+    const visibleRows = useMemo(
+        () => rows.filter((row) => row.key === activeKey || !dismissedKeys.has(row.key)),
+        [rows, activeKey, dismissedKeys],
+    );
 
-    const visible = rows.slice(0, MAX_VISIBLE);
-    const hiddenCount = rows.length - visible.length;
+    if (visibleRows.length === 0) return null;
+
+    const visible = visibleRows.slice(0, MAX_VISIBLE);
+    const hiddenCount = visibleRows.length - visible.length;
+
+    const dismiss = (key: string) => {
+        setDismissedKeys((prev) => {
+            const next = new Set(prev).add(key);
+            dismissedByDate.set(dateKey, next);
+            persistDismissedEvents(dateKey, next);
+            return next;
+        });
+    };
 
     const start = (row: EventRow) => {
         if (active) return;
@@ -231,6 +335,21 @@ export const UpcomingEventsSection: React.FC = () => {
                                 {isSaving ? 'Saving…' : isActive ? 'End' : 'Start'}
                             </Text>
                         </TouchableOpacity>
+
+                        {/* Not shown for the running timer's row — see
+                            visibleRows above for why. */}
+                        {!isActive ? (
+                            <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() => dismiss(row.key)}
+                                style={styles.dismissButton}
+                                hitSlop={8}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Remove ${row.title} from upcoming events`}
+                            >
+                                <X size={14} color={colors.textSecondary} strokeWidth={2.4} />
+                            </TouchableOpacity>
+                        ) : null}
                     </View>
                 );
             })}
@@ -302,6 +421,14 @@ const styles = themedStyles(() => ({
         paddingHorizontal: 14,
         paddingVertical: 7,
         borderRadius: 9999,
+    },
+    dismissButton: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surfaceContainer,
     },
     buttonStart: {
         backgroundColor: colors.primary,

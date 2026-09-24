@@ -15,10 +15,12 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import type { DayKey } from '../Screens/Workout/Types';
 import { getCurrentUserId } from './userService';
+import { parseTimeToMinutes } from './workoutPlanService';
 import type { MealItem, MealItemNutrition, NutritionTotals } from './nutritionTotals';
 
 export type { MealItem, MealItemNutrition, NutritionTotals } from './nutritionTotals';
@@ -133,6 +135,31 @@ export async function createMealPlan(plan: MealPlanInput): Promise<string> {
 }
 
 /**
+ * Saves several meal plans in one atomic write and returns their ids, in
+ * order. Mirrors createWorkoutPlans: for a set of plans created together
+ * (an AI week, say) a half-saved result is worse than none, since the
+ * user cannot tell what is missing. A batch commits every plan or none.
+ */
+export async function createMealPlans(plans: MealPlanInput[]): Promise<string[]> {
+  if (plans.length === 0) return [];
+  const userId = getCurrentUserId();
+  try {
+    const batch = writeBatch(db);
+    const ids = plans.map((plan) => {
+      const ref = doc(collection(db, MEAL_PLANS_COLLECTION));
+      batch.set(ref, { ...plan, userId, createdAt: serverTimestamp() });
+      return ref.id;
+    });
+    await batch.commit();
+    return ids;
+  } catch (err) {
+    throw new MealPlanServiceError(
+      err instanceof Error ? err.message : 'Failed to save the meal plans.',
+    );
+  }
+}
+
+/**
  * Live subscription to the current user's meal plans, newest first.
  * Call the returned function to unsubscribe.
  *
@@ -219,6 +246,67 @@ export function getMealPlansForDate(date: Date, plans: MealPlan[]): MealPlan[] {
     (plan) =>
       plan.userId === userId && plan.status === 'live' && plan.days.includes(weekday),
   );
+}
+
+/** Per-user cap on saved meal plans, drafts and paused ones included —
+ * mirrors MAX_PLANS_PER_USER on the workout side. */
+export const MAX_MEAL_PLANS_PER_USER = 10;
+
+export interface MealScheduleConflict {
+  /** The already-scheduled plan occupying that slot. */
+  plan: MealPlan;
+  /** The weekday they collide on. */
+  day: DayKey;
+}
+
+/**
+ * Finds an existing live meal plan that already occupies one of
+ * `candidate`'s weekday + time slots. Same exact-time-on-a-shared-weekday
+ * rule as the workout side's findScheduleConflict — a meal plan has no
+ * duration in the data model either.
+ */
+export function findMealScheduleConflict(
+  plans: MealPlan[],
+  candidate: { days: DayKey[]; time: string },
+  options: { excludePlanId?: string } = {},
+): MealScheduleConflict | null {
+  if (!candidate.time || candidate.days.length === 0) return null;
+
+  const candidateMinutes = parseTimeToMinutes(candidate.time);
+  const candidateDays = new Set(candidate.days);
+
+  for (const plan of plans) {
+    if (plan.id === options.excludePlanId) continue;
+    if (plan.status !== 'live') continue;
+    if (!plan.time) continue;
+    if (parseTimeToMinutes(plan.time) !== candidateMinutes) continue;
+
+    const clash = plan.days.find((day) => candidateDays.has(day));
+    if (clash) return { plan, day: clash };
+  }
+
+  return null;
+}
+
+/** Sentence for the conflict alert, naming what is already in the slot. */
+export function describeMealConflict(conflict: MealScheduleConflict): string {
+  return `"${conflict.plan.name}" is already scheduled on ${conflict.day} at ${conflict.plan.time}. Pick a different time so the two don't overlap.`;
+}
+
+/**
+ * Why this plan can't go live yet, or null when it can. Used when
+ * promoting an existing draft — its values were never run past the
+ * create sheet's own validation, so a draft is allowed to be incomplete
+ * right up until the moment someone tries to activate it.
+ */
+export function describeIncompleteMealPlan(plan: MealPlan): string | null {
+  if (!plan.name.trim()) return 'Give the plan a name first.';
+  if (plan.items.filter((item) => item.name.trim()).length === 0) {
+    return 'Add at least one food item first.';
+  }
+  if (plan.days.length === 0) return 'Choose at least one day first.';
+  if (!plan.time) return 'Set a meal time first.';
+  return null;
 }
 
 /** "80 g • 2 scoops" — the item summary shown on a meal card. */
