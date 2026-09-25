@@ -132,15 +132,25 @@ function formatMemberSince(date: Date | null): string {
   })}`;
 }
 
-export const ProfileScreen: React.FC = () => {
+export interface ProfileScreenProps {
+  /** Settings is opened from the shared AppTopBar's gear icon now, not a
+      header inside this screen — see App.tsx, which owns this state the
+      same way it owns the Workout tab's subScreen. */
+  showSettings: boolean;
+  onShowSettingsChange: (show: boolean) => void;
+}
+
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({
+  showSettings,
+  onShowSettingsChange,
+}) => {
   const dialog = useDialog();
-  const [showSettings, setShowSettings] = useState(false);
   // A hardware back press while Settings is open should close Settings,
   // not exit the app — see useHardwareBack.ts.
   const closeSettings = useCallback(() => {
-    setShowSettings(false);
+    onShowSettingsChange(false);
     return true;
-  }, []);
+  }, [onShowSettingsChange]);
   useHardwareBack(closeSettings, showSettings);
 
   // Read from the store, which App.tsx populated once at startup —
@@ -230,7 +240,7 @@ export const ProfileScreen: React.FC = () => {
   };
 
   if (showSettings) {
-    return <SettingsScreen onBack={() => setShowSettings(false)} />;
+    return <SettingsScreen />;
   }
 
   const email = auth.currentUser?.email ?? 'Signed in';
@@ -247,19 +257,6 @@ export const ProfileScreen: React.FC = () => {
         />
       }
     >
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Profile & Account</Text>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => setShowSettings(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          style={styles.headerButton}
-        >
-          <SettingsIcon size={19} color={colors.textPrimary} strokeWidth={2.2} />
-        </TouchableOpacity>
-      </View>
-
       {/* Identity — the email is the only thing we have for a name until
           a display-name field exists. */}
       <View style={styles.identity}>
@@ -319,7 +316,7 @@ export const ProfileScreen: React.FC = () => {
         <View style={styles.menuCard}>
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => setShowSettings(true)}
+            onPress={() => onShowSettingsChange(true)}
             style={styles.menuRow}
           >
             <View style={[styles.menuIcon, { backgroundColor: withOpacity(colors.primary, 0.12) }]}>
@@ -593,28 +590,6 @@ const styles = themedStyles(() => ({
     paddingTop: spacing.xs,
     paddingBottom: 24,
     gap: spacing.lg,
-  },
-
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    color: colors.textPrimary,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
 
   identity: { alignItems: 'center', gap: 4 },

@@ -6,10 +6,9 @@
 // plainly that they are not saved. When a settings service lands,
 // replace the local state below with it and narrow the banner further.
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import {
   Bell,
-  ChevronLeft,
   ChevronRight,
   Download,
   Dumbbell,
@@ -28,6 +27,7 @@ import { selectUserProfile, userThemeModeUpdated } from '../../Store/userProfile
 import { saveUserThemeMode } from '../../Services/userProfileService';
 import type { ThemeMode } from '../../Theme/colors';
 import { useFeatureFlag } from '../../FeatureFlags';
+import { PrimaryButton, Stepper } from '../Onboarding/OnboardingUI';
 
 /** A row that shows a value and goes nowhere yet. */
 interface ValueRow {
@@ -54,7 +54,17 @@ interface ThemeRow {
   detail: string;
 }
 
-type Row = ValueRow | ToggleRow | ThemeRow;
+/** The one ValueRow that actually opens something — a popup to change
+ * the rest duration, in seconds. Its own kind rather than a generic
+ * "onPress" on ValueRow, since it is the only row with a real value to
+ * edit right now. */
+interface RestDurationRow {
+  kind: 'restDuration';
+  label: string;
+  detail: string;
+}
+
+type Row = ValueRow | ToggleRow | ThemeRow | RestDurationRow;
 
 const SECTIONS: {
   title: string;
@@ -64,14 +74,14 @@ const SECTIONS: {
   notificationSection?: boolean;
 }[] = [
   {
-    title: 'Workout & coaching',
+    title: 'Workout',
     icon: Dumbbell,
     rows: [
       {
         kind: 'toggle',
-        key: 'voiceCoach',
-        label: 'Voice & audio coach',
-        detail: 'Real-time rep tempo and form cues',
+        key: 'autoStartWorkout',
+        label: 'Auto-start workout',
+        detail: "Starts today's session timer the moment it's due",
       },
       {
         kind: 'toggle',
@@ -80,10 +90,9 @@ const SECTIONS: {
         detail: 'Starts the countdown after a logged set',
       },
       {
-        kind: 'value',
+        kind: 'restDuration',
         label: 'Default rest duration',
         detail: 'Standard compound lifts',
-        value: '90 sec',
       },
       {
         kind: 'toggle',
@@ -178,7 +187,7 @@ const SECTIONS: {
 ];
 
 const DEFAULT_TOGGLES: Record<string, boolean> = {
-  voiceCoach: true,
+  autoStartWorkout: false,
   autoRest: true,
   haptics: true,
   workoutReminders: true,
@@ -187,15 +196,28 @@ const DEFAULT_TOGGLES: Record<string, boolean> = {
   biometricLock: false,
 };
 
-export interface SettingsScreenProps {
-  onBack: () => void;
-}
+const REST_DURATION_MIN_SEC = 15;
+const REST_DURATION_MAX_SEC = 300;
+const REST_DURATION_STEP_SEC = 15;
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
+export const SettingsScreen: React.FC = () => {
   const [toggles, setToggles] = useState<Record<string, boolean>>(DEFAULT_TOGGLES);
 
   const flip = (key: string) =>
     setToggles(current => ({ ...current, [key]: !current[key] }));
+
+  // Same "flips locally for feel" contract as the toggles above — see
+  // the file header. Held in whole seconds so the stepper's +/- always
+  // lands on a clean number rather than drifting with rounding.
+  const [restDurationSec, setRestDurationSec] = useState(90);
+  const [showRestDurationPicker, setShowRestDurationPicker] = useState(false);
+  const adjustRestDuration = (direction: 1 | -1) =>
+    setRestDurationSec(current =>
+      Math.min(
+        REST_DURATION_MAX_SEC,
+        Math.max(REST_DURATION_MIN_SEC, current + direction * REST_DURATION_STEP_SEC),
+      ),
+    );
 
   const pushDisabled = useFeatureFlag('disabledPushNotification');
   const visibleSections = SECTIONS.filter(
@@ -235,21 +257,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
   };
 
   return (
+    <>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Back to profile"
-          style={styles.backButton}
-        >
-          <ChevronLeft size={19} color={colors.textPrimary} strokeWidth={2.4} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.backButtonSpacer} />
-      </View>
-
+      {/* No header here — the shared AppTopBar shows the back button and
+          "Settings" title while this screen is open (see App.tsx's
+          openSettings), so this screen does not duplicate it. */}
       <View style={styles.notice}>
         <Info size={15} color={colors.info} strokeWidth={2.4} />
         <Text style={styles.noticeText}>
@@ -268,55 +280,74 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
             </View>
 
             <View style={styles.card}>
-              {section.rows.map((row, index) => (
-                <View key={row.label}>
-                  {index > 0 ? <View style={styles.divider} /> : null}
+              {section.rows.map((row, index) => {
+                const isRestDuration = row.kind === 'restDuration';
+                return (
+                  <View key={row.label}>
+                    {index > 0 ? <View style={styles.divider} /> : null}
 
-                  <View style={styles.row}>
-                    <View style={styles.rowBody}>
-                      <Text style={styles.rowLabel}>{row.label}</Text>
-                      {row.detail ? <Text style={styles.rowDetail}>{row.detail}</Text> : null}
-                    </View>
+                    <TouchableOpacity
+                      style={styles.row}
+                      activeOpacity={isRestDuration ? 0.7 : 1}
+                      disabled={!isRestDuration}
+                      onPress={isRestDuration ? () => setShowRestDurationPicker(true) : undefined}
+                      accessibilityRole={isRestDuration ? 'button' : undefined}
+                      accessibilityLabel={
+                        isRestDuration ? `${row.label}, ${restDurationSec} seconds` : undefined
+                      }
+                    >
+                      <View style={styles.rowBody}>
+                        <Text style={styles.rowLabel}>{row.label}</Text>
+                        {row.detail ? <Text style={styles.rowDetail}>{row.detail}</Text> : null}
+                      </View>
 
-                    {row.kind === 'theme' ? (
-                      <Switch
-                        on={isDark}
-                        onPress={() => applyTheme(isDark ? 'light' : 'dark')}
-                        label={row.label}
-                      />
-                    ) : row.kind === 'toggle' ? (
-                      <Switch on={toggles[row.key]} onPress={() => flip(row.key)} label={row.label} />
-                    ) : (
-                      <View style={styles.rowTrailing}>
-                        {row.value ? (
-                          <View
-                            style={[
-                              styles.valuePill,
-                              row.highlight && {
-                                backgroundColor: withOpacity(colors.primary, 0.12),
-                              },
-                            ]}
-                          >
-                            <Text
+                      {row.kind === 'theme' ? (
+                        <Switch
+                          on={isDark}
+                          onPress={() => applyTheme(isDark ? 'light' : 'dark')}
+                          label={row.label}
+                        />
+                      ) : row.kind === 'toggle' ? (
+                        <Switch on={toggles[row.key]} onPress={() => flip(row.key)} label={row.label} />
+                      ) : row.kind === 'restDuration' ? (
+                        <View style={styles.rowTrailing}>
+                          <View style={styles.valuePill}>
+                            <Text style={styles.valueText}>{restDurationSec} sec</Text>
+                          </View>
+                          <ChevronRight size={16} color={colors.textMuted} strokeWidth={2.4} />
+                        </View>
+                      ) : (
+                        <View style={styles.rowTrailing}>
+                          {row.value ? (
+                            <View
                               style={[
-                                styles.valueText,
-                                row.highlight && { color: colors.primary },
+                                styles.valuePill,
+                                row.highlight && {
+                                  backgroundColor: withOpacity(colors.primary, 0.12),
+                                },
                               ]}
                             >
-                              {row.value}
-                            </Text>
-                          </View>
-                        ) : null}
-                        {row.value === 'Export' ? (
-                          <Download size={16} color={colors.textMuted} strokeWidth={2.4} />
-                        ) : (
-                          <ChevronRight size={16} color={colors.textMuted} strokeWidth={2.4} />
-                        )}
-                      </View>
-                    )}
+                              <Text
+                                style={[
+                                  styles.valueText,
+                                  row.highlight && { color: colors.primary },
+                                ]}
+                              >
+                                {row.value}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {row.value === 'Export' ? (
+                            <Download size={16} color={colors.textMuted} strokeWidth={2.4} />
+                          ) : (
+                            <ChevronRight size={16} color={colors.textMuted} strokeWidth={2.4} />
+                          )}
+                        </View>
+                      )}
+                    </TouchableOpacity>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         );
@@ -324,6 +355,42 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
       <Text style={styles.version}>PulseFit • Preferences coming soon</Text>
     </ScrollView>
+
+    <Modal
+      transparent
+      visible={showRestDurationPicker}
+      animationType="fade"
+      onRequestClose={() => setShowRestDurationPicker(false)}
+    >
+      <Pressable
+        style={pickerStyles.overlay}
+        onPress={() => setShowRestDurationPicker(false)}
+      >
+        {/* Swallows the tap so it doesn't fall through to the overlay's
+            own onPress and close the popup the moment it opens. */}
+        <Pressable style={pickerStyles.card} onPress={() => undefined}>
+          <Text style={pickerStyles.title}>Default rest duration</Text>
+          <Text style={pickerStyles.subtitle}>
+            How long the rest timer counts down for, unless a set overrides it.
+          </Text>
+
+          <View style={pickerStyles.stepperWrap}>
+            <Stepper
+              value={String(restDurationSec)}
+              unit="sec"
+              accessibilityLabel="default rest duration"
+              onDecrement={() => adjustRestDuration(-1)}
+              onIncrement={() => adjustRestDuration(1)}
+              decrementDisabled={restDurationSec <= REST_DURATION_MIN_SEC}
+              incrementDisabled={restDurationSec >= REST_DURATION_MAX_SEC}
+            />
+          </View>
+
+          <PrimaryButton label="Done" onPress={() => setShowRestDurationPicker(false)} />
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 };
 
@@ -350,6 +417,42 @@ const Switch: React.FC<{ on: boolean; onPress: () => void; label: string }> = ({
 
 export default SettingsScreen;
 
+const pickerStyles = themedStyles(() => ({
+  overlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    backgroundColor: 'rgba(17, 24, 39, 0.5)',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 320,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    gap: spacing.md,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 28,
+    elevation: 14,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  subtitle: {
+    marginTop: -8,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+  stepperWrap: { marginVertical: 4 },
+}));
+
 const styles = themedStyles(() => ({
   content: {
     paddingHorizontal: spacing.lg,
@@ -358,25 +461,6 @@ const styles = themedStyles(() => ({
     gap: spacing.lg,
   },
 
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    color: colors.textPrimary,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  // Keeps the title optically centred against the back button.
-  backButtonSpacer: { width: 40 },
 
   notice: {
     flexDirection: 'row',

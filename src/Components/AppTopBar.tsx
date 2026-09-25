@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { Bell, ChevronLeft, Flame } from 'lucide-react-native';
+import { Bell, ChevronLeft, Flame, Settings as SettingsIcon } from 'lucide-react-native';
 import { colors } from '../Theme/colors';
 import { themedStyles } from '../Theme/ThemeContext';
 import UserAvatar from './UserAvatar';
@@ -19,7 +19,14 @@ const SECTION_LABEL: Record<NavTab, string> = {
 
 export interface AppTopBarProps {
     activeTab: NavTab;
+    /** Switches to the Profile tab. Shown on every tab except Profile
+        itself — while already there, this same slot becomes the
+        Settings gear instead (see onSettingsPress). */
     onProfilePress: () => void;
+    /** Opens Settings directly. Only shown while on the Profile tab —
+        your own avatar has nothing to navigate to from there, so the
+        slot is put to better use. */
+    onSettingsPress: () => void;
     onNotificationsPress?: () => void;
     /**
      * Set by a tab's own sub-screen (e.g. the Workout tab's Exercise
@@ -29,19 +36,28 @@ export interface AppTopBarProps {
      * see WorkoutSession's onSubScreenChange.
      */
     subScreen?: { title: string; onBack: () => void } | null;
+    /**
+     * Replaces "PulseFit" itself (and hides the subtitle under it) — no
+     * back button, unlike subScreen. For a screen like Settings that
+     * sits "inside" a tab (still reachable by tapping that tab again)
+     * rather than pushed on top of it.
+     */
+    titleOverride?: string;
 }
 
 /**
- * The brand mark + section label + notifications/avatar row, rendered
+ * The brand mark + section label + notifications/settings row, rendered
  * once above every tab (see App.tsx) instead of each screen building
  * its own — previously only the Dashboard had one, so switching to any
- * other tab lost the avatar/notifications entry point entirely.
+ * other tab lost the notifications/settings entry point entirely.
  */
 export const AppTopBar: React.FC<AppTopBarProps> = ({
     activeTab,
     onProfilePress,
+    onSettingsPress,
     onNotificationsPress,
     subScreen,
+    titleOverride,
 }) => (
     <View style={styles.topBar}>
         <View style={styles.brandRow}>
@@ -61,8 +77,10 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
                 </View>
             )}
             <View>
-                <Text style={styles.brandTitle}>{subScreen ? subScreen.title : 'PulseFit'}</Text>
-                {subScreen ? null : (
+                <Text style={styles.brandTitle}>
+                    {subScreen ? subScreen.title : (titleOverride ?? 'PulseFit')}
+                </Text>
+                {subScreen || titleOverride ? null : (
                     <Text style={styles.brandSubtitle}>{SECTION_LABEL[activeTab]}</Text>
                 )}
             </View>
@@ -77,14 +95,30 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
             >
                 <Bell size={20} color={colors.textSecondary} strokeWidth={2.2} />
             </TouchableOpacity>
-            <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={onProfilePress}
-                accessibilityRole="button"
-                accessibilityLabel="Open your profile"
-            >
-                <UserAvatar size={32} />
-            </TouchableOpacity>
+            {/* Already inside Settings (titleOverride is set only for
+                that): the gear that got here has nothing left to do, so
+                the slot is simply empty rather than showing a button
+                that re-triggers the screen it is already on. */}
+            {titleOverride ? null : activeTab === 'profile' ? (
+                <TouchableOpacity
+                    style={styles.iconButton}
+                    activeOpacity={0.7}
+                    onPress={onSettingsPress}
+                    accessibilityRole="button"
+                    accessibilityLabel="Settings"
+                >
+                    <SettingsIcon size={20} color={colors.textSecondary} strokeWidth={2.2} />
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={onProfilePress}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open your profile"
+                >
+                    <UserAvatar size={32} />
+                </TouchableOpacity>
+            )}
         </View>
     </View>
 );

@@ -1,11 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
-import { Plus, UtensilsCrossed } from 'lucide-react-native';
-import { colors } from '../../Theme/colors';
+import { Pressable, ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import Animated, {
+    FadeInDown,
+    FadeOutDown,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from 'react-native-reanimated';
+import { Plus, ShoppingCart, UtensilsCrossed } from 'lucide-react-native';
+import { colors, withOpacity } from '../../Theme/colors';
 import { spacing } from '../../Theme/spacing';
 import WorkoutDateStrip from '../Workout/WorkoutDateStrip';
 import { useDialog } from '../../Components/Dialog';
 import NewMealPlanModal, { type MealPlanPayload } from './NewMealPlanModal';
+import GroceryListModal from './GroceryListModal';
+import {
+    createGroceryList,
+    GroceryListServiceError,
+    type GroceryListInput,
+} from '../../Services/groceryListService';
 import { estimateItemNutrition } from '../../Services/nutritionAiService';
 import {
     createMealPlan,
@@ -16,6 +29,7 @@ import {
     type MealPlan,
 } from '../../Services/mealPlanService';
 import MealPlanLibrary from './MealPlanLibrary';
+import GroceryListLibrary from './GroceryListLibrary';
 import WorkoutPlanEngineCard from '../Workout/WorkoutPlanEngineCard';
 import { useAiDraftMealPlans } from '../../Hooks/useAiDraftMealPlans';
 import { FeatureGate } from '../../FeatureFlags';
@@ -228,6 +242,54 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
 
     const [showMealModal, setShowMealModal] = useState(false);
     const [isSavingMeal, setIsSavingMeal] = useState(false);
+    const [showGroceryModal, setShowGroceryModal] = useState(false);
+    const [isSavingGroceryList, setIsSavingGroceryList] = useState(false);
+
+    // The FAB's speed-dial: two small actions slide up above it instead
+    // of a popup. Rotation is the "+" turning into an "x" while open —
+    // the same affordance most speed-dial FABs use to say "tap again to
+    // close" without extra copy.
+    const [fabMenuOpen, setFabMenuOpen] = useState(false);
+    const fabRotation = useSharedValue(0);
+    useEffect(() => {
+        fabRotation.value = withTiming(fabMenuOpen ? 1 : 0, { duration: 180 });
+    }, [fabMenuOpen, fabRotation]);
+    const fabIconStyle = useAnimatedStyle(() => ({
+        transform: [{ rotate: `${fabRotation.value * 45}deg` }],
+    }));
+
+    const openCreateMealPlan = () => {
+        setFabMenuOpen(false);
+        setShowMealModal(true);
+    };
+    const openGroceriesList = () => {
+        setFabMenuOpen(false);
+        setShowGroceryModal(true);
+    };
+
+    const handleCreateGroceryList = async (payload: GroceryListInput) => {
+        setIsSavingGroceryList(true);
+        try {
+            await createGroceryList(payload);
+            setShowGroceryModal(false);
+            dialog.show({
+                title: 'Grocery list saved',
+                message: `"${payload.name}" has ${payload.items.length} ${
+                    payload.items.length === 1 ? 'item' : 'items'
+                }.`,
+            });
+        } catch (error) {
+            dialog.show({
+                title: 'Could not save grocery list',
+                message:
+                    error instanceof GroceryListServiceError
+                        ? error.message
+                        : 'Something went wrong. Please try again.',
+            });
+        } finally {
+            setIsSavingGroceryList(false);
+        }
+    };
 
     // Plans whose nutrition is still being estimated, so the card can
     // say so rather than showing nothing where the macros will appear.
@@ -512,26 +574,94 @@ export const NutritionScreen: React.FC<NutritionScreenProps> = ({
                         />
                     </View>
 
+                    <GroceryListLibrary />
+
                     <MealPlanLibrary onEditPlan={setEditingPlan} />
 
                     <View style={styles.fabSpacer} />
                 </ScreenLoadGate>
             </ScrollView>
 
-            <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setShowMealModal(true)}
-                style={styles.fab}
-            >
-                <UtensilsCrossed size={17} color={colors.white} strokeWidth={2.2} />
-                <Text style={styles.fabText}>Create Meal Plan</Text>
-            </TouchableOpacity>
+            {/* A transparent tap-anywhere-else-to-close layer — only
+                present while the speed-dial is open, and behind it in
+                the stack so its own buttons still take the tap first. */}
+            {fabMenuOpen ? (
+                <Pressable
+                    style={styles.fabBackdrop}
+                    onPress={() => setFabMenuOpen(false)}
+                    accessibilityLabel="Close menu"
+                />
+            ) : null}
+
+            <View style={styles.fabColumn} pointerEvents="box-none">
+                {fabMenuOpen ? (
+                    <>
+                        <Animated.View
+                            entering={FadeInDown.duration(160)}
+                            exiting={FadeOutDown.duration(120)}
+                            style={styles.fabMenuItem}
+                        >
+                            <View style={styles.fabMenuLabel}>
+                                <Text style={styles.fabMenuLabelText}>Create Meal Plan</Text>
+                            </View>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={openCreateMealPlan}
+                                accessibilityRole="button"
+                                accessibilityLabel="Create meal plan"
+                                style={styles.fabMenuButton}
+                            >
+                                <UtensilsCrossed size={18} color={colors.white} strokeWidth={2.4} />
+                            </TouchableOpacity>
+                        </Animated.View>
+
+                        <Animated.View
+                            entering={FadeInDown.duration(160).delay(40)}
+                            exiting={FadeOutDown.duration(120)}
+                            style={styles.fabMenuItem}
+                        >
+                            <View style={styles.fabMenuLabel}>
+                                <Text style={styles.fabMenuLabelText}>Add Groceries List</Text>
+                            </View>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={openGroceriesList}
+                                accessibilityRole="button"
+                                accessibilityLabel="Add groceries list"
+                                style={styles.fabMenuButton}
+                            >
+                                <ShoppingCart size={18} color={colors.white} strokeWidth={2.4} />
+                            </TouchableOpacity>
+                        </Animated.View>
+                    </>
+                ) : null}
+
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setFabMenuOpen((open) => !open)}
+                    accessibilityRole="button"
+                    accessibilityLabel={fabMenuOpen ? 'Close menu' : 'Add to nutrition'}
+                    style={styles.fab}
+                >
+                    <Animated.View style={fabIconStyle}>
+                        <Plus size={22} color={colors.white} strokeWidth={2.6} />
+                    </Animated.View>
+                </TouchableOpacity>
+            </View>
 
             {showMealModal ? (
                 <NewMealPlanModal
                     onClose={() => setShowMealModal(false)}
                     onCreate={handleCreateMealPlan}
                     saving={isSavingMeal}
+                />
+            ) : null}
+
+            {showGroceryModal ? (
+                <GroceryListModal
+                    onClose={() => setShowGroceryModal(false)}
+                    onCreate={handleCreateGroceryList}
+                    saving={isSavingGroceryList}
                 />
             ) : null}
 
@@ -592,27 +722,75 @@ const styles = themedStyles(() => ({
     fabSpacer: {
         height: 56,
     },
-    fab: {
+    fabBackdrop: {
         position: 'absolute',
+        top: 0,
+        left: 0,
         right: 0,
+        bottom: 0,
+        backgroundColor: withOpacity(colors.black, 0.1),
+    },
+    // The column that positions everything — the main button and, while
+    // open, the two mini-actions stacked above it. Column order in JSX
+    // (menu items first, main button last) is what makes them appear
+    // above it rather than below.
+    fabColumn: {
+        position: 'absolute',
+        right: spacing.screenHorizontalPadding,
         bottom: 8,
+        alignItems: 'flex-end',
+        gap: 14,
+    },
+    fabMenuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
+    },
+    fabMenuLabel: {
+        backgroundColor: colors.surface,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 10,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+    fabMenuLabelText: {
+        fontSize: 12.5,
+        fontWeight: '700',
+        color: colors.textPrimary,
+    },
+    // Same size, shape and color as the main "+/×" button — the two
+    // menu items read as instances of the same control, not smaller
+    // secondary buttons, since they're doing the same job (each is a
+    // one-tap create action) as the FAB itself.
+    fabMenuButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: colors.secondary,
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        borderRadius: 26,
         shadowColor: colors.secondary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.35,
         shadowRadius: 16,
         elevation: 6,
     },
-    fabText: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: colors.white,
+    fab: {
+        width: 56,
+        height: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.secondary,
+        borderRadius: 28,
+        shadowColor: colors.secondary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+        elevation: 6,
     },
 }));
 

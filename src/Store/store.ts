@@ -1,12 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
 import workoutPlansReducer from './workoutPlansSlice';
 import mealPlansReducer from './mealPlansSlice';
+import groceryListsReducer from './groceryListsSlice';
 import userProfileReducer from './userProfileSlice';
 
 export const store = configureStore({
   reducer: {
     workoutPlans: workoutPlansReducer,
     mealPlans: mealPlansReducer,
+    groceryLists: groceryListsReducer,
     userProfile: userProfileReducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -18,6 +20,8 @@ export const store = configureStore({
         ignoredPaths: [
           'workoutPlans.plans',
           'mealPlans.plans',
+          // GroceryList.createdAt is a real Date for the same reason.
+          'groceryLists.lists',
           // UserProfile.createdAt / updatedAt are Dates for the same
           // reason.
           'userProfile.profile',

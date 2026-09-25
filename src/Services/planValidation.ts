@@ -7,7 +7,7 @@ import { describeMissingTarget, isRestCategory, isTargetCategory } from './planC
 import { parseTimeToMinutes, type WorkoutPlan } from './workoutPlanService';
 
 /** Per-user cap on saved plans, drafts and paused ones included. */
-export const MAX_PLANS_PER_USER = 10;
+export const MAX_PLANS_PER_USER = 20;
 
 /** The minimum a plan needs before it can go live. Mirrors the create
  * sheet's own validation, so promoting a draft can't sneak past it. */

@@ -249,8 +249,9 @@ export function getMealPlansForDate(date: Date, plans: MealPlan[]): MealPlan[] {
 }
 
 /** Per-user cap on saved meal plans, drafts and paused ones included —
- * mirrors MAX_PLANS_PER_USER on the workout side. */
-export const MAX_MEAL_PLANS_PER_USER = 10;
+ * a sanity ceiling against runaway growth (an AI generation gone wrong,
+ * say), not a real limit real usage should ever bump into. */
+export const MAX_MEAL_PLANS_PER_USER = 100;
 
 export interface MealScheduleConflict {
   /** The already-scheduled plan occupying that slot. */

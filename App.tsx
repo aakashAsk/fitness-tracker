@@ -50,6 +50,7 @@ import { NutritionScreen } from './src/Screens/Nutrition/NutritionScreen';
 import { store } from './src/Store/store';
 import { useWorkoutPlansSync } from './src/Store/workoutPlansSlice';
 import { useMealPlansSync } from './src/Store/mealPlansSlice';
+import { useGroceryListsSync } from './src/Store/groceryListsSlice';
 import { auth } from './src/Firebase/firebaseConfig';
 import { cacheClear } from './src/Services/dataCache';
 import { resetTelemetryThrottle } from './src/Services/telemetryService';
@@ -158,6 +159,7 @@ function AppContent() {
   // on it, and the security rules reject them without it.
   useWorkoutPlansSync(firebaseUser?.uid);
   useMealPlansSync(firebaseUser?.uid);
+  useGroceryListsSync(firebaseUser?.uid);
 
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
@@ -167,9 +169,24 @@ function AppContent() {
   // every tab switch — a stale back button pointing at a screen that is
   // no longer mounted would do nothing useful.
   const [subScreen, setSubScreen] = useState<{ title: string; onBack: () => void } | null>(null);
+  // Settings used to be a header inside the Profile tab; it now opens
+  // from the shared AppTopBar's gear icon regardless of which tab is
+  // active, so this lives here rather than as local state in
+  // ProfileScreen — the same reason subScreen above does.
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const setActiveTabAndClearSubScreen = (tab: NavTab) => {
     setSubScreen(null);
+    setShowProfileSettings(false);
     setActiveTab(tab);
+  };
+  const openSettings = () => {
+    // Settings is presented by the Profile tab (see ProfileScreen), so
+    // opening it from anywhere else has to switch to that tab first —
+    // via the tab setter directly, not setActiveTabAndClearSubScreen,
+    // which would immediately clear the very flag being set here.
+    setSubScreen(null);
+    setActiveTab('profile');
+    setShowProfileSettings(true);
   };
 
   // The one place installing the actual hardware-back listener — see
@@ -269,7 +286,10 @@ function AppContent() {
       case 'profile':
         return (
           <View style={styles.tabContent}>
-            <ProfileScreen />
+            <ProfileScreen
+              showSettings={showProfileSettings}
+              onShowSettingsChange={setShowProfileSettings}
+            />
           </View>
         );
 
@@ -336,7 +356,9 @@ function AppContent() {
       <AppTopBar
         activeTab={activeTab}
         onProfilePress={() => setActiveTabAndClearSubScreen('profile')}
+        onSettingsPress={openSettings}
         subScreen={subScreen}
+        titleOverride={showProfileSettings ? 'Settings' : undefined}
       />
       <View style={styles.content}>{renderScreen()}</View>
 

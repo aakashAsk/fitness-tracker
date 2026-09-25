@@ -162,5 +162,14 @@ service cloud.firestore {
       allow update: if ownsExisting() && keepsOwnership();
       allow delete: if ownsExisting();
     }
+
+    // Grocery lists — same shape and same rule as mealPlans: a plain
+    // per-user document with no recurring schedule to validate.
+    match /groceryLists/{listId} {
+      allow read:   if ownsExisting();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if ownsExisting() && keepsOwnership();
+      allow delete: if ownsExisting();
+    }
   }
 }
